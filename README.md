@@ -15,7 +15,7 @@ DynatraceMetricExporter exporter =
 If the exporter is running together with the OneAgent, it can be initialized with:
 
 ```java
-DynatraceMetricExporter exporter = DynatraceMetricExporter.getDeault();
+DynatraceMetricExporter exporter = DynatraceMetricExporter.getDefault();
 ```
 
 Then, register the exporter using the `IntervalMetricReader` of OpenTelemetry:

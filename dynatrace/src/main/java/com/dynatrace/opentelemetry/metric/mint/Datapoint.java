@@ -36,11 +36,11 @@ public abstract class Datapoint implements MintLineProtocolSerializable {
     List<Dimension> dimensions = dimensions();
     if (!dimensions.isEmpty()) {
       stringBuilder.append(",");
-      for (int i = 0; i < dimensions.size(); i++) {
-        if (i > 0) {
-          stringBuilder.append(",");
-        }
-        stringBuilder.append(dimensions.get(i).serialize());
+      for (Dimension dimension : dimensions) {
+        stringBuilder.append(dimension.serialize()).append(',');
+      }
+      if (!dimensions.isEmpty()) {
+        stringBuilder.setLength(stringBuilder.length() - 1);
       }
     }
     stringBuilder.append(" ").append(value().serialize());

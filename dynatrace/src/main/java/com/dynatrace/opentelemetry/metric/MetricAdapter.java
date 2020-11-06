@@ -64,10 +64,10 @@ public final class MetricAdapter {
 
     Collection<MetricData.Point> points = metric.getPoints();
 
-    if (points.isEmpty()) { // necessary due to sometimes an empty MetricData is ingested by OT
+    if (points.isEmpty()) { // necessary because sometimes an empty MetricData is ingested by OT
       return datapoints;
     }
-    MetricData.Type type = metric.getType();
+    final MetricData.Type type = metric.getType();
     try {
       String metricKeyName = toMintMetricKey(metric.getName());
 
@@ -171,7 +171,9 @@ public final class MetricAdapter {
         builder.append(".");
       }
 
-      if (DOESNT_START_WITH_LETTER.matcher(String.valueOf(metricKeySection.charAt(0))).matches()) {
+      if (DOESNT_START_WITH_LETTER
+          .matcher(String.valueOf(metricKeySection.charAt(0)))
+          .lookingAt()) {
         throw new DynatraceExporterException(
             "Metric key section "
                 + trimForLogOutput(metricKeySection)
@@ -182,7 +184,7 @@ public final class MetricAdapter {
       char[] chars = metricKeySection.toCharArray();
 
       for (int i = 1; i < chars.length; i++) {
-        if (METRICKEY_NOT_ALLOWED.matcher(String.valueOf(chars[i])).matches()) {
+        if (METRICKEY_NOT_ALLOWED.matcher(String.valueOf(chars[i])).lookingAt()) {
           chars[i] = '_';
         }
       }

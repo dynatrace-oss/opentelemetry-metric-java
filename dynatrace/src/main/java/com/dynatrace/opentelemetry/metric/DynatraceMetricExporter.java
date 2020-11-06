@@ -13,7 +13,6 @@
  */
 package com.dynatrace.opentelemetry.metric;
 
-import com.dynatrace.opentelemetry.metric.mint.MintMetricsMessage;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
@@ -21,6 +20,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -59,17 +59,8 @@ public final class DynatraceMetricExporter implements MetricExporter {
    */
   @Override
   public CompletableResultCode export(Collection<MetricData> metrics) {
-    MintMetricsMessage metric = MetricAdapter.toMint(metrics);
-    return ingestMetricMessage(metric.serialize());
-  }
-
-  /**
-   * Ingests Metrics via Line Protocol.
-   *
-   * @param mintMetricsMessage are the already transformed Metrics in a Line Protocol format.
-   * @return ResultCode.FAILURE if ingesting was not sucessful, ResultCode.SUCCESS otherwise.
-   */
-  public CompletableResultCode ingestMetricMessage(String mintMetricsMessage) {
+    String mintMetricsMessage = MetricAdapter.toMint(metrics).serialize();
+    System.out.println(mintMetricsMessage);
     logger.log(Level.FINEST, "Exporting: {0}", mintMetricsMessage);
     try {
       HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -79,9 +70,8 @@ public final class DynatraceMetricExporter implements MetricExporter {
       connection.setRequestProperty("Content-Type", "text/plain; charset=utf-8");
       connection.setDoOutput(true);
       try (final OutputStream outputStream = connection.getOutputStream()) {
-        outputStream.write(mintMetricsMessage.getBytes());
+        outputStream.write(mintMetricsMessage.getBytes(Charset.forName("UTF-8")));
       }
-      connection.connect();
       int code = connection.getResponseCode();
       if (code != 202) {
         logger.log(Level.WARNING, "Received error code {0} from server", code);
@@ -96,7 +86,6 @@ public final class DynatraceMetricExporter implements MetricExporter {
 
   @Override
   public CompletableResultCode flush() {
-    logger.info("No buffer yet. No-op implementation of flush");
     return CompletableResultCode.ofSuccess();
   }
 
