@@ -11,7 +11,6 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.dynatrace.opentelemetry.metric;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -43,6 +42,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
     return new Builder();
   }
 
+  /** Returns a default export pointing to a local metric endpoint. */
   public static DynatraceMetricExporter getDefault() {
     Builder builder = new Builder();
     try {
@@ -72,8 +72,8 @@ public final class DynatraceMetricExporter implements MetricExporter {
   }
 
   @VisibleForTesting
-  protected CompletableResultCode export(Collection<MetricData> metrics,
-                                         HttpURLConnection connection) {
+  protected CompletableResultCode export(
+      Collection<MetricData> metrics, HttpURLConnection connection) {
     String mintMetricsMessage = MetricAdapter.toMint(metrics).serialize();
     System.out.println(mintMetricsMessage);
     logger.log(Level.FINEST, "Exporting: {0}", mintMetricsMessage);
