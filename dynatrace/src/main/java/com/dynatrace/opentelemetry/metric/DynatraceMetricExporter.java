@@ -41,7 +41,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
     return new Builder();
   }
 
-  public static DynatraceMetricExporter getDeault() {
+  public static DynatraceMetricExporter getDefault() {
     Builder builder = new Builder();
     try {
       builder.setUrl(new URL("http://127.0.0.1:14499/metrics/ingest")).build();
