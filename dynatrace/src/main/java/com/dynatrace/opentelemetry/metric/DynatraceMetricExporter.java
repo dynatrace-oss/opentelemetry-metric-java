@@ -11,8 +11,10 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.dynatrace.opentelemetry.metric;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
@@ -59,11 +61,23 @@ public final class DynatraceMetricExporter implements MetricExporter {
    */
   @Override
   public CompletableResultCode export(Collection<MetricData> metrics) {
+    HttpURLConnection connection = null;
+    try {
+      connection = (HttpURLConnection) url.openConnection();
+    } catch (Exception e) {
+      logger.log(Level.WARNING, "Error while exporting", e);
+      return CompletableResultCode.ofFailure();
+    }
+    return export(metrics, connection);
+  }
+
+  @VisibleForTesting
+  protected CompletableResultCode export(Collection<MetricData> metrics,
+                                         HttpURLConnection connection) {
     String mintMetricsMessage = MetricAdapter.toMint(metrics).serialize();
     System.out.println(mintMetricsMessage);
     logger.log(Level.FINEST, "Exporting: {0}", mintMetricsMessage);
     try {
-      HttpURLConnection connection = (HttpURLConnection) url.openConnection();
       connection.setRequestMethod("POST");
       connection.setRequestProperty("Accept", "*/*; q=0");
       connection.setRequestProperty("Authorization", "Api-Token " + apiToken);
