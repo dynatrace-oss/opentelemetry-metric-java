@@ -1,18 +1,34 @@
-# opentelemetry-metrics-<language>
+# opentelemetry-metric-java
 
-Please add this preamble to all your code files:
+## Usage
+
+First, create a `DynatraceMetricExporter`:
+
+```java
+DynatraceMetricExporter exporter =
+    DynatraceMetricExporter.builder()
+      .setApiToken({API_TOKEN})
+      .setUrl({INGEST_URL})
+      .build();
 ```
-Copyright 2020 Dynatrace LLC
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+If the exporter is running together with the OneAgent, it can be initialized with:
 
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+```java
+DynatraceMetricExporter exporter = DynatraceMetricExporter.getDefault();
 ```
+
+Then, register the exporter using the `IntervalMetricReader` of OpenTelemetry:
+```java
+IntervalMetricReader intervalMetricReader =
+    IntervalMetricReader.builder()
+        .setMetricProducers(
+            Collections.singleton(
+                OpenTelemetrySdk.getGlobalMeterProvider().getMetricProducer()))
+        .setExportIntervalMillis(5000)
+        .setMetricExporter(exporter)
+        .build();
+```
+
+For how to register metrics, refer to the
+[OpenTelemetry Java Quick Start guide](https://github.com/open-telemetry/opentelemetry-java/blob/master/QUICKSTART.md#metrics).
