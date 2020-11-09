@@ -24,3 +24,8 @@ jobs:
       run: chmod +x gradlew
     - name: Build with Gradle
       run: ./gradlew build
+    - name: Unit tests results
+      uses: actions/upload-artifact@v2
+      with:
+        name: unit-tests-results
+        path: dynatrace/build/reports/tests/test/ 
