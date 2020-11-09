@@ -38,6 +38,7 @@ dependencies {
     compileOnly("com.google.auto.value:auto-value-annotations:${autovalueVersion}")
     testImplementation(platform('org.junit:junit-bom:5.7.0'))
     testImplementation('org.junit.jupiter:junit-jupiter')
+    testImplementation('org.mockito:mockito-all:1.10.19')
 }
 
 test {
