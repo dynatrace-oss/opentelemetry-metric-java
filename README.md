@@ -63,11 +63,11 @@ A full setup is provided in our [example project](example/).
 
 ### Configuration
 
-The exporter allows for configuring the following settings by passing them to the constructor:
+The exporter allows for configuring the following settings using its builder:
 
 #### Dynatrace API Endpoint
 
-The endpoint to which the metrics are sent is specified using the `url` parameter.
+The endpoint to which the metrics are sent is specified using `setUrl`.
 
 Given an environment ID `myenv123` on Dynatrace SaaS, the [metrics ingest endpoint](https://www.dynatrace.com/support/help/dynatrace-api/environment-api/metric-v2/post-ingest-metrics/) would be `https://myenv123.live.dynatrace.com/api/v2/metrics/ingest`.
 
@@ -78,17 +78,9 @@ The default metric API endpoint exposed by the OneAgent is `http://localhost:144
 
 #### Dynatrace API Token
 
-The Dynatrace API token to be used by the exporter is specified using the `APIToken` parameter and could, for example, be read from an environment variable.
+The Dynatrace API token to be used by the exporter is specified using `setApiToken` and could, for example, be read from an environment variable.
 
 Creating an API token for your Dynatrace environment is described in the [Dynatrace API documentation](https://www.dynatrace.com/support/help/dynatrace-api/basics/dynatrace-api-authentication/).
 The scope required for sending metrics is the `Ingest metrics` scope in the **API v2** section:
 
 ![API token creation](docs/img/api_token.png)
-
-#### Metric Key Prefix
-
-The `prefix` parameter specifies an optional prefix, which is prepended to each metric key, separated by a dot (`<prefix>.<namespace>.<name>`).
-
-#### Default Labels/Dimensions
-
-The `tags` parameter can be used to optionally specify a list of key/value pairs, which will be added as additional labels/dimensions to all data points.
