@@ -135,7 +135,7 @@ public final class MetricAdapter {
         return Datapoint.create(metricKeyName)
             .timestamp(point.getEpochNanos())
             .dimensions(dimensions)
-            .value(Values.doubleCount(doublePoint.getValue(), /* isDelta= */ true))
+            .value(Values.doubleCount(doublePoint.getValue(), /* isDelta= */ false))
             .build();
 
       case MONOTONIC_LONG:
@@ -144,7 +144,7 @@ public final class MetricAdapter {
         return Datapoint.create(metricKeyName)
             .timestamp(point.getEpochNanos())
             .dimensions(dimensions)
-            .value(Values.longCount(longPoint.getValue(), /* isDelta= */ true))
+            .value(Values.longCount(longPoint.getValue(), /* isDelta= */ false))
             .build();
 
       case SUMMARY:
