@@ -50,7 +50,7 @@ public class DynatraceExporterExample {
 
     // Gets or creates a named meter instance
     Meter meter =
-        OpenTelemetry.getGlobalMeter("com.dynatrace.opentelemetry.metric.example", "0.1.0-beta");
+        OpenTelemetry.getGlobalMeter(DynatraceExporterExample.class.getName(), "0.1.0-beta");
 
     // Create a counter
     LongCounter counter =
