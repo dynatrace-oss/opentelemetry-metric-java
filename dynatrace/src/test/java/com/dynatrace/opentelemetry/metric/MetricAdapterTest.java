@@ -36,7 +36,7 @@ public class MetricAdapterTest {
         Datapoint.create("keyname_01")
             .timestamp(4000000)
             .addDimension("dim01", "value01")
-            .value(Values.longCount(5, true))
+            .value(Values.longCount(5, false))
             .build()
             .serialize(),
         MetricAdapter.generateDatapoint(
@@ -47,7 +47,7 @@ public class MetricAdapterTest {
             .serialize());
 
     assertEquals(
-        "keyname_01,dim01=value01 count,delta=5 4",
+        "keyname_01,dim01=value01 count,5 4",
         MetricAdapter.generateDatapoint(
                 "keyname_01",
                 Collections.singletonList(Dimension.create("dim01", "value01")),
@@ -59,7 +59,7 @@ public class MetricAdapterTest {
         Datapoint.create("keyname_01")
             .timestamp(4000000)
             .addDimension("dim01", "value01")
-            .value(Values.doubleCount(5.0, true))
+            .value(Values.doubleCount(5.0, false))
             .build()
             .serialize(),
         MetricAdapter.generateDatapoint(
@@ -70,7 +70,7 @@ public class MetricAdapterTest {
             .serialize());
 
     assertEquals(
-        "keyname_02,dim02=value02 count,delta=194.0 4",
+        "keyname_02,dim02=value02 count,194.0 4",
         MetricAdapter.generateDatapoint(
                 "keyname_02",
                 Collections.singletonList(Dimension.create("dim02", "value02")),

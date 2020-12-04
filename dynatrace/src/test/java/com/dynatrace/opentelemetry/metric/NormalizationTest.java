@@ -60,7 +60,7 @@ public class NormalizationTest {
     String expected =
         Datapoint.create("byte_received")
             .timestamp(0)
-            .value(Values.longCount(46, true))
+            .value(Values.longCount(46, false))
             .build()
             .serialize();
     String received = msg.datapoints().get(0).serialize();
