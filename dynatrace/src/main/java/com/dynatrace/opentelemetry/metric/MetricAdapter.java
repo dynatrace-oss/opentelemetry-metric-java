@@ -129,8 +129,8 @@ public final class MetricAdapter {
       MetricData.Type type)
       throws DynatraceExporterException {
     switch (type) {
-      case MONOTONIC_DOUBLE:
-      case NON_MONOTONIC_DOUBLE:
+      case DOUBLE_GAUGE:
+      case DOUBLE_SUM:
         MetricData.DoublePoint doublePoint = (MetricData.DoublePoint) point;
         return Datapoint.create(metricKeyName)
             .timestamp(point.getEpochNanos())
@@ -138,8 +138,8 @@ public final class MetricAdapter {
             .value(Values.doubleCount(doublePoint.getValue(), /* isDelta= */ false))
             .build();
 
-      case MONOTONIC_LONG:
-      case NON_MONOTONIC_LONG:
+      case LONG_GAUGE:
+      case LONG_SUM:
         MetricData.LongPoint longPoint = (MetricData.LongPoint) point;
         return Datapoint.create(metricKeyName)
             .timestamp(point.getEpochNanos())
@@ -148,7 +148,7 @@ public final class MetricAdapter {
             .build();
 
       case SUMMARY:
-        MetricData.SummaryPoint summaryPoint = (MetricData.SummaryPoint) point;
+        MetricData.DoubleSummaryPoint summaryPoint = (MetricData.DoubleSummaryPoint) point;
         return generateSummaryPoint(metricKeyName, summaryPoint, dimensions);
     }
     throw new DynatraceExporterException("Descriptor.Type " + type + " not supported");
@@ -344,7 +344,9 @@ public final class MetricAdapter {
    * @return new created Datapoint.
    */
   static Datapoint generateSummaryPoint(
-      String metricKeyName, MetricData.SummaryPoint summaryPoint, List<Dimension> dimensions) {
+      String metricKeyName,
+      MetricData.DoubleSummaryPoint summaryPoint,
+      List<Dimension> dimensions) {
     double min = 0.0;
     double max = 0.0;
     double sum = summaryPoint.getSum();

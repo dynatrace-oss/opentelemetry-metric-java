@@ -43,7 +43,7 @@ public class MetricAdapterTest {
                 "keyname_01",
                 Collections.singletonList(Dimension.create("dim01", "value01")),
                 MetricData.LongPoint.create(123, 4560000, Labels.empty(), 5),
-                MetricData.Type.MONOTONIC_LONG)
+                MetricData.Type.LONG_SUM)
             .serialize());
 
     assertEquals(
@@ -52,7 +52,7 @@ public class MetricAdapterTest {
                 "keyname_01",
                 Collections.singletonList(Dimension.create("dim01", "value01")),
                 MetricData.LongPoint.create(123, 4560000, Labels.empty(), 5),
-                MetricData.Type.MONOTONIC_LONG)
+                MetricData.Type.LONG_SUM)
             .serialize());
 
     assertEquals(
@@ -66,7 +66,7 @@ public class MetricAdapterTest {
                 "keyname_01",
                 Collections.singletonList(Dimension.create("dim01", "value01")),
                 MetricData.DoublePoint.create(123, 4560000, Labels.empty(), 5.0),
-                MetricData.Type.MONOTONIC_DOUBLE)
+                MetricData.Type.DOUBLE_SUM)
             .serialize());
 
     assertEquals(
@@ -75,7 +75,7 @@ public class MetricAdapterTest {
                 "keyname_02",
                 Collections.singletonList(Dimension.create("dim02", "value02")),
                 MetricData.DoublePoint.create(123, 4560000, Labels.empty(), 194.0),
-                MetricData.Type.MONOTONIC_DOUBLE)
+                MetricData.Type.DOUBLE_SUM)
             .serialize());
   }
 
@@ -84,27 +84,27 @@ public class MetricAdapterTest {
     assertEquals(
         1,
         MetricAdapter.toDatapoints(
-                MetricData.create(
+                MetricData.createDoubleGauge(
                     Resource.create(Attributes.empty()),
                     InstrumentationLibraryInfo.create("testlib01", "0.5.0"),
                     "test",
                     "des",
                     "ms",
-                    MetricData.Type.NON_MONOTONIC_DOUBLE,
-                    Collections.singletonList(
-                        MetricData.DoublePoint.create(123, 456, Labels.of("lab01", "lab02"), 42))))
+                    MetricData.DoubleGaugeData.create(
+                        Collections.singletonList(
+                            MetricData.DoublePoint.create(
+                                123, 456, Labels.of("lab01", "lab02"), 42)))))
             .size());
 
     Assertions.assertTrue(
         MetricAdapter.toDatapoints(
-                MetricData.create(
+                MetricData.createDoubleSummary(
                     Resource.create(Attributes.empty()),
                     InstrumentationLibraryInfo.create("testlib", "1.1"),
                     "test",
                     "test",
                     "ms",
-                    MetricData.Type.SUMMARY,
-                    Collections.emptyList()))
+                    MetricData.DoubleSummaryData.create(Collections.emptyList())))
             .isEmpty());
   }
 
@@ -127,7 +127,7 @@ public class MetricAdapterTest {
             .serialize(),
         MetricAdapter.generateSummaryPoint(
                 "metric_01",
-                MetricData.SummaryPoint.create(123, 4560000, Labels.empty(), 42, 12934, list),
+                MetricData.DoubleSummaryPoint.create(123, 4560000, Labels.empty(), 42, 12934, list),
                 Collections.singletonList(Dimension.create("key01", "value01")))
             .serialize());
 
@@ -135,7 +135,8 @@ public class MetricAdapterTest {
         "metric_01,key01=value01 gauge,min=1.56,max=345.23,sum=12934.0,count=42 456",
         MetricAdapter.generateSummaryPoint(
                 "metric_01",
-                MetricData.SummaryPoint.create(123, 456000000, Labels.empty(), 42, 12934, list),
+                MetricData.DoubleSummaryPoint.create(
+                    123, 456000000, Labels.empty(), 42, 12934, list),
                 Collections.singletonList(Dimension.create("key01", "value01")))
             .serialize());
   }

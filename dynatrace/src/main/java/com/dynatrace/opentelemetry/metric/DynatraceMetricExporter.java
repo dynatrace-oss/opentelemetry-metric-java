@@ -104,7 +104,9 @@ public final class DynatraceMetricExporter implements MetricExporter {
   }
 
   @Override
-  public void shutdown() {}
+  public CompletableResultCode shutdown() {
+    return CompletableResultCode.ofSuccess();
+  }
 
   public static class Builder {
     private URL url;

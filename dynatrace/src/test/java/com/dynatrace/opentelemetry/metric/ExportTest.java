@@ -32,14 +32,17 @@ import org.junit.jupiter.api.Test;
 public class ExportTest {
 
   public static MetricData generateMetricData() {
-    return MetricData.create(
+    return MetricData.createDoubleSum(
         Resource.create(Attributes.builder().build()),
         InstrumentationLibraryInfo.getEmpty(),
         "name",
         "desc",
         "",
-        MetricData.Type.MONOTONIC_DOUBLE,
-        Collections.singleton(MetricData.DoublePoint.create(123, 4560000, Labels.empty(), 194.0)));
+        MetricData.DoubleSumData.create(
+            true,
+            MetricData.AggregationTemporality.CUMULATIVE,
+            Collections.singleton(
+                MetricData.DoublePoint.create(123, 4560000, Labels.empty(), 194.0))));
   }
 
   @Test
