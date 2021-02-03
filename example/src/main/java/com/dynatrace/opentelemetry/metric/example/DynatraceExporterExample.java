@@ -16,14 +16,20 @@ package com.dynatrace.opentelemetry.metric.example;
 import com.dynatrace.opentelemetry.metric.DynatraceMetricExporter;
 import io.opentelemetry.api.common.Labels;
 import io.opentelemetry.api.metrics.BoundLongCounter;
+import io.opentelemetry.api.metrics.DoubleValueRecorder;
 import io.opentelemetry.api.metrics.GlobalMetricsProvider;
 import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.LongSumObserver;
+import io.opentelemetry.api.metrics.LongUpDownCounter;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.export.IntervalMetricReader;
 import java.util.Collections;
 
 public class DynatraceExporterExample {
+
+  private static long iterations = 0;
+
   public static void main(String[] args) throws Exception {
     DynatraceMetricExporter exporter;
     if (args.length == 2) {
@@ -55,20 +61,39 @@ public class DynatraceExporterExample {
     // Create a counter
     LongCounter counter =
         meter
-            .longCounterBuilder("example_counter")
+            .longCounterBuilder("example.long_counter")
             .setDescription("Just some counter used as an example")
             .setUnit("1")
             .build();
 
     // Use a bound counter with a pre-defined label set
-    BoundLongCounter someWorkCounter = counter.bind(Labels.of("some_dimension", "dimension1"));
+    BoundLongCounter boundCounter = counter.bind(Labels.of("some_dimension", "dimension1"));
+
+    LongUpDownCounter longUpDownCounter =
+        meter.longUpDownCounterBuilder("example.long_updown_counter").build();
+
+    LongSumObserver longSumObserver =
+        meter
+            .longSumObserverBuilder("example.long_sum_observer")
+            .setUpdater((res -> res.observe(iterations, Labels.empty())))
+            .build();
+
+    DoubleValueRecorder doubleValueRecorder =
+        meter.doubleValueRecorderBuilder("example.double_value_recorder").build();
 
     while (true) {
+      iterations++;
+      System.out.println("Iteration: " + iterations);
+
       // Record data with bound labels
-      someWorkCounter.add(1);
+      boundCounter.add(1);
 
       // Or record data on unbound counter and explicitly specify the label set at call-time
       counter.add(2, Labels.of("some_dimension", "dimension2"));
+
+      longUpDownCounter.add(iterations % 2L == 0L ? 3L : -1L);
+
+      doubleValueRecorder.record(iterations);
 
       Thread.sleep(1000);
     }
