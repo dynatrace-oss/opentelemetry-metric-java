@@ -18,7 +18,13 @@ import com.dynatrace.opentelemetry.metric.mint.Dimension;
 import com.dynatrace.opentelemetry.metric.mint.MintMetricsMessage;
 import com.google.common.base.Splitter;
 import io.opentelemetry.api.common.Labels;
+import io.opentelemetry.sdk.metrics.data.DoublePointData;
+import io.opentelemetry.sdk.metrics.data.DoubleSummaryPointData;
+import io.opentelemetry.sdk.metrics.data.LongPointData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.opentelemetry.sdk.metrics.data.MetricDataType;
+import io.opentelemetry.sdk.metrics.data.PointData;
+import io.opentelemetry.sdk.metrics.data.ValueAtPercentile;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -62,16 +68,34 @@ public final class MetricAdapter {
   static Collection<Datapoint> toDatapoints(MetricData metric) {
     Collection<Datapoint> datapoints = new ArrayList<>();
 
-    Collection<MetricData.Point> points = metric.getPoints();
+    Collection<PointData> points = new ArrayList<>();
+
+    switch (metric.getType()) {
+      case LONG_GAUGE:
+        points.addAll(metric.getLongGaugeData().getPoints());
+        break;
+      case DOUBLE_GAUGE:
+        points.addAll(metric.getDoubleGaugeData().getPoints());
+        break;
+      case LONG_SUM:
+        points.addAll(metric.getLongSumData().getPoints());
+        break;
+      case DOUBLE_SUM:
+        points.addAll(metric.getDoubleSumData().getPoints());
+        break;
+      case SUMMARY:
+        points.addAll(metric.getDoubleSummaryData().getPoints());
+        break;
+    }
 
     if (points.isEmpty()) { // necessary because sometimes an empty MetricData is ingested by OT
       return datapoints;
     }
-    final MetricData.Type type = metric.getType();
+    final MetricDataType type = metric.getType();
     try {
       String metricKeyName = toMintMetricKey(metric.getName());
 
-      for (MetricData.Point point : points) {
+      for (PointData point : points) {
 
         List<Dimension> pointDimensions = new ArrayList<>();
         if (point.getLabels().size() != 0) { // some labels/dimensions from point are available
@@ -123,15 +147,12 @@ public final class MetricAdapter {
    * @throws DynatraceExporterException if the OT Descriptor Type is not supported.
    */
   static Datapoint generateDatapoint(
-      String metricKeyName,
-      List<Dimension> dimensions,
-      MetricData.Point point,
-      MetricData.Type type)
+      String metricKeyName, List<Dimension> dimensions, PointData point, MetricDataType type)
       throws DynatraceExporterException {
     switch (type) {
       case DOUBLE_GAUGE:
         {
-          MetricData.DoublePoint doublePoint = (MetricData.DoublePoint) point;
+          DoublePointData doublePoint = (DoublePointData) point;
           return Datapoint.create(metricKeyName)
               .timestamp(point.getEpochNanos())
               .dimensions(dimensions)
@@ -140,7 +161,7 @@ public final class MetricAdapter {
         }
       case DOUBLE_SUM:
         {
-          MetricData.DoublePoint doublePoint = (MetricData.DoublePoint) point;
+          DoublePointData doublePoint = (DoublePointData) point;
           return Datapoint.create(metricKeyName)
               .timestamp(point.getEpochNanos())
               .dimensions(dimensions)
@@ -149,7 +170,7 @@ public final class MetricAdapter {
         }
       case LONG_GAUGE:
         {
-          MetricData.LongPoint longPoint = (MetricData.LongPoint) point;
+          LongPointData longPoint = (LongPointData) point;
           return Datapoint.create(metricKeyName)
               .timestamp(point.getEpochNanos())
               .dimensions(dimensions)
@@ -159,7 +180,7 @@ public final class MetricAdapter {
 
       case LONG_SUM:
         {
-          MetricData.LongPoint longPoint = (MetricData.LongPoint) point;
+          LongPointData longPoint = (LongPointData) point;
           return Datapoint.create(metricKeyName)
               .timestamp(point.getEpochNanos())
               .dimensions(dimensions)
@@ -168,7 +189,7 @@ public final class MetricAdapter {
         }
       case SUMMARY:
         {
-          MetricData.DoubleSummaryPoint summaryPoint = (MetricData.DoubleSummaryPoint) point;
+          DoubleSummaryPointData summaryPoint = (DoubleSummaryPointData) point;
           return generateSummaryPoint(metricKeyName, summaryPoint, dimensions);
         }
     }
@@ -365,15 +386,13 @@ public final class MetricAdapter {
    * @return new created Datapoint.
    */
   static Datapoint generateSummaryPoint(
-      String metricKeyName,
-      MetricData.DoubleSummaryPoint summaryPoint,
-      List<Dimension> dimensions) {
+      String metricKeyName, DoubleSummaryPointData summaryPoint, List<Dimension> dimensions) {
     double min = 0.0;
     double max = 0.0;
     double sum = summaryPoint.getSum();
     long count = summaryPoint.getCount();
-    List<MetricData.ValueAtPercentile> valueAtPercentiles = summaryPoint.getPercentileValues();
-    for (MetricData.ValueAtPercentile valueAtPercentile : valueAtPercentiles) {
+    List<ValueAtPercentile> valueAtPercentiles = summaryPoint.getPercentileValues();
+    for (ValueAtPercentile valueAtPercentile : valueAtPercentiles) {
       if (valueAtPercentile.getPercentile()
           == 0.0) { // as the lowest possible percentile value is 0.0 and the highest possible is
         // 100.0, comparing the doubles directly should work

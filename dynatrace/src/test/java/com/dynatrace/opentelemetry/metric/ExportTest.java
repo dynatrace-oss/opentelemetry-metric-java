@@ -20,6 +20,9 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.Labels;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.common.InstrumentationLibraryInfo;
+import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
+import io.opentelemetry.sdk.metrics.data.DoublePointData;
+import io.opentelemetry.sdk.metrics.data.DoubleSumData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.resources.Resource;
 import java.io.ByteArrayOutputStream;
@@ -38,11 +41,10 @@ public class ExportTest {
         "name",
         "desc",
         "",
-        MetricData.DoubleSumData.create(
+        DoubleSumData.create(
             true,
-            MetricData.AggregationTemporality.CUMULATIVE,
-            Collections.singleton(
-                MetricData.DoublePoint.create(123, 4560000, Labels.empty(), 194.0))));
+            AggregationTemporality.CUMULATIVE,
+            Collections.singleton(DoublePointData.create(123, 4560000, Labels.empty(), 194.0))));
   }
 
   @Test

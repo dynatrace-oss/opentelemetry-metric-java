@@ -14,11 +14,12 @@
 package com.dynatrace.opentelemetry.metric.example;
 
 import com.dynatrace.opentelemetry.metric.DynatraceMetricExporter;
-import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Labels;
+import io.opentelemetry.api.metrics.BoundLongCounter;
+import io.opentelemetry.api.metrics.GlobalMetricsProvider;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
-import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.export.IntervalMetricReader;
 import java.util.Collections;
 
@@ -39,18 +40,17 @@ public class DynatraceExporterExample {
       exporter = DynatraceMetricExporter.getDefault();
     }
 
+    SdkMeterProvider provider = SdkMeterProvider.builder().buildAndRegisterGlobal();
     IntervalMetricReader intervalMetricReader =
         IntervalMetricReader.builder()
-            .setMetricProducers(
-                Collections.singleton(
-                    OpenTelemetrySdk.getGlobalMeterProvider().getMetricProducer()))
+            .setMetricProducers(Collections.singleton(provider))
             .setExportIntervalMillis(5000)
             .setMetricExporter(exporter)
             .build();
 
     // Gets or creates a named meter instance
     Meter meter =
-        OpenTelemetry.getGlobalMeter(DynatraceExporterExample.class.getName(), "0.1.0-beta");
+        GlobalMetricsProvider.getMeter(DynatraceExporterExample.class.getName(), "0.1.0-beta");
 
     // Create a counter
     LongCounter counter =
@@ -61,8 +61,7 @@ public class DynatraceExporterExample {
             .build();
 
     // Use a bound counter with a pre-defined label set
-    LongCounter.BoundLongCounter someWorkCounter =
-        counter.bind(Labels.of("some_dimension", "dimension1"));
+    BoundLongCounter someWorkCounter = counter.bind(Labels.of("some_dimension", "dimension1"));
 
     while (true) {
       // Record data with bound labels

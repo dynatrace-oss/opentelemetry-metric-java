@@ -20,7 +20,14 @@ import com.dynatrace.opentelemetry.metric.mint.Dimension;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.Labels;
 import io.opentelemetry.sdk.common.InstrumentationLibraryInfo;
+import io.opentelemetry.sdk.metrics.data.DoubleGaugeData;
+import io.opentelemetry.sdk.metrics.data.DoublePointData;
+import io.opentelemetry.sdk.metrics.data.DoubleSummaryData;
+import io.opentelemetry.sdk.metrics.data.DoubleSummaryPointData;
+import io.opentelemetry.sdk.metrics.data.LongPointData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.opentelemetry.sdk.metrics.data.MetricDataType;
+import io.opentelemetry.sdk.metrics.data.ValueAtPercentile;
 import io.opentelemetry.sdk.resources.Resource;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,8 +49,8 @@ public class MetricAdapterTest {
         MetricAdapter.generateDatapoint(
                 "keyname_01",
                 Collections.singletonList(Dimension.create("dim01", "value01")),
-                MetricData.LongPoint.create(123, 4560000, Labels.empty(), 5),
-                MetricData.Type.LONG_SUM)
+                LongPointData.create(123, 4560000, Labels.empty(), 5),
+                MetricDataType.LONG_SUM)
             .serialize());
 
     assertEquals(
@@ -51,8 +58,8 @@ public class MetricAdapterTest {
         MetricAdapter.generateDatapoint(
                 "keyname_01",
                 Collections.singletonList(Dimension.create("dim01", "value01")),
-                MetricData.LongPoint.create(123, 4560000, Labels.empty(), 5),
-                MetricData.Type.LONG_SUM)
+                LongPointData.create(123, 4560000, Labels.empty(), 5),
+                MetricDataType.LONG_SUM)
             .serialize());
 
     assertEquals(
@@ -65,8 +72,8 @@ public class MetricAdapterTest {
         MetricAdapter.generateDatapoint(
                 "keyname_01",
                 Collections.singletonList(Dimension.create("dim01", "value01")),
-                MetricData.DoublePoint.create(123, 4560000, Labels.empty(), 5.0),
-                MetricData.Type.DOUBLE_SUM)
+                DoublePointData.create(123, 4560000, Labels.empty(), 5.0),
+                MetricDataType.DOUBLE_SUM)
             .serialize());
 
     assertEquals(
@@ -74,8 +81,8 @@ public class MetricAdapterTest {
         MetricAdapter.generateDatapoint(
                 "keyname_02",
                 Collections.singletonList(Dimension.create("dim02", "value02")),
-                MetricData.DoublePoint.create(123, 4560000, Labels.empty(), 194.0),
-                MetricData.Type.DOUBLE_SUM)
+                DoublePointData.create(123, 4560000, Labels.empty(), 194.0),
+                MetricDataType.DOUBLE_SUM)
             .serialize());
   }
 
@@ -90,10 +97,9 @@ public class MetricAdapterTest {
                     "test",
                     "des",
                     "ms",
-                    MetricData.DoubleGaugeData.create(
+                    DoubleGaugeData.create(
                         Collections.singletonList(
-                            MetricData.DoublePoint.create(
-                                123, 456, Labels.of("lab01", "lab02"), 42)))))
+                            DoublePointData.create(123, 456, Labels.of("lab01", "lab02"), 42)))))
             .size());
 
     Assertions.assertTrue(
@@ -104,16 +110,16 @@ public class MetricAdapterTest {
                     "test",
                     "test",
                     "ms",
-                    MetricData.DoubleSummaryData.create(Collections.emptyList())))
+                    DoubleSummaryData.create(Collections.emptyList())))
             .isEmpty());
   }
 
   @Test
   public void generateSummarypointTest() {
 
-    List<MetricData.ValueAtPercentile> list = new ArrayList<>(2);
-    list.add(MetricData.ValueAtPercentile.create(0.0, 1.56));
-    list.add(MetricData.ValueAtPercentile.create(100.0, 345.23));
+    List<ValueAtPercentile> list = new ArrayList<>(2);
+    list.add(ValueAtPercentile.create(0.0, 1.56));
+    list.add(ValueAtPercentile.create(100.0, 345.23));
 
     SummaryStats.DoubleSummaryStat summaryStat =
         SummaryStats.doubleSummaryStat(1.56, 345.23, 12934, 42);
@@ -127,7 +133,7 @@ public class MetricAdapterTest {
             .serialize(),
         MetricAdapter.generateSummaryPoint(
                 "metric_01",
-                MetricData.DoubleSummaryPoint.create(123, 4560000, Labels.empty(), 42, 12934, list),
+                DoubleSummaryPointData.create(123, 4560000, Labels.empty(), 42, 12934, list),
                 Collections.singletonList(Dimension.create("key01", "value01")))
             .serialize());
 
@@ -135,8 +141,7 @@ public class MetricAdapterTest {
         "metric_01,key01=value01 gauge,min=1.56,max=345.23,sum=12934.0,count=42 456",
         MetricAdapter.generateSummaryPoint(
                 "metric_01",
-                MetricData.DoubleSummaryPoint.create(
-                    123, 456000000, Labels.empty(), 42, 12934, list),
+                DoubleSummaryPointData.create(123, 456000000, Labels.empty(), 42, 12934, list),
                 Collections.singletonList(Dimension.create("key01", "value01")))
             .serialize());
   }
