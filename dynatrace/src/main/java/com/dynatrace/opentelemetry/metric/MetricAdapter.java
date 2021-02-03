@@ -130,26 +130,47 @@ public final class MetricAdapter {
       throws DynatraceExporterException {
     switch (type) {
       case DOUBLE_GAUGE:
+        {
+          MetricData.DoublePoint doublePoint = (MetricData.DoublePoint) point;
+          return Datapoint.create(metricKeyName)
+              .timestamp(point.getEpochNanos())
+              .dimensions(dimensions)
+              .value(Values.doubleCount(doublePoint.getValue(), /* isDelta= */ true))
+              .build();
+        }
       case DOUBLE_SUM:
-        MetricData.DoublePoint doublePoint = (MetricData.DoublePoint) point;
-        return Datapoint.create(metricKeyName)
-            .timestamp(point.getEpochNanos())
-            .dimensions(dimensions)
-            .value(Values.doubleCount(doublePoint.getValue(), /* isDelta= */ false))
-            .build();
-
+        {
+          MetricData.DoublePoint doublePoint = (MetricData.DoublePoint) point;
+          return Datapoint.create(metricKeyName)
+              .timestamp(point.getEpochNanos())
+              .dimensions(dimensions)
+              .value(Values.doubleCount(doublePoint.getValue(), /* isDelta= */ false))
+              .build();
+        }
       case LONG_GAUGE:
-      case LONG_SUM:
-        MetricData.LongPoint longPoint = (MetricData.LongPoint) point;
-        return Datapoint.create(metricKeyName)
-            .timestamp(point.getEpochNanos())
-            .dimensions(dimensions)
-            .value(Values.longCount(longPoint.getValue(), /* isDelta= */ false))
-            .build();
+        {
+          MetricData.LongPoint longPoint = (MetricData.LongPoint) point;
+          return Datapoint.create(metricKeyName)
+              .timestamp(point.getEpochNanos())
+              .dimensions(dimensions)
+              .value(Values.longCount(longPoint.getValue(), /* isDelta= */ true))
+              .build();
+        }
 
+      case LONG_SUM:
+        {
+          MetricData.LongPoint longPoint = (MetricData.LongPoint) point;
+          return Datapoint.create(metricKeyName)
+              .timestamp(point.getEpochNanos())
+              .dimensions(dimensions)
+              .value(Values.longCount(longPoint.getValue(), /* isDelta= */ false))
+              .build();
+        }
       case SUMMARY:
-        MetricData.DoubleSummaryPoint summaryPoint = (MetricData.DoubleSummaryPoint) point;
-        return generateSummaryPoint(metricKeyName, summaryPoint, dimensions);
+        {
+          MetricData.DoubleSummaryPoint summaryPoint = (MetricData.DoubleSummaryPoint) point;
+          return generateSummaryPoint(metricKeyName, summaryPoint, dimensions);
+        }
     }
     throw new DynatraceExporterException("Descriptor.Type " + type + " not supported");
   }
