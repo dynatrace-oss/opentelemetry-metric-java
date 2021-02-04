@@ -51,21 +51,31 @@ public class NormalizationTest {
 
   @Test
   public void invalidLineProtocolLineTest() {
-    // TODO: Does this test still make sense after removing the domain="demo.dev" constant label?
     byteCounter.add(4, Labels.empty());
     byteCounter.add(2, Labels.of("..", "."));
     byteCounter.add(42, Labels.empty());
     Collection<MetricData> metricData = provider.collectAllMetrics();
     MintMetricsMessage msg = MetricAdapter.toMint(metricData);
-    assertEquals(1, msg.datapoints().size());
+    assertEquals(2, msg.datapoints().size());
     assertEquals(0, msg.datapoints().get(0).dimensions().size());
+    assertEquals(0, msg.datapoints().get(1).dimensions().size());
     String expected =
+        Datapoint.create("byte_received")
+            .timestamp(0)
+            .value(Values.longCount(2, false))
+            .build()
+            .serialize();
+    String received = msg.datapoints().get(0).serialize();
+    assertEquals(
+        expected.substring(0, expected.lastIndexOf(" ")),
+        received.substring(0, received.lastIndexOf(" ")));
+    expected =
         Datapoint.create("byte_received")
             .timestamp(0)
             .value(Values.longCount(46, false))
             .build()
             .serialize();
-    String received = msg.datapoints().get(0).serialize();
+    received = msg.datapoints().get(1).serialize();
     assertEquals(
         expected.substring(0, expected.lastIndexOf(" ")),
         received.substring(0, received.lastIndexOf(" ")));
@@ -106,7 +116,7 @@ public class NormalizationTest {
   @Test
   public void dimensionTest() throws DynatraceExporterException {
     assertEquals(
-        Dimension.create("test_____", "\"test?$%&!\""),
+        Dimension.create("test_____", "test?$%&!"),
         MetricAdapter.toMintDimension("test?$%&!", "test?$%&!"));
   }
 
@@ -121,12 +131,12 @@ public class NormalizationTest {
 
   @Test
   public void dimensionValueTest() throws DynatraceExporterException {
-    assertEquals("\"test..e12\"", MetricAdapter.toMintDimensionValue("test..e12"));
-    assertEquals("\"\\\"test..e12\\\"\"", MetricAdapter.toMintDimensionValue("\"test..e12\""));
-    assertEquals("\"\\\"\\\"\\\"\\\"\"", MetricAdapter.toMintDimensionValue("\"\"\"\""));
-    assertEquals("\"test e12\"", MetricAdapter.toMintDimensionValue("test e12"));
-    assertEquals("\"test?$%&!\"", MetricAdapter.toMintDimensionValue("test?$%&!"));
-    assertEquals("\"\\\"\\\\\"", MetricAdapter.toMintDimensionValue("\"\\"));
-    assertEquals("\"\\\\\\\\\\\\\"", MetricAdapter.toMintDimensionValue("\\\\\\"));
+    assertEquals("test..e12", MetricAdapter.toMintDimensionValue("test..e12"));
+    assertEquals("\\\"test..e12\\\"", MetricAdapter.toMintDimensionValue("\"test..e12\""));
+    assertEquals("\\\"\\\"\\\"\\\"", MetricAdapter.toMintDimensionValue("\"\"\"\""));
+    assertEquals("test e12", MetricAdapter.toMintDimensionValue("test e12"));
+    assertEquals("test?$%&!", MetricAdapter.toMintDimensionValue("test?$%&!"));
+    assertEquals("\\\"\\\\", MetricAdapter.toMintDimensionValue("\"\\"));
+    assertEquals("\\\\\\\\\\\\", MetricAdapter.toMintDimensionValue("\\\\\\"));
   }
 }
