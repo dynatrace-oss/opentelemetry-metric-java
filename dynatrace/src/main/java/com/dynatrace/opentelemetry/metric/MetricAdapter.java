@@ -89,11 +89,16 @@ public final class MetricAdapter {
   private static void addSummaryData(
       String metricKeyName, MetricData metric, Collection<Datapoint> datapoints) {
     for (DoubleSummaryPointData point : metric.getDoubleSummaryData().getPoints()) {
-      datapoints.add(generateSummaryPoint(metricKeyName, point));
+      try {
+        datapoints.add(generateSummaryPoint(metricKeyName, point));
+      } catch (DynatraceExporterException e) {
+        logger.warning(e.getMessage());
+      }
     }
   }
 
-  static Datapoint generateSummaryPoint(String metricKeyName, DoubleSummaryPointData summaryPoint) {
+  static Datapoint generateSummaryPoint(String metricKeyName, DoubleSummaryPointData summaryPoint)
+      throws DynatraceExporterException {
     double min = 0.0;
     double max = 0.0;
     double sum = summaryPoint.getSum();
@@ -123,25 +128,33 @@ public final class MetricAdapter {
     boolean isDeltaDouble =
         metric.getDoubleSumData().getAggregationTemporality() == AggregationTemporality.DELTA;
     for (DoublePointData data : metric.getDoubleSumData().getPoints()) {
-      Datapoint p =
-          Datapoint.create(metricKeyName)
-              .timestamp(data.getEpochNanos())
-              .dimensions(convertLabelsToDimensions(data.getLabels()))
-              .value(Values.doubleCount(data.getValue(), /* isDelta= */ isDeltaDouble))
-              .build();
-      datapoints.add(p);
+      try {
+        Datapoint p =
+            Datapoint.create(metricKeyName)
+                .timestamp(data.getEpochNanos())
+                .dimensions(convertLabelsToDimensions(data.getLabels()))
+                .value(Values.doubleCount(data.getValue(), /* isDelta= */ isDeltaDouble))
+                .build();
+        datapoints.add(p);
+      } catch (DynatraceExporterException e) {
+        logger.warning(e.getMessage());
+      }
     }
 
     boolean isDeltaLong =
         metric.getLongSumData().getAggregationTemporality() == AggregationTemporality.DELTA;
     for (LongPointData data : metric.getLongSumData().getPoints()) {
-      Datapoint p =
-          Datapoint.create(metricKeyName)
-              .timestamp(data.getEpochNanos())
-              .dimensions(convertLabelsToDimensions(data.getLabels()))
-              .value(Values.longCount(data.getValue(), /* isDelta= */ isDeltaLong))
-              .build();
-      datapoints.add(p);
+      try {
+        Datapoint p =
+            Datapoint.create(metricKeyName)
+                .timestamp(data.getEpochNanos())
+                .dimensions(convertLabelsToDimensions(data.getLabels()))
+                .value(Values.longCount(data.getValue(), /* isDelta= */ isDeltaLong))
+                .build();
+        datapoints.add(p);
+      } catch (DynatraceExporterException e) {
+        logger.warning(e.getMessage());
+      }
     }
   }
 
@@ -149,23 +162,31 @@ public final class MetricAdapter {
       String metricKeyName, MetricData metric, Collection<Datapoint> datapoints) {
 
     for (DoublePointData data : metric.getDoubleGaugeData().getPoints()) {
-      Datapoint p =
-          Datapoint.create(metricKeyName)
-              .timestamp(data.getEpochNanos())
-              .dimensions(convertLabelsToDimensions(data.getLabels()))
-              .value(Values.doubleCount(data.getValue(), /* isDelta= */ true))
-              .build();
-      datapoints.add(p);
+      try {
+        Datapoint p =
+            Datapoint.create(metricKeyName)
+                .timestamp(data.getEpochNanos())
+                .dimensions(convertLabelsToDimensions(data.getLabels()))
+                .value(Values.doubleCount(data.getValue(), /* isDelta= */ true))
+                .build();
+        datapoints.add(p);
+      } catch (DynatraceExporterException e) {
+        logger.warning(e.getMessage());
+      }
     }
 
     for (LongPointData data : metric.getLongGaugeData().getPoints()) {
-      Datapoint p =
-          Datapoint.create(metricKeyName)
-              .timestamp(data.getEpochNanos())
-              .dimensions(convertLabelsToDimensions(data.getLabels()))
-              .value(Values.longCount(data.getValue(), /* isDelta= */ true))
-              .build();
-      datapoints.add(p);
+      try {
+        Datapoint p =
+            Datapoint.create(metricKeyName)
+                .timestamp(data.getEpochNanos())
+                .dimensions(convertLabelsToDimensions(data.getLabels()))
+                .value(Values.longCount(data.getValue(), /* isDelta= */ true))
+                .build();
+        datapoints.add(p);
+      } catch (DynatraceExporterException e) {
+        logger.warning(e.getMessage());
+      }
     }
   }
 
@@ -176,17 +197,14 @@ public final class MetricAdapter {
    * @return all sanitized Dimensions. List is empty, if a key-value pair doesn't match the MINT
    *     requirements
    */
-  private static List<Dimension> convertLabelsToDimensions(Labels labels) {
+  private static List<Dimension> convertLabelsToDimensions(Labels labels)
+      throws DynatraceExporterException {
     final List<Dimension> dimensions = new ArrayList<>(labels.size());
     labels.forEach(
         new BiConsumer<String, String>() {
           @Override
           public void accept(String k, String v) {
-            try {
-              dimensions.add(toMintDimension(k, v));
-            } catch (DynatraceExporterException e) {
-              logger.warning(e.getMessage());
-            }
+            dimensions.add(toMintDimension(k, v));
           }
         });
 

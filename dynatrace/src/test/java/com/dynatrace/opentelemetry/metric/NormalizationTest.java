@@ -52,30 +52,19 @@ public class NormalizationTest {
   @Test
   public void invalidLineProtocolLineTest() {
     byteCounter.add(4, Labels.empty());
-    byteCounter.add(2, Labels.of("..", "."));
+    byteCounter.add(2, Labels.of("..", ".")); // invalid -> dropped
     byteCounter.add(42, Labels.empty());
     Collection<MetricData> metricData = provider.collectAllMetrics();
     MintMetricsMessage msg = MetricAdapter.toMint(metricData);
-    assertEquals(2, msg.datapoints().size());
+    assertEquals(1, msg.datapoints().size());
     assertEquals(0, msg.datapoints().get(0).dimensions().size());
-    assertEquals(0, msg.datapoints().get(1).dimensions().size());
     String expected =
-        Datapoint.create("byte_received")
-            .timestamp(0)
-            .value(Values.longCount(2, false))
-            .build()
-            .serialize();
-    String received = msg.datapoints().get(0).serialize();
-    assertEquals(
-        expected.substring(0, expected.lastIndexOf(" ")),
-        received.substring(0, received.lastIndexOf(" ")));
-    expected =
         Datapoint.create("byte_received")
             .timestamp(0)
             .value(Values.longCount(46, false))
             .build()
             .serialize();
-    received = msg.datapoints().get(1).serialize();
+    String received = msg.datapoints().get(0).serialize();
     assertEquals(
         expected.substring(0, expected.lastIndexOf(" ")),
         received.substring(0, received.lastIndexOf(" ")));
