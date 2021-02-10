@@ -32,13 +32,6 @@ public class NormalizationTest {
   private static final SdkMeterProvider provider =
       SdkMeterProvider.builder().buildAndRegisterGlobal();
   private static final Meter meter = provider.get("test$lib", "test:1.0.0");
-
-  //  private static final DoubleSumObserver doubleSumObserver =
-  //      meter
-  //          .doubleSumObserverBuilder("azure.latency")
-  //          .setConstantLabels(Labels.of("AüS-s_3", "k8"))
-  //          .build();
-
   private static final DoubleValueRecorder recorder =
       meter
           .doubleValueRecorderBuilder("latency_service01")
