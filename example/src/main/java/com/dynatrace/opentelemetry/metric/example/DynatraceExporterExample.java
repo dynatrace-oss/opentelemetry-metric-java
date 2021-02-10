@@ -14,11 +14,11 @@
 package com.dynatrace.opentelemetry.metric.example;
 
 import com.dynatrace.opentelemetry.metric.DynatraceMetricExporter;
-import io.opentelemetry.api.common.Labels;
 import io.opentelemetry.api.metrics.BoundLongCounter;
 import io.opentelemetry.api.metrics.GlobalMetricsProvider;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.export.IntervalMetricReader;
 import java.util.Collections;
