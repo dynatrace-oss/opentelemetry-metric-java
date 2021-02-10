@@ -17,6 +17,7 @@ import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @AutoValue
 public abstract class Datapoint implements MintLineProtocolSerializable {
@@ -36,15 +37,15 @@ public abstract class Datapoint implements MintLineProtocolSerializable {
     List<Dimension> dimensions = dimensions();
     if (!dimensions.isEmpty()) {
       stringBuilder.append(",");
-      for (Dimension dimension : dimensions) {
-        stringBuilder.append(dimension.serialize()).append(',');
-      }
-      if (!dimensions.isEmpty()) {
-        stringBuilder.setLength(stringBuilder.length() - 1);
+      for (int i = 0; i < dimensions.size(); i++) {
+        if (i > 0) {
+          stringBuilder.append(",");
+        }
+        stringBuilder.append(dimensions.get(i).serialize());
       }
     }
     stringBuilder.append(" ").append(value().serialize());
-    stringBuilder.append(" ").append(timestamp() / 1000000);
+    stringBuilder.append(" ").append(TimeUnit.NANOSECONDS.toMillis(timestamp()));
     return stringBuilder.toString();
   }
 

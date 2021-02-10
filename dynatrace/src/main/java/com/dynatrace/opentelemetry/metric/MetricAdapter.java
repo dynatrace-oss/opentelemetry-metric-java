@@ -18,11 +18,17 @@ import com.dynatrace.opentelemetry.metric.mint.Dimension;
 import com.dynatrace.opentelemetry.metric.mint.MintMetricsMessage;
 import com.google.common.base.Splitter;
 import io.opentelemetry.api.common.Labels;
+import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
+import io.opentelemetry.sdk.metrics.data.DoublePointData;
+import io.opentelemetry.sdk.metrics.data.DoubleSummaryPointData;
+import io.opentelemetry.sdk.metrics.data.LongPointData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.opentelemetry.sdk.metrics.data.ValueAtPercentile;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
@@ -35,6 +41,8 @@ public final class MetricAdapter {
   private static final Pattern DOESNT_START_WITH_LETTER = Pattern.compile("[^a-zA-Z]");
   private static final Pattern DIMKEY_NOT_ALLOWED = Pattern.compile("[^a-zA-Z0-9:_\\-]");
   private static final Splitter SPLITTER = Splitter.on('.').trimResults().omitEmptyStrings();
+
+  private MetricAdapter() {}
 
   /**
    * Generates a MintLineProtocolSerializable MintMetricsMessage, that can be ingested to MINT.
@@ -62,30 +70,123 @@ public final class MetricAdapter {
   static Collection<Datapoint> toDatapoints(MetricData metric) {
     Collection<Datapoint> datapoints = new ArrayList<>();
 
-    Collection<MetricData.Point> points = metric.getPoints();
-
-    if (points.isEmpty()) { // necessary because sometimes an empty MetricData is ingested by OT
-      return datapoints;
+    if (metric.isEmpty()) { // necessary due to sometimes an empty MetricData is ingested by OT
+      return Collections.emptyList();
     }
-    final MetricData.Type type = metric.getType();
     try {
       String metricKeyName = toMintMetricKey(metric.getName());
+      addGaugeData(metricKeyName, metric, datapoints);
+      addSumData(metricKeyName, metric, datapoints);
+      addSummaryData(metricKeyName, metric, datapoints);
 
-      for (MetricData.Point point : points) {
-
-        List<Dimension> pointDimensions = new ArrayList<>();
-        if (point.getLabels().size() != 0) { // some labels/dimensions from point are available
-          pointDimensions.addAll(convertLabelsToDimensions(point.getLabels()));
-          if (pointDimensions.isEmpty()) {
-            continue;
-          }
-        }
-        datapoints.add(generateDatapoint(metricKeyName, pointDimensions, point, type));
-      }
       return datapoints;
     } catch (DynatraceExporterException e) {
       logger.warning(e.getMessage());
       return datapoints;
+    }
+  }
+
+  private static void addSummaryData(
+      String metricKeyName, MetricData metric, Collection<Datapoint> datapoints) {
+    for (DoubleSummaryPointData point : metric.getDoubleSummaryData().getPoints()) {
+      try {
+        datapoints.add(generateSummaryPoint(metricKeyName, point));
+      } catch (DynatraceExporterException e) {
+        logger.warning(e.getMessage());
+      }
+    }
+  }
+
+  static Datapoint generateSummaryPoint(String metricKeyName, DoubleSummaryPointData summaryPoint)
+      throws DynatraceExporterException {
+    double min = 0.0;
+    double max = 0.0;
+    double sum = summaryPoint.getSum();
+    long count = summaryPoint.getCount();
+    List<ValueAtPercentile> valueAtPercentiles = summaryPoint.getPercentileValues();
+    for (ValueAtPercentile valueAtPercentile : valueAtPercentiles) {
+      // as the lowest possible percentile value is 0.0 and the highest possible is 100.0,
+      // comparing the doubles directly should work
+      if (valueAtPercentile.getPercentile() == 0.0) {
+        min = valueAtPercentile.getValue();
+      } else if (valueAtPercentile.getPercentile() == 100.0) {
+        max = valueAtPercentile.getValue();
+      }
+    }
+    SummaryStats.DoubleSummaryStat doubleSummaryStat =
+        SummaryStats.doubleSummaryStat(min, max, sum, count);
+
+    return Datapoint.create(metricKeyName)
+        .timestamp(summaryPoint.getEpochNanos())
+        .dimensions(convertLabelsToDimensions(summaryPoint.getLabels()))
+        .value(Values.longGauge(doubleSummaryStat))
+        .build();
+  }
+
+  private static void addSumData(
+      String metricKeyName, MetricData metric, Collection<Datapoint> datapoints) {
+    boolean isDeltaDouble =
+        metric.getDoubleSumData().getAggregationTemporality() == AggregationTemporality.DELTA;
+    for (DoublePointData data : metric.getDoubleSumData().getPoints()) {
+      try {
+        Datapoint p =
+            Datapoint.create(metricKeyName)
+                .timestamp(data.getEpochNanos())
+                .dimensions(convertLabelsToDimensions(data.getLabels()))
+                .value(Values.doubleCount(data.getValue(), /* isDelta= */ isDeltaDouble))
+                .build();
+        datapoints.add(p);
+      } catch (DynatraceExporterException e) {
+        logger.warning(e.getMessage());
+      }
+    }
+
+    boolean isDeltaLong =
+        metric.getLongSumData().getAggregationTemporality() == AggregationTemporality.DELTA;
+    for (LongPointData data : metric.getLongSumData().getPoints()) {
+      try {
+        Datapoint p =
+            Datapoint.create(metricKeyName)
+                .timestamp(data.getEpochNanos())
+                .dimensions(convertLabelsToDimensions(data.getLabels()))
+                .value(Values.longCount(data.getValue(), /* isDelta= */ isDeltaLong))
+                .build();
+        datapoints.add(p);
+      } catch (DynatraceExporterException e) {
+        logger.warning(e.getMessage());
+      }
+    }
+  }
+
+  private static void addGaugeData(
+      String metricKeyName, MetricData metric, Collection<Datapoint> datapoints) {
+
+    for (DoublePointData data : metric.getDoubleGaugeData().getPoints()) {
+      try {
+        Datapoint p =
+            Datapoint.create(metricKeyName)
+                .timestamp(data.getEpochNanos())
+                .dimensions(convertLabelsToDimensions(data.getLabels()))
+                .value(Values.doubleCount(data.getValue(), /* isDelta= */ true))
+                .build();
+        datapoints.add(p);
+      } catch (DynatraceExporterException e) {
+        logger.warning(e.getMessage());
+      }
+    }
+
+    for (LongPointData data : metric.getLongGaugeData().getPoints()) {
+      try {
+        Datapoint p =
+            Datapoint.create(metricKeyName)
+                .timestamp(data.getEpochNanos())
+                .dimensions(convertLabelsToDimensions(data.getLabels()))
+                .value(Values.longCount(data.getValue(), /* isDelta= */ true))
+                .build();
+        datapoints.add(p);
+      } catch (DynatraceExporterException e) {
+        logger.warning(e.getMessage());
+      }
     }
   }
 
@@ -96,62 +197,21 @@ public final class MetricAdapter {
    * @return all sanitized Dimensions. List is empty, if a key-value pair doesn't match the MINT
    *     requirements
    */
-  private static List<Dimension> convertLabelsToDimensions(Labels labels) {
+  private static List<Dimension> convertLabelsToDimensions(Labels labels)
+      throws DynatraceExporterException {
     final List<Dimension> dimensions = new ArrayList<>(labels.size());
     labels.forEach(
-        (key, value) -> {
-          try {
-            dimensions.add(toMintDimension(key, value));
-          } catch (DynatraceExporterException e) {
-            logger.warning(e.getMessage());
+        new BiConsumer<String, String>() {
+          @Override
+          public void accept(String k, String v) {
+            dimensions.add(toMintDimension(k, v));
           }
         });
+
     if (dimensions.size() != labels.size()) {
       return EMPTY;
     }
     return Collections.unmodifiableList(dimensions);
-  }
-
-  /**
-   * Generates a double or long Datapoint, that is ingested into MINT.
-   *
-   * @param metricKeyName is the sanitized MINT metric key.
-   * @param dimensions are the sanitized MINT dimensions.
-   * @param point is the OT point, that contains the value + timestamp.
-   * @param type determines the type of the metric/Point (long/double and monotonic/non-monotonic).
-   * @return the new generated Datapoint.
-   * @throws DynatraceExporterException if the OT Descriptor Type is not supported.
-   */
-  static Datapoint generateDatapoint(
-      String metricKeyName,
-      List<Dimension> dimensions,
-      MetricData.Point point,
-      MetricData.Type type)
-      throws DynatraceExporterException {
-    switch (type) {
-      case MONOTONIC_DOUBLE:
-      case NON_MONOTONIC_DOUBLE:
-        MetricData.DoublePoint doublePoint = (MetricData.DoublePoint) point;
-        return Datapoint.create(metricKeyName)
-            .timestamp(point.getEpochNanos())
-            .dimensions(dimensions)
-            .value(Values.doubleCount(doublePoint.getValue(), /* isDelta= */ false))
-            .build();
-
-      case MONOTONIC_LONG:
-      case NON_MONOTONIC_LONG:
-        MetricData.LongPoint longPoint = (MetricData.LongPoint) point;
-        return Datapoint.create(metricKeyName)
-            .timestamp(point.getEpochNanos())
-            .dimensions(dimensions)
-            .value(Values.longCount(longPoint.getValue(), /* isDelta= */ false))
-            .build();
-
-      case SUMMARY:
-        MetricData.SummaryPoint summaryPoint = (MetricData.SummaryPoint) point;
-        return generateSummaryPoint(metricKeyName, summaryPoint, dimensions);
-    }
-    throw new DynatraceExporterException("Descriptor.Type " + type + " not supported");
   }
 
   /**
@@ -171,9 +231,7 @@ public final class MetricAdapter {
         builder.append(".");
       }
 
-      if (DOESNT_START_WITH_LETTER
-          .matcher(String.valueOf(metricKeySection.charAt(0)))
-          .lookingAt()) {
+      if (DOESNT_START_WITH_LETTER.matcher(String.valueOf(metricKeySection.charAt(0))).matches()) {
         throw new DynatraceExporterException(
             "Metric key section "
                 + trimForLogOutput(metricKeySection)
@@ -184,7 +242,7 @@ public final class MetricAdapter {
       char[] chars = metricKeySection.toCharArray();
 
       for (int i = 1; i < chars.length; i++) {
-        if (METRICKEY_NOT_ALLOWED.matcher(String.valueOf(chars[i])).lookingAt()) {
+        if (METRICKEY_NOT_ALLOWED.matcher(String.valueOf(chars[i])).matches()) {
           chars[i] = '_';
         }
       }
@@ -309,7 +367,7 @@ public final class MetricAdapter {
                 + trimForLogOutput(escapedString)
                 + ".");
       }
-      return "\"" + escapedString + "\""; // always escape with '"'
+      return escapedString;
     }
   }
 
@@ -333,39 +391,5 @@ public final class MetricAdapter {
    */
   private static String trimForLogOutput(String value) {
     return value;
-  }
-
-  /**
-   * Generates a summaryPoint.
-   *
-   * @param metricKeyName is the sanitized MINT metric key.
-   * @param summaryPoint is the OT SummaryPoint.
-   * @param dimensions are the sanitized MINT dimensions.
-   * @return new created Datapoint.
-   */
-  static Datapoint generateSummaryPoint(
-      String metricKeyName, MetricData.SummaryPoint summaryPoint, List<Dimension> dimensions) {
-    double min = 0.0;
-    double max = 0.0;
-    double sum = summaryPoint.getSum();
-    long count = summaryPoint.getCount();
-    List<MetricData.ValueAtPercentile> valueAtPercentiles = summaryPoint.getPercentileValues();
-    for (MetricData.ValueAtPercentile valueAtPercentile : valueAtPercentiles) {
-      if (valueAtPercentile.getPercentile()
-          == 0.0) { // as the lowest possible percentile value is 0.0 and the highest possible is
-        // 100.0, comparing the doubles directly should work
-        min = valueAtPercentile.getValue();
-      } else if (valueAtPercentile.getPercentile() == 100.0) {
-        max = valueAtPercentile.getValue();
-      }
-    }
-    SummaryStats.DoubleSummaryStat doubleSummaryStat =
-        SummaryStats.doubleSummaryStat(min, max, sum, count);
-
-    return Datapoint.create(metricKeyName)
-        .timestamp(summaryPoint.getEpochNanos())
-        .dimensions(dimensions)
-        .value(Values.longGauge(doubleSummaryStat))
-        .build();
   }
 }

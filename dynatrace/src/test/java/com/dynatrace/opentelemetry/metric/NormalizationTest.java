@@ -19,23 +19,19 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.dynatrace.opentelemetry.metric.mint.Datapoint;
 import com.dynatrace.opentelemetry.metric.mint.Dimension;
 import com.dynatrace.opentelemetry.metric.mint.MintMetricsMessage;
-import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Labels;
 import io.opentelemetry.api.metrics.DoubleValueRecorder;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
-import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.data.MetricData;
+import java.util.Collection;
 import org.junit.jupiter.api.Test;
 
 public class NormalizationTest {
-  private static final Meter meter =
-      OpenTelemetry.getGlobalMeterProvider().get("test$lib", "test:1.0.0");
-  //  private static final DoubleSumObserver doubleSumObserver =
-  //      meter
-  //          .doubleSumObserverBuilder("azure.latency")
-  //          .setConstantLabels(Labels.of("AüS-s_3", "k8"))
-  //          .build();
-
+  private static final SdkMeterProvider provider =
+      SdkMeterProvider.builder().buildAndRegisterGlobal();
+  private static final Meter meter = provider.get("test$lib", "test:1.0.0");
   private static final DoubleValueRecorder recorder =
       meter
           .doubleValueRecorderBuilder("latency_service01")
@@ -48,13 +44,11 @@ public class NormalizationTest {
 
   @Test
   public void invalidLineProtocolLineTest() {
-    // TODO: Does this test still make sense after removing the domain="demo.dev" constant label?
     byteCounter.add(4, Labels.empty());
-    byteCounter.add(2, Labels.of("..", "."));
+    byteCounter.add(2, Labels.of("..", ".")); // invalid -> dropped
     byteCounter.add(42, Labels.empty());
-    MintMetricsMessage msg =
-        MetricAdapter.toMint(
-            OpenTelemetrySdk.getGlobalMeterProvider().getMetricProducer().collectAllMetrics());
+    Collection<MetricData> metricData = provider.collectAllMetrics();
+    MintMetricsMessage msg = MetricAdapter.toMint(metricData);
     assertEquals(1, msg.datapoints().size());
     assertEquals(0, msg.datapoints().get(0).dimensions().size());
     String expected =
@@ -72,9 +66,8 @@ public class NormalizationTest {
   @Test
   public void emptyDimensionsTest() {
     recorder.record(42.0, Labels.empty());
-    MintMetricsMessage msg =
-        MetricAdapter.toMint(
-            OpenTelemetrySdk.getGlobalMeterProvider().getMetricProducer().collectAllMetrics());
+    Collection<MetricData> metricData = provider.collectAllMetrics();
+    MintMetricsMessage msg = MetricAdapter.toMint(metricData);
     assertEquals(1, msg.datapoints().size());
   }
 
@@ -105,7 +98,7 @@ public class NormalizationTest {
   @Test
   public void dimensionTest() throws DynatraceExporterException {
     assertEquals(
-        Dimension.create("test_____", "\"test?$%&!\""),
+        Dimension.create("test_____", "test?$%&!"),
         MetricAdapter.toMintDimension("test?$%&!", "test?$%&!"));
   }
 
@@ -120,12 +113,12 @@ public class NormalizationTest {
 
   @Test
   public void dimensionValueTest() throws DynatraceExporterException {
-    assertEquals("\"test..e12\"", MetricAdapter.toMintDimensionValue("test..e12"));
-    assertEquals("\"\\\"test..e12\\\"\"", MetricAdapter.toMintDimensionValue("\"test..e12\""));
-    assertEquals("\"\\\"\\\"\\\"\\\"\"", MetricAdapter.toMintDimensionValue("\"\"\"\""));
-    assertEquals("\"test e12\"", MetricAdapter.toMintDimensionValue("test e12"));
-    assertEquals("\"test?$%&!\"", MetricAdapter.toMintDimensionValue("test?$%&!"));
-    assertEquals("\"\\\"\\\\\"", MetricAdapter.toMintDimensionValue("\"\\"));
-    assertEquals("\"\\\\\\\\\\\\\"", MetricAdapter.toMintDimensionValue("\\\\\\"));
+    assertEquals("test..e12", MetricAdapter.toMintDimensionValue("test..e12"));
+    assertEquals("\\\"test..e12\\\"", MetricAdapter.toMintDimensionValue("\"test..e12\""));
+    assertEquals("\\\"\\\"\\\"\\\"", MetricAdapter.toMintDimensionValue("\"\"\"\""));
+    assertEquals("test e12", MetricAdapter.toMintDimensionValue("test e12"));
+    assertEquals("test?$%&!", MetricAdapter.toMintDimensionValue("test?$%&!"));
+    assertEquals("\\\"\\\\", MetricAdapter.toMintDimensionValue("\"\\"));
+    assertEquals("\\\\\\\\\\\\", MetricAdapter.toMintDimensionValue("\\\\\\"));
   }
 }

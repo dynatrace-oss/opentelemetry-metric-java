@@ -20,6 +20,9 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.Labels;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.common.InstrumentationLibraryInfo;
+import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
+import io.opentelemetry.sdk.metrics.data.DoublePointData;
+import io.opentelemetry.sdk.metrics.data.DoubleSumData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.resources.Resource;
 import java.io.ByteArrayOutputStream;
@@ -32,14 +35,16 @@ import org.junit.jupiter.api.Test;
 public class ExportTest {
 
   public static MetricData generateMetricData() {
-    return MetricData.create(
+    return MetricData.createDoubleSum(
         Resource.create(Attributes.builder().build()),
         InstrumentationLibraryInfo.getEmpty(),
         "name",
         "desc",
         "",
-        MetricData.Type.MONOTONIC_DOUBLE,
-        Collections.singleton(MetricData.DoublePoint.create(123, 4560000, Labels.empty(), 194.0)));
+        DoubleSumData.create(
+            true,
+            AggregationTemporality.CUMULATIVE,
+            Collections.singleton(DoublePointData.create(123, 4560000, Labels.empty(), 194.0))));
   }
 
   @Test
