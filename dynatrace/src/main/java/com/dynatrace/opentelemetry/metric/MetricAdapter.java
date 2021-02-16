@@ -17,7 +17,7 @@ import com.dynatrace.opentelemetry.metric.mint.Datapoint;
 import com.dynatrace.opentelemetry.metric.mint.Dimension;
 import com.dynatrace.opentelemetry.metric.mint.MintMetricsMessage;
 import com.google.common.base.Splitter;
-import io.opentelemetry.api.common.Labels;
+import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.DoublePointData;
 import io.opentelemetry.sdk.metrics.data.DoubleSummaryPointData;
