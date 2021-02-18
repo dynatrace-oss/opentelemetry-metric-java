@@ -17,118 +17,142 @@ import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
+
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/** Export metric to Dynatrace. */
+/**
+ * Export metric to Dynatrace.
+ */
 public final class DynatraceMetricExporter implements MetricExporter {
-  private final URL url;
-  private final String apiToken;
+    private final URL url;
+    private final String apiToken;
 
-  private static final Logger logger = Logger.getLogger(DynatraceMetricExporter.class.getName());
+    private static final Logger logger = Logger.getLogger(DynatraceMetricExporter.class.getName());
 
-  private DynatraceMetricExporter(URL url, String apiToken) {
-    this.url = url;
-    this.apiToken = apiToken;
-  }
+    private DynatraceMetricExporter(URL url, String apiToken, Boolean enrichWithOneAgentData) {
+        this.url = url;
+        this.apiToken = apiToken;
 
-  public static Builder builder() {
-    return new Builder();
-  }
+        Collection<AbstractMap.SimpleEntry<String, String>> localTags = new ArrayList<>();
 
-  /** Returns a default export pointing to a local metric endpoint. */
-  public static DynatraceMetricExporter getDefault() {
-    Builder builder = new Builder();
-    try {
-      builder.setUrl(new URL("http://127.0.0.1:14499/metrics/ingest")).build();
-    } catch (Exception e) {
-      // we can ignore
-    }
-    return builder.build();
-  }
+        if (enrichWithOneAgentData) {
+            OneAgentMetadataEnricher enricher = new OneAgentMetadataEnricher(logger);
+            localTags.addAll(enricher.getDimensionsFromOneAgentMetadata());
+        }
 
-  /**
-   * Called by IntervalMetricReader with every collection interval. Could also be called manually.
-   *
-   * @param metrics is the MetricData collected by all Metric Instruments.
-   * @return ResultCode.FAILURE if exporting was not sucessful, ResultCode.SUCCESS otherwise.
-   */
-  @Override
-  public CompletableResultCode export(Collection<MetricData> metrics) {
-    HttpURLConnection connection = null;
-    try {
-      connection = (HttpURLConnection) url.openConnection();
-    } catch (Exception e) {
-      logger.log(Level.WARNING, "Error while exporting", e);
-      return CompletableResultCode.ofFailure();
-    }
-    return export(metrics, connection);
-  }
-
-  @VisibleForTesting
-  protected CompletableResultCode export(
-      Collection<MetricData> metrics, HttpURLConnection connection) {
-    String mintMetricsMessage = MetricAdapter.toMint(metrics).serialize();
-    System.out.println(mintMetricsMessage);
-    logger.log(Level.FINEST, "Exporting: {0}", mintMetricsMessage);
-    try {
-      connection.setRequestMethod("POST");
-      connection.setRequestProperty("Accept", "*/*; q=0");
-      connection.setRequestProperty("Authorization", "Api-Token " + apiToken);
-      connection.setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-      connection.setDoOutput(true);
-      try (final OutputStream outputStream = connection.getOutputStream()) {
-        outputStream.write(mintMetricsMessage.getBytes(Charset.forName("UTF-8")));
-      }
-      int code = connection.getResponseCode();
-      if (code != 202) {
-        logger.log(Level.WARNING, "Received error code {0} from server", code);
-        return CompletableResultCode.ofFailure();
-      }
-    } catch (Exception e) {
-      logger.log(Level.WARNING, "Error while exporting", e);
-      return CompletableResultCode.ofFailure();
-    }
-    return CompletableResultCode.ofSuccess();
-  }
-
-  @Override
-  public CompletableResultCode flush() {
-    return CompletableResultCode.ofSuccess();
-  }
-
-  @Override
-  public CompletableResultCode shutdown() {
-    return CompletableResultCode.ofSuccess();
-  }
-
-  public static class Builder {
-    private URL url;
-    private String apiToken = null;
-
-    public Builder setUrl(String url) throws MalformedURLException {
-      this.url = new URL(url);
-      return this;
+        // add the tags to the MetricAdapter.
+        MetricAdapter.getInstance().setTags(localTags);
     }
 
-    public Builder setUrl(URL url) {
-      this.url = url;
-      return this;
+    public static Builder builder() {
+        return new Builder();
     }
 
-    public Builder setApiToken(String apiToken) {
-      this.apiToken = apiToken;
-      return this;
+    /**
+     * Returns a default export pointing to a local metric endpoint.
+     */
+    public static DynatraceMetricExporter getDefault() {
+        Builder builder = new Builder();
+        try {
+            builder.setUrl(new URL("http://127.0.0.1:14499/metrics/ingest")).build();
+        } catch (Exception e) {
+            // we can ignore
+        }
+        return builder.build();
     }
 
-    public DynatraceMetricExporter build() {
-      return new DynatraceMetricExporter(url, apiToken);
+    /**
+     * Called by IntervalMetricReader with every collection interval. Could also be called manually.
+     *
+     * @param metrics is the MetricData collected by all Metric Instruments.
+     * @return ResultCode.FAILURE if exporting was not successful, ResultCode.SUCCESS otherwise.
+     */
+    @Override
+    public CompletableResultCode export(Collection<MetricData> metrics) {
+        HttpURLConnection connection = null;
+        try {
+            connection = (HttpURLConnection) url.openConnection();
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Error while exporting", e);
+            return CompletableResultCode.ofFailure();
+        }
+
+        return export(metrics, connection);
     }
-  }
+
+
+    @VisibleForTesting
+    protected CompletableResultCode export(
+            Collection<MetricData> metrics, HttpURLConnection connection) {
+        String mintMetricsMessage = MetricAdapter.toMint(metrics).serialize();
+        logger.log(Level.FINEST, "Exporting: {0}", mintMetricsMessage);
+        try {
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Accept", "*/*; q=0");
+            connection.setRequestProperty("Authorization", "Api-Token " + apiToken);
+            connection.setRequestProperty("Content-Type", "text/plain; charset=utf-8");
+            connection.setDoOutput(true);
+            try (final OutputStream outputStream = connection.getOutputStream()) {
+                outputStream.write(mintMetricsMessage.getBytes(Charset.forName("UTF-8")));
+            }
+            int code = connection.getResponseCode();
+            if (code != 202) {
+                logger.log(Level.WARNING, "Received error code {0} from server", code);
+                return CompletableResultCode.ofFailure();
+            }
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Error while exporting", e);
+            return CompletableResultCode.ofFailure();
+        }
+        return CompletableResultCode.ofSuccess();
+    }
+
+    @Override
+    public CompletableResultCode flush() {
+        return CompletableResultCode.ofSuccess();
+    }
+
+    @Override
+    public CompletableResultCode shutdown() {
+        return CompletableResultCode.ofSuccess();
+    }
+
+    public static class Builder {
+        private URL url;
+        private String apiToken = null;
+        private Boolean enrichWithOneAgentData = false;
+
+        public Builder setUrl(String url) throws MalformedURLException {
+            this.url = new URL(url);
+            return this;
+        }
+
+        public Builder setUrl(URL url) {
+            this.url = url;
+            return this;
+        }
+
+        public Builder setApiToken(String apiToken) {
+            this.apiToken = apiToken;
+            return this;
+        }
+
+        public Builder setEnrichWithOneAgentData(Boolean enrich) {
+            this.enrichWithOneAgentData = enrich;
+            return this;
+        }
+
+        public DynatraceMetricExporter build() {
+            return new DynatraceMetricExporter(url, apiToken, enrichWithOneAgentData);
+        }
+    }
 }
