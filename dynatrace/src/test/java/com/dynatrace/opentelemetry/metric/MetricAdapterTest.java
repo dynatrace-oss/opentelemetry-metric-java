@@ -15,6 +15,8 @@ package com.dynatrace.opentelemetry.metric;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.dynatrace.opentelemetry.metric.mint.Datapoint;
 import io.opentelemetry.api.common.Attributes;
@@ -27,85 +29,114 @@ import io.opentelemetry.sdk.metrics.data.DoubleSummaryPointData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.data.ValueAtPercentile;
 import io.opentelemetry.sdk.resources.Resource;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+
 import org.junit.jupiter.api.Test;
 
 public class MetricAdapterTest {
 
-  @Test
-  public void toDatapointsTest() {
-    assertEquals(
-        1,
-        MetricAdapter.toDatapoints(
-                MetricData.createDoubleGauge(
-                    Resource.create(Attributes.empty()),
-                    InstrumentationLibraryInfo.create("testlib01", "0.5.0"),
-                    "test",
-                    "des",
-                    "ms",
-                    DoubleGaugeData.create(
-                        Collections.singletonList(
-                            DoublePointData.create(
+    @Test
+    public void toDatapointsTest() {
+        assertEquals(
+                1,
+                MetricAdapter.toDatapoints(
+                        MetricData.createDoubleGauge(
+                                Resource.create(Attributes.empty()),
+                                InstrumentationLibraryInfo.create("testlib01", "0.5.0"),
+                                "test",
+                                "des",
+                                "ms",
+                                DoubleGaugeData.create(
+                                        Collections.singletonList(
+                                                DoublePointData.create(
+                                                        123,
+                                                        TimeUnit.MILLISECONDS.toNanos(456),
+                                                        Labels.of("lab01", "lab02"),
+                                                        42)))))
+                        .size());
+
+        assertTrue(
+                MetricAdapter.toDatapoints(
+                        MetricData.createDoubleSummary(
+                                Resource.create(Attributes.empty()),
+                                InstrumentationLibraryInfo.create("testlib", "1.1"),
+                                "test",
+                                "test",
+                                "ms",
+                                DoubleSummaryData.create(Collections.emptyList())))
+                        .isEmpty());
+    }
+
+    @Test
+    public void generateSummarypointTest() {
+        List<ValueAtPercentile> list = new ArrayList<>(2);
+        list.add(ValueAtPercentile.create(0.0, 1.56));
+        list.add(ValueAtPercentile.create(100.0, 345.23));
+
+        SummaryStats.DoubleSummaryStat summaryStat =
+                SummaryStats.doubleSummaryStat(1.56, 345.23, 12934, 42);
+
+        assertEquals(
+                Datapoint.create("metric_01")
+                        .addDimension("key01", "value01")
+                        .timestamp(TimeUnit.MILLISECONDS.toNanos(456))
+                        .value(Values.doubleGauge(summaryStat))
+                        .build()
+                        .serialize(),
+                MetricAdapter.generateSummaryPoint(
+                        "metric_01",
+                        DoubleSummaryPointData.create(
                                 123,
                                 TimeUnit.MILLISECONDS.toNanos(456),
-                                Labels.of("lab01", "lab02"),
-                                42)))))
-            .size());
+                                Labels.of("key01", "value01"),
+                                42,
+                                12934,
+                                list))
+                        .serialize());
 
-    assertTrue(
-        MetricAdapter.toDatapoints(
-                MetricData.createDoubleSummary(
-                    Resource.create(Attributes.empty()),
-                    InstrumentationLibraryInfo.create("testlib", "1.1"),
-                    "test",
-                    "test",
-                    "ms",
-                    DoubleSummaryData.create(Collections.emptyList())))
-            .isEmpty());
-  }
+        assertEquals(
+                "metric_01,key01=value01 gauge,min=1.56,max=345.23,sum=12934.0,count=42 456",
+                MetricAdapter.generateSummaryPoint(
+                        "metric_01",
+                        DoubleSummaryPointData.create(
+                                123,
+                                TimeUnit.MILLISECONDS.toNanos(456),
+                                Labels.of("key01", "value01"),
+                                42,
+                                12934,
+                                list))
+                        .serialize());
+    }
 
-  @Test
-  public void generateSummarypointTest() {
+    @Test
+    public void TestOneAgentDimensions() {
+        OneAgentMetadataEnricher metadataEnricher = mock(OneAgentMetadataEnricher.class);
+        Collection<AbstractMap.SimpleEntry<String, String>> tags = new ArrayList<>();
+        tags.add(new AbstractMap.SimpleEntry<String, String>("oneagenttag", "oneagentvalue"));
+        tags.add(new AbstractMap.SimpleEntry<String, String>("anotheroneagenttag", "anotheroneagentvalue"));
+        when(metadataEnricher.getDimensionsFromOneAgentMetadata()).thenReturn(tags);
 
-    List<ValueAtPercentile> list = new ArrayList<>(2);
-    list.add(ValueAtPercentile.create(0.0, 1.56));
-    list.add(ValueAtPercentile.create(100.0, 345.23));
+        MetricAdapter.getInstance().setTags(tags);
 
-    SummaryStats.DoubleSummaryStat summaryStat =
-        SummaryStats.doubleSummaryStat(1.56, 345.23, 12934, 42);
+        List<ValueAtPercentile> list = new ArrayList<>(2);
+        list.add(ValueAtPercentile.create(0.0, 1.56));
+        list.add(ValueAtPercentile.create(100.0, 345.23));
+        assertEquals(
+                "metric_01,key01=value01,oneagenttag=oneagentvalue,anotheroneagenttag=anotheroneagentvalue gauge,min=1.56,max=345.23,sum=12934.0,count=42 456",
+                MetricAdapter.generateSummaryPoint(
+                        "metric_01",
+                        DoubleSummaryPointData.create(
+                                123,
+                                TimeUnit.MILLISECONDS.toNanos(456),
+                                Labels.of("key01", "value01"),
+                                42,
+                                12934,
+                                list))
+                        .serialize());
+    }
 
-    assertEquals(
-        Datapoint.create("metric_01")
-            .addDimension("key01", "value01")
-            .timestamp(TimeUnit.MILLISECONDS.toNanos(456))
-            .value(Values.doubleGauge(summaryStat))
-            .build()
-            .serialize(),
-        MetricAdapter.generateSummaryPoint(
-                "metric_01",
-                DoubleSummaryPointData.create(
-                    123,
-                    TimeUnit.MILLISECONDS.toNanos(456),
-                    Labels.of("key01", "value01"),
-                    42,
-                    12934,
-                    list))
-            .serialize());
 
-    assertEquals(
-        "metric_01,key01=value01 gauge,min=1.56,max=345.23,sum=12934.0,count=42 456",
-        MetricAdapter.generateSummaryPoint(
-                "metric_01",
-                DoubleSummaryPointData.create(
-                    123,
-                    TimeUnit.MILLISECONDS.toNanos(456),
-                    Labels.of("key01", "value01"),
-                    42,
-                    12934,
-                    list))
-            .serialize());
-  }
+
 }

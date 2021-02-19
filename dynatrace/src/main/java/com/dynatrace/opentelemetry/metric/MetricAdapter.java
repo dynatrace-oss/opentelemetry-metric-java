@@ -52,6 +52,7 @@ public final class MetricAdapter {
         return instance;
     }
 
+
     private Collection<Dimension> constantDimensions = null;
 
     public void setTags(Collection<AbstractMap.SimpleEntry<String, String>> tags) {
@@ -60,13 +61,24 @@ public final class MetricAdapter {
         }
 
         if (this.constantDimensions == null) {
+            List<Dimension> localConstantDimensions = new ArrayList<>();
             // the constantDimensions field is only populated once, and the dimensions are reused.
             for (AbstractMap.SimpleEntry<String, String> tag : tags) {
-                constantDimensions.add(toMintDimension(tag.getKey(), tag.getValue()));
+                localConstantDimensions.add(toMintDimension(tag.getKey(), tag.getValue()));
             }
+            constantDimensions = Collections.unmodifiableList(localConstantDimensions);
         } else {
             logger.warning("overwriting of tags not allowed.");
         }
+    }
+
+    private void resetForTestInstance() {
+        this.constantDimensions = null;
+    }
+
+    static void resetForTest() {
+        getInstance().resetForTestInstance();
+        instance = null;
     }
 
     /**
