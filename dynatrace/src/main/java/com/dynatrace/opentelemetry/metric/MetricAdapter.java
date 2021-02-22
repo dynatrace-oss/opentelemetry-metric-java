@@ -16,6 +16,7 @@ package com.dynatrace.opentelemetry.metric;
 import com.dynatrace.opentelemetry.metric.mint.Datapoint;
 import com.dynatrace.opentelemetry.metric.mint.Dimension;
 import com.dynatrace.opentelemetry.metric.mint.MintMetricsMessage;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
@@ -45,6 +46,10 @@ public final class MetricAdapter {
 
     private static MetricAdapter instance = null;
 
+    /**
+     * Singleton access method. Sets up a new instance if none exists and always returns that instance.
+     * @return the instance of type {@link MetricAdapter}
+     */
     public static MetricAdapter getInstance() {
         if (instance == null) {
             instance = new MetricAdapter();
@@ -53,16 +58,29 @@ public final class MetricAdapter {
     }
 
 
+    /**
+     * contains the static dimensions (e. g. tags and OneAgent metadata enrichment, if set up) that are added to each
+     * mint line sent to the ingestion API.
+     */
     private Collection<Dimension> constantDimensions = null;
 
+    /**
+     * Set the dimensions (as key value pairs) that should be added as dimensions in the mint line. keys and values are
+     * sanitized by {@link #toMintDimension}. Tags specified here are appended after tags that are set during usage of
+     * the instruments that actually do the value recording. Once the tags are set, they cannot be overwritten and will
+     * stay the same for the runtime of the program.
+     *
+     * @param tags a list of tags that are appended to each mint line, as key-value pairs (mapping {@link String} to
+     *             {@link String}.
+     */
     public void setTags(Collection<AbstractMap.SimpleEntry<String, String>> tags) {
         if (tags == null) {
             return;
         }
 
+        // the constantDimensions field is only populated once, and the dimensions created then are reused.
         if (this.constantDimensions == null) {
             List<Dimension> localConstantDimensions = new ArrayList<>();
-            // the constantDimensions field is only populated once, and the dimensions are reused.
             for (AbstractMap.SimpleEntry<String, String> tag : tags) {
                 localConstantDimensions.add(toMintDimension(tag.getKey(), tag.getValue()));
             }
@@ -72,12 +90,13 @@ public final class MetricAdapter {
         }
     }
 
-    private void resetForTestInstance() {
-        this.constantDimensions = null;
-    }
 
+    /**
+     * resets the values stored in the singleton to null and deletes the singleton instance itself.
+     */
+    @VisibleForTesting
     static void resetForTest() {
-        getInstance().resetForTestInstance();
+        getInstance().constantDimensions = null;
         instance = null;
     }
 

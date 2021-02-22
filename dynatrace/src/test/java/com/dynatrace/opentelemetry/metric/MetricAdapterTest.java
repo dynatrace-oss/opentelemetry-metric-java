@@ -33,9 +33,15 @@ import io.opentelemetry.sdk.resources.Resource;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class MetricAdapterTest {
+
+    @BeforeEach
+    void setUp() {
+        MetricAdapter.resetForTest();
+    }
 
     @Test
     public void toDatapointsTest() {
@@ -71,6 +77,8 @@ public class MetricAdapterTest {
 
     @Test
     public void generateSummarypointTest() {
+        // this test also verifies that running the metric exporter with no tags set behaves as expected (i. e. no 
+        // errors, and no added tags.
         List<ValueAtPercentile> list = new ArrayList<>(2);
         list.add(ValueAtPercentile.create(0.0, 1.56));
         list.add(ValueAtPercentile.create(100.0, 345.23));
@@ -135,8 +143,31 @@ public class MetricAdapterTest {
                                 12934,
                                 list))
                         .serialize());
+
     }
 
+    @Test
+    public void TestAddOneAgentDimensionsEmptyList() {
+        OneAgentMetadataEnricher metadataEnricher = mock(OneAgentMetadataEnricher.class);
+        Collection<AbstractMap.SimpleEntry<String, String>> tags = new ArrayList<>();
+        when(metadataEnricher.getDimensionsFromOneAgentMetadata()).thenReturn(tags);
 
+        MetricAdapter.getInstance().setTags(tags);
 
+        List<ValueAtPercentile> list = new ArrayList<>(2);
+        list.add(ValueAtPercentile.create(0.0, 1.56));
+        list.add(ValueAtPercentile.create(100.0, 345.23));
+        assertEquals(
+                "metric_01,key01=value01 gauge,min=1.56,max=345.23,sum=12934.0,count=42 456",
+                MetricAdapter.generateSummaryPoint(
+                        "metric_01",
+                        DoubleSummaryPointData.create(
+                                123,
+                                TimeUnit.MILLISECONDS.toNanos(456),
+                                Labels.of("key01", "value01"),
+                                42,
+                                12934,
+                                list))
+                        .serialize());
+    }
 }
