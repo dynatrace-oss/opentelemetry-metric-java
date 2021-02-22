@@ -1,7 +1,4 @@
-# This workflow will build a Java project with Gradle
-# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-gradle
-
-name: Java CI with Gradle
+name: Java build with Gradle
 
 on:
   push:
@@ -15,17 +12,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up JDK 1.8
-      uses: actions/setup-java@v1
-      with:
-        java-version: 1.8
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-    - name: Build with Gradle
-      run: ./gradlew build
-    - name: Unit tests results
-      uses: actions/upload-artifact@v2
-      with:
-        name: unit-tests-results
-        path: dynatrace/build/reports/tests/test/ 
+      - uses: actions/checkout@v2
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+      - name: Compile
+        run: ./gradlew assemble
+      - name: Test
+        run: ./gradlew check
+      - name: Upload JAR
+        uses: actions/upload-artifact@v2
+        with:
+          name: jar
+          path: dynatrace/build/libs/*.jar
+          if-no-files-found: error
+      - name: Upload unit test results
+        uses: actions/upload-artifact@v2
+        with:
+          name: unit-tests-results
+          path: dynatrace/build/reports/tests/test/
