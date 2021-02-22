@@ -1,7 +1,4 @@
-# This workflow will build a Java project with Gradle
-# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-gradle
-
-name: Java CI with Gradle
+name: Java build with Gradle
 
 on:
   push:
@@ -22,10 +19,17 @@ jobs:
         java-version: 1.8
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
-    - name: Build with Gradle
+    - name: Compile
+      run: ./gradlew assemble
+    - name: Test
       run: ./gradlew build
-    - name: Unit tests results
+    - name: Upload JAR
+      uses: actions/upload-artifact@v2
+      with:
+        name: jar
+        path: dynatrace/build/libs/*.jar
+    - name: Upload unit test results
       uses: actions/upload-artifact@v2
       with:
         name: unit-tests-results
-        path: dynatrace/build/reports/tests/test/ 
+        path: dynatrace/build/reports/tests/test/
