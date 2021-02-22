@@ -28,6 +28,7 @@ jobs:
         with:
           name: jar
           path: dynatrace/build/libs/*.jar
+          if-no-files-found: error
       - name: Upload unit test results
         uses: actions/upload-artifact@v2
         with:
