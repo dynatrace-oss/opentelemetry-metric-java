@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2020 Dynatrace LLC
  *
  * <p>Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
@@ -21,12 +21,13 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.Nonnull;
 
 /** Export metric to Dynatrace. */
 public final class DynatraceMetricExporter implements MetricExporter {
@@ -35,13 +36,13 @@ public final class DynatraceMetricExporter implements MetricExporter {
 
   private static final Logger logger = Logger.getLogger(DynatraceMetricExporter.class.getName());
 
-  private DynatraceMetricExporter(URL url, String apiToken, Boolean enrichWithOneAgentData) {
+  private DynatraceMetricExporter(URL url, String apiToken, Boolean enrichWithOneAgentMetaData) {
     this.url = url;
     this.apiToken = apiToken;
 
     Collection<AbstractMap.SimpleEntry<String, String>> localTags = new ArrayList<>();
 
-    if (enrichWithOneAgentData) {
+    if (enrichWithOneAgentMetaData) {
       OneAgentMetadataEnricher enricher = new OneAgentMetadataEnricher(logger);
       localTags.addAll(enricher.getDimensionsFromOneAgentMetadata());
     }
@@ -60,7 +61,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
     try {
       builder
           .setUrl(new URL("http://127.0.0.1:14499/metrics/ingest"))
-          .setEnrichWithOneAgentData(true)
+          .setEnrichWithOneAgentMetaData(true)
           .build();
     } catch (Exception e) {
       // we can ignore
@@ -75,8 +76,8 @@ public final class DynatraceMetricExporter implements MetricExporter {
    * @return ResultCode.FAILURE if exporting was not successful, ResultCode.SUCCESS otherwise.
    */
   @Override
-  public CompletableResultCode export(Collection<MetricData> metrics) {
-    HttpURLConnection connection = null;
+  public CompletableResultCode export(@Nonnull Collection<MetricData> metrics) {
+    HttpURLConnection connection;
     try {
       connection = (HttpURLConnection) url.openConnection();
     } catch (Exception e) {
@@ -99,7 +100,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
       connection.setRequestProperty("Content-Type", "text/plain; charset=utf-8");
       connection.setDoOutput(true);
       try (final OutputStream outputStream = connection.getOutputStream()) {
-        outputStream.write(mintMetricsMessage.getBytes(Charset.forName("UTF-8")));
+        outputStream.write(mintMetricsMessage.getBytes(StandardCharsets.UTF_8));
       }
       int code = connection.getResponseCode();
       if (code != 202) {
@@ -126,7 +127,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
   public static class Builder {
     private URL url;
     private String apiToken = null;
-    private Boolean enrichWithOneAgentData = false;
+    private Boolean enrichWithOneAgentMetaData = false;
 
     public Builder setUrl(String url) throws MalformedURLException {
       this.url = new URL(url);
@@ -143,13 +144,13 @@ public final class DynatraceMetricExporter implements MetricExporter {
       return this;
     }
 
-    public Builder setEnrichWithOneAgentData(Boolean enrich) {
-      this.enrichWithOneAgentData = enrich;
+    public Builder setEnrichWithOneAgentMetaData(Boolean enrich) {
+      this.enrichWithOneAgentMetaData = enrich;
       return this;
     }
 
     public DynatraceMetricExporter build() {
-      return new DynatraceMetricExporter(url, apiToken, enrichWithOneAgentData);
+      return new DynatraceMetricExporter(url, apiToken, enrichWithOneAgentMetaData);
     }
   }
 }
