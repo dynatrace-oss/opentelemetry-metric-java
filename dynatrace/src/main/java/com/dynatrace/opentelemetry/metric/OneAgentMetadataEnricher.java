@@ -15,16 +15,10 @@
 package com.dynatrace.opentelemetry.metric;
 
 import com.google.common.base.Strings;
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.io.*;
 import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 final class OneAgentMetadataEnricher {
   private final Logger logger;
@@ -34,7 +28,7 @@ final class OneAgentMetadataEnricher {
   }
 
   public Collection<AbstractMap.SimpleEntry<String, String>> getDimensionsFromOneAgentMetadata() {
-    return parseOneAgentMetadata(getMetadataFileContent());
+    return parseOneAgentMetadata(getMetadataFileContentWithRedirection());
   }
 
   /**
@@ -79,49 +73,97 @@ final class OneAgentMetadataEnricher {
     return entries;
   }
 
-  private List<String> getMetadataFileContent() {
-    String indirectionBaseName = "dt_metadata_e617c525669e072eebe3d0f08212e8f2";
-    String secretFileName = null;
-    try (BufferedReader reader =
-        new BufferedReader(new FileReader(String.format("%s.properties", indirectionBaseName)))) {
-      String line;
-      // this whole while block is to make sure this function will still work even if the contents
-      // of the
-      // indirection file were to change in the future.
+  /**
+   * Get the file name of the file to which OneAgent persists its parameters.
+   *
+   * @param fileContents A {@link Reader} object pointing at the indirection file. Will be read
+   *     using a {@link BufferedReader}
+   * @param indirectionBaseName The prefix for the OneAgent metadata file. Lines in the indirection
+   *     file without this prefix are ignored. If null is passed as this parameter,
+   *     'dt_metadata_e617c525669e072eebe3d0f08212e8f2' is used.
+   * @return The string containing the filename, with no leading or trailing whitespace.
+   * @throws IOException if an error occurs during reading of the file.
+   */
+  String getIndirectionFilename(Reader fileContents, String indirectionBaseName)
+      throws IOException {
+    if (fileContents == null) {
+      throw new IOException("passed Reader cannot be null.");
+    }
+    String prefix = indirectionBaseName;
+    if (indirectionBaseName == null) {
+      prefix = "dt_metadata_e617c525669e072eebe3d0f08212e8f2";
+    }
 
-      // read file line by line, and stop if the end of the file is reached.
-      while ((line = reader.readLine()) != null) {
-        // the secret file contains the basename and a random number at the end.
-        if (line.contains(indirectionBaseName)) {
-          secretFileName = line;
-          // if the secret file name has been found the loop can be left.
-          break;
-        }
+    String oneAgentMetadataFileName = null;
+    String line;
+
+    BufferedReader reader = new BufferedReader(fileContents);
+    // read file line by line, and stop if the end of the file is reached.
+    while ((line = reader.readLine()) != null) {
+      line = line.trim();
+      // the secret file contains the basename and a random number at the end.
+      if (line.startsWith(prefix)) {
+        oneAgentMetadataFileName = line;
+        // if the secret file name has been found the loop can be left.
+        break;
       }
-    } catch (FileNotFoundException ignore) {
-      logger.info("OneAgent metadata file not found. This is normal if OneAgent is not installed.");
+    }
+    return oneAgentMetadataFileName;
+  }
+
+  /**
+   * Read the actual content of the OneAgent metadata file.
+   *
+   * @param fileContents A {@link Reader} object pointing at the metadata file.
+   * @return A {@link List<String>} containing the {@link String#trim() trimmed} lines.
+   * @throws IOException if an error occurs during reading of the file.
+   */
+  List<String> getOneAgentMetadataFileContent(Reader fileContents) throws IOException {
+    if (fileContents == null) {
+      throw new IOException("passed Reader cannot be null.");
+    }
+    BufferedReader reader = new BufferedReader(fileContents);
+    return reader.lines().map(String::trim).collect(Collectors.toList());
+  }
+
+  /**
+   * Gets the file location of the OneAgent metadata file from the indirection file and reads the
+   * contents of the OneAgent metadata file.
+   *
+   * @return A {@link List<String>} representing the contents of the OneAgent metadata file. Leading
+   *     and trailing whitespaces are {@link String#trim() trimmed} for each of the lines.
+   */
+  List<String> getMetadataFileContentWithRedirection() {
+    String indirectionBaseName = "dt_metadata_e617c525669e072eebe3d0f08212e8f2";
+    String oneAgentMetadataFileName = null;
+
+    try (Reader indirectionFileReader =
+        new FileReader(String.format("%s.properties", indirectionBaseName))) {
+      oneAgentMetadataFileName = getIndirectionFilename(indirectionFileReader, indirectionBaseName);
+    } catch (FileNotFoundException e) {
+      logger.info(
+          "OneAgent indirection file not found. This is normal if OneAgent is not installed.");
+    } catch (IOException e) {
+      logger.info(
+          String.format(
+              "Error while trying to read contents of OneAgent indirection file: %s",
+              e.getMessage()));
+    }
+
+    if (Strings.isNullOrEmpty(oneAgentMetadataFileName)) {
+      return Collections.emptyList();
+    }
+
+    List<String> properties = Collections.emptyList();
+    try (Reader metadataFileReader = new FileReader(oneAgentMetadataFileName)) {
+      properties = getOneAgentMetadataFileContent(metadataFileReader);
+    } catch (FileNotFoundException e) {
+      logger.warning("OneAgent indirection file pointed to non existent properties file.");
     } catch (IOException e) {
       logger.info(
           String.format(
               "Error while trying to read contents of OneAgent metadata file: %s", e.getMessage()));
     }
-
-    if (!Strings.isNullOrEmpty(secretFileName)) {
-      List<String> properties;
-      // read all lines in the secret file into the properties list:
-      try (Stream<String> lines = Files.lines(Paths.get(secretFileName))) {
-        properties = lines.collect(Collectors.toList());
-      } catch (IOException e) {
-        // in this case we can probably raise a warning, as the magic file has been found, but not
-        // the
-        // properties file pointed to by the magic file.
-        logger.warning(
-            String.format("OneAgent properties file could not be read: %s", e.getMessage()));
-        properties = Collections.emptyList();
-      }
-      return properties;
-    }
-
-    return Collections.emptyList();
+    return properties;
   }
 }
