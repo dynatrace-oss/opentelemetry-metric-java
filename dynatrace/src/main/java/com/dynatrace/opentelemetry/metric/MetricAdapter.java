@@ -59,7 +59,7 @@ public final class MetricAdapter {
    * Contains the static dimensions (i.e., tags and OneAgent metadata enrichment, if set up) that
    * are added to each MINT line sent to the ingestion API.
    */
-  private Collection<Dimension> constantDimensions = null;
+  private Set<Dimension> constantDimensions = null;
 
   /**
    * Sets the dimensions (as key-value pairs) that should be added as dimensions to all metrics.
@@ -75,16 +75,15 @@ public final class MetricAdapter {
       return;
     }
 
-    // the constantDimensions field is only populated once, and the dimensions created then are
-    // reused.
+    // the constantDimensions field is only populated once, and the dimensions are reused.
     if (this.constantDimensions == null) {
-      List<Dimension> localConstantDimensions = new ArrayList<>();
+      Set<Dimension> localConstantDimensions = new LinkedHashSet<>();
       for (AbstractMap.SimpleEntry<String, String> tag : tags) {
         localConstantDimensions.add(toMintDimension(tag.getKey(), tag.getValue()));
       }
-      constantDimensions = Collections.unmodifiableList(localConstantDimensions);
+      constantDimensions = Collections.unmodifiableSet(localConstantDimensions);
     } else {
-      logger.warning("overwriting of tags not allowed.");
+      logger.warning("overwriting of tags not allowed. Skipping...");
     }
   }
 
@@ -242,10 +241,11 @@ public final class MetricAdapter {
   /**
    * This function first transforms the given labels to dimensions using {@link
    * #convertLabelsToDimensions(Labels)} and then adds static labels that are stored in the
-   * singleton instance, if there are any. Existing labels with the same key will be overwritten.
+   * singleton instance, if there are any. If two labels have the same key, the last added label is
+   * retained. Constant dimensions such as tags and OneAgent metadata labels are added last.
    *
    * @param labels the labels to be transformed by {@link #convertLabelsToDimensions}.
-   * @return A list of {@link Dimension} objects, that will be serialized.
+   * @return A list of {@link Dimension} objects to be serialized.
    */
   private static List<Dimension> getCombinedDimensions(Labels labels) {
     Set<Dimension> dynamicDimensions = convertLabelsToDimensions(labels);
@@ -254,7 +254,7 @@ public final class MetricAdapter {
       dynamicDimensions.addAll(getInstance().constantDimensions);
     }
 
-    return new ArrayList<>(dynamicDimensions);
+    return Collections.unmodifiableList(new ArrayList<>(dynamicDimensions));
   }
 
   /**
@@ -267,7 +267,8 @@ public final class MetricAdapter {
    */
   private static Set<Dimension> convertLabelsToDimensions(Labels labels)
       throws DynatraceExporterException {
-    final Set<Dimension> dimensions = new HashSet<>();
+    // LinkedHashSet will retain the order in which the elements are added.
+    final Set<Dimension> dimensions = new LinkedHashSet<>();
     labels.forEach((String k, String v) -> dimensions.add(toMintDimension(k, v)));
 
     return dimensions;
