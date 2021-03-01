@@ -78,7 +78,7 @@ final class OneAgentMetadataEnricher {
     }
     return entries;
   }
-  
+
   private List<String> getMetadataFileContent() {
     String indirectionBaseName = "dt_metadata_e617c525669e072eebe3d0f08212e8f2";
     String secretFileName = null;

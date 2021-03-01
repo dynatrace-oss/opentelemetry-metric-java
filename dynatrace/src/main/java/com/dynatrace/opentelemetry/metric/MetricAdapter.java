@@ -79,7 +79,14 @@ final class MetricAdapter {
     if (this.constantDimensions == null) {
       Set<Dimension> localConstantDimensions = new LinkedHashSet<>();
       for (AbstractMap.SimpleEntry<String, String> tag : tags) {
-        localConstantDimensions.add(toMintDimension(tag.getKey(), tag.getValue()));
+        try {
+          localConstantDimensions.add(toMintDimension(tag.getKey(), tag.getValue()));
+        } catch (DynatraceExporterException dee) {
+          logger.warning(
+              String.format(
+                  "Could not transform '%s/%s' to MINT dimension: %s",
+                  tag.getKey(), tag.getValue(), dee.getMessage()));
+        }
       }
       constantDimensions = Collections.unmodifiableSet(localConstantDimensions);
     } else {
@@ -269,7 +276,16 @@ final class MetricAdapter {
       throws DynatraceExporterException {
     // LinkedHashSet will retain the order in which the elements are added.
     final Set<Dimension> dimensions = new LinkedHashSet<>();
-    labels.forEach((String k, String v) -> dimensions.add(toMintDimension(k, v)));
+    labels.forEach(
+        (String k, String v) -> {
+          try {
+            dimensions.add(toMintDimension(k, v));
+          } catch (DynatraceExporterException dee) {
+            logger.warning(
+                String.format(
+                    "Could not transform '%s/%s' to MINT dimension: %s", k, v, dee.getMessage()));
+          }
+        });
 
     return dimensions;
   }
@@ -327,10 +343,15 @@ final class MetricAdapter {
    * @param key is the key as String.
    * @param value is the value as String.
    * @return a MINT-compatible Dimension (sanitized key and value).
-   * @throws DynatraceExporterException if an error occured during sanitizing the Strings.
+   * @throws DynatraceExporterException if an error occurred during sanitizing the Strings or if a
+   *     null value was passed.
    */
   static Dimension toMintDimension(String key, String value) throws DynatraceExporterException {
-    return Dimension.create(toMintDimensionKey(key), toMintDimensionValue(value));
+    try {
+      return Dimension.create(toMintDimensionKey(key), toMintDimensionValue(value));
+    } catch (NullPointerException npe) {
+      throw new DynatraceExporterException(npe.getMessage());
+    }
   }
 
   /**

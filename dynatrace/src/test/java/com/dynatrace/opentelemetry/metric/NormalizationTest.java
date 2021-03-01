@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2020 Dynatrace LLC
  *
  * <p>Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
@@ -109,6 +109,14 @@ public class NormalizationTest {
     assertThrows(DynatraceExporterException.class, () -> MetricAdapter.toMintDimension(".a", "b"));
     assertThrows(DynatraceExporterException.class, () -> MetricAdapter.toMintDimension("a.", "b"));
     MetricAdapter.toMintDimension("a..b", "b");
+  }
+
+  @Test
+  public void nullDimensionKeyTest() {
+    assertThrows(
+        DynatraceExporterException.class, () -> MetricAdapter.toMintDimension(null, "value"));
+    assertThrows(
+        DynatraceExporterException.class, () -> MetricAdapter.toMintDimension("key", null));
   }
 
   @Test
