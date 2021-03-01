@@ -26,7 +26,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class OneAgentMetadataEnricher {
+final class OneAgentMetadataEnricher {
   private final Logger logger;
 
   public OneAgentMetadataEnricher(Logger logger) {
@@ -45,10 +45,11 @@ public class OneAgentMetadataEnricher {
    *
    * @param lines a {@link Collection<String>} containing key-value pairs (as one string) separated
    *     by an equal sign.
-   * @return A {@link Collection<AbstractMap.SimpleEntry<String, String>>}. These represent the the
+   * @return A {@link Collection<AbstractMap.SimpleEntry<String,String>>}. These represent the the
    *     lines passed in separated by the first occurring equal sign on each line, respectively. If
    *     no line is parsable, returns an empty list
    */
+  @SuppressWarnings("JavaDoc")
   protected Collection<AbstractMap.SimpleEntry<String, String>> parseOneAgentMetadata(
       Collection<String> lines) {
     ArrayList<AbstractMap.SimpleEntry<String, String>> entries = new ArrayList<>();
@@ -77,13 +78,13 @@ public class OneAgentMetadataEnricher {
     }
     return entries;
   }
-
+  
   private List<String> getMetadataFileContent() {
     String indirectionBaseName = "dt_metadata_e617c525669e072eebe3d0f08212e8f2";
     String secretFileName = null;
     try (BufferedReader reader =
         new BufferedReader(new FileReader(String.format("%s.properties", indirectionBaseName)))) {
-      String line = "";
+      String line;
       // this whole while block is to make sure this function will still work even if the contents
       // of the
       // indirection file were to change in the future.

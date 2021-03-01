@@ -29,7 +29,7 @@ import java.util.*;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-public final class MetricAdapter {
+final class MetricAdapter {
 
   private static final Logger logger = Logger.getLogger(MetricAdapter.class.getName());
   private static final Pattern TO_ESCAPE = Pattern.compile("[,=\\s\\\\]");
