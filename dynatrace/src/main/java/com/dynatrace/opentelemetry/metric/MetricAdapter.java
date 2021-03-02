@@ -284,6 +284,8 @@ final class MetricAdapter {
             logger.warning(
                 String.format(
                     "Could not transform '%s/%s' to MINT dimension: %s", k, v, dee.getMessage()));
+            // re-throw the exception so the datapoint will be skipped
+            throw dee;
           }
         });
 

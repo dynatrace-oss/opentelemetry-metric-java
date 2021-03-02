@@ -28,7 +28,8 @@ final class OneAgentMetadataEnricher {
   }
 
   public Collection<AbstractMap.SimpleEntry<String, String>> getDimensionsFromOneAgentMetadata() {
-    return parseOneAgentMetadata(getMetadataFileContentWithRedirection());
+    String indirectionBaseName = "dt_metadata_e617c525669e072eebe3d0f08212e8f2";
+    return parseOneAgentMetadata(getMetadataFileContentWithRedirection(indirectionBaseName));
   }
 
   /**
@@ -97,15 +98,16 @@ final class OneAgentMetadataEnricher {
     String oneAgentMetadataFileName = null;
     String line;
 
-    BufferedReader reader = new BufferedReader(fileContents);
-    // read file line by line, and stop if the end of the file is reached.
-    while ((line = reader.readLine()) != null) {
-      line = line.trim();
-      // the secret file contains the basename and a random number at the end.
-      if (line.startsWith(prefix)) {
-        oneAgentMetadataFileName = line;
-        // if the secret file name has been found the loop can be left.
-        break;
+    try (BufferedReader reader = new BufferedReader(fileContents)) {
+      // read file line by line, and stop if the end of the file is reached.
+      while ((line = reader.readLine()) != null) {
+        line = line.trim();
+        // the secret file contains the basename and a random number at the end.
+        if (line.startsWith(prefix)) {
+          oneAgentMetadataFileName = line;
+          // if the secret file name has been found the loop can be left.
+          break;
+        }
       }
     }
     return oneAgentMetadataFileName;
@@ -122,8 +124,9 @@ final class OneAgentMetadataEnricher {
     if (fileContents == null) {
       throw new IOException("passed Reader cannot be null.");
     }
-    BufferedReader reader = new BufferedReader(fileContents);
-    return reader.lines().map(String::trim).collect(Collectors.toList());
+    try (BufferedReader reader = new BufferedReader(fileContents)) {
+      return reader.lines().map(String::trim).collect(Collectors.toList());
+    }
   }
 
   /**
@@ -133,8 +136,7 @@ final class OneAgentMetadataEnricher {
    * @return A {@link List<String>} representing the contents of the OneAgent metadata file. Leading
    *     and trailing whitespaces are {@link String#trim() trimmed} for each of the lines.
    */
-  List<String> getMetadataFileContentWithRedirection() {
-    String indirectionBaseName = "dt_metadata_e617c525669e072eebe3d0f08212e8f2";
+  List<String> getMetadataFileContentWithRedirection(String indirectionBaseName) {
     String oneAgentMetadataFileName = null;
 
     try (Reader indirectionFileReader =

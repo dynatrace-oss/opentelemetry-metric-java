@@ -2,11 +2,16 @@ package com.dynatrace.opentelemetry.metric;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.mockito.internal.util.reflection.FieldSetter;
 
 public class OneAgentMetadataEnricherTest {
   Logger logger = Logger.getLogger(getClass().getName());
@@ -144,5 +149,138 @@ public class OneAgentMetadataEnricherTest {
   @Test
   public void testGetOneAgentMetadataFileContentPassNull() {
     assertThrows(IOException.class, () -> enricher.getOneAgentMetadataFileContent(null));
+  }
+
+  @Test
+  public void testGetMetadataFileContentWithRedirection_Valid() {
+    List<String> expected = Arrays.asList("key1=value1", "key2=value2", "key3=value3");
+    List<String> results =
+        enricher.getMetadataFileContentWithRedirection("src/test/resources/indirection");
+    assertEquals(expected, results);
+    assertNotSame(expected, results);
+  }
+
+  private String generateNonExistentFilename() {
+    File f = null;
+    Random r = new Random();
+    // generate random filenames until we find one that does not exist:
+    do {
+      byte[] array = new byte[7];
+      r.nextBytes(array);
+      String filename = "src/test/resources/" + new String(array, StandardCharsets.UTF_8);
+
+      f = new File(filename);
+    } while (f.exists());
+    return f.getAbsolutePath();
+  }
+
+  @Test
+  public void testGetMetadataFileContentWithRedirection_IndirectionFileDoesNotExist() {
+    String filename = generateNonExistentFilename();
+
+    List<String> result = enricher.getMetadataFileContentWithRedirection(filename);
+    assertEquals(Collections.<String>emptyList(), result);
+  }
+
+  @Test
+  public void testGetMetadataFileContentWithRedirection_IndirectionFileReturnsNull()
+      throws Exception {
+    OneAgentMetadataEnricher mockEnricher = Mockito.mock(OneAgentMetadataEnricher.class);
+    // ignore the return value of the testfile and mock the return value of the
+    // getIndirectionFileName call:
+    Mockito.when(
+            mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class), Mockito.anyString()))
+        .thenReturn(null);
+    Mockito.when(mockEnricher.getMetadataFileContentWithRedirection(Mockito.anyString()))
+        .thenCallRealMethod();
+
+    List<String> result =
+        mockEnricher.getMetadataFileContentWithRedirection("src/test/resources/mock_target");
+    assertEquals(Collections.<String>emptyList(), result);
+  }
+
+  @Test
+  public void testGetMetadataFileContentWithRedirection_IndirectionFileReturnsEmpty()
+      throws Exception {
+    OneAgentMetadataEnricher mockEnricher = Mockito.mock(OneAgentMetadataEnricher.class);
+    // ignore the return value of the testfile and mock the return value of the
+    // getIndirectionFileName call:
+    Mockito.when(
+            mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class), Mockito.anyString()))
+        .thenReturn("");
+    Mockito.when(mockEnricher.getMetadataFileContentWithRedirection(Mockito.anyString()))
+        .thenCallRealMethod();
+
+    List<String> result =
+        mockEnricher.getMetadataFileContentWithRedirection("src/test/resources/mock_target");
+    assertEquals(Collections.<String>emptyList(), result);
+  }
+
+  @Test
+  public void testGetMetadataFileContentWithRedirection_IndirectionFileThrows() throws Exception {
+    OneAgentMetadataEnricher mockEnricher = Mockito.mock(OneAgentMetadataEnricher.class);
+    // in this case, the logger needs to be set on the mock, otherwise the logging call will throw a
+    // NullReferenceException
+    FieldSetter.setField(mockEnricher, mockEnricher.getClass().getDeclaredField("logger"), logger);
+    // ignore the return value of the testfile and mock the return value of the
+    // getIndirectionFileName call:
+    Mockito.when(
+            mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class), Mockito.anyString()))
+        .thenThrow(new IOException("test exception"));
+    Mockito.when(mockEnricher.getMetadataFileContentWithRedirection(Mockito.anyString()))
+        .thenCallRealMethod();
+
+    List<String> result =
+        mockEnricher.getMetadataFileContentWithRedirection("src/test/resources/mock_target");
+    assertEquals(Collections.<String>emptyList(), result);
+  }
+
+  @Test
+  public void testGetMetadataFileContentWithRedireection_MetadataFileDoesNotExist()
+      throws IOException, NoSuchFieldException {
+    String metadataFilename = generateNonExistentFilename();
+    OneAgentMetadataEnricher mockEnricher = Mockito.mock(OneAgentMetadataEnricher.class);
+    FieldSetter.setField(mockEnricher, mockEnricher.getClass().getDeclaredField("logger"), logger);
+    Mockito.when(
+            mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class), Mockito.anyString()))
+        .thenReturn(metadataFilename);
+    Mockito.when(mockEnricher.getMetadataFileContentWithRedirection(Mockito.anyString()))
+        .thenCallRealMethod();
+
+    List<String> result =
+        mockEnricher.getMetadataFileContentWithRedirection("src/test/resources/mock_target");
+    assertEquals(Collections.<String>emptyList(), result);
+  }
+
+  @Test
+  public void testGetMetadataFileContentWithRedireection_MetadataFileReadThrows()
+      throws IOException, NoSuchFieldException {
+    OneAgentMetadataEnricher mockEnricher = Mockito.mock(OneAgentMetadataEnricher.class);
+    FieldSetter.setField(mockEnricher, mockEnricher.getClass().getDeclaredField("logger"), logger);
+    Mockito.when(
+            mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class), Mockito.anyString()))
+        .thenThrow(new IOException("test exception"));
+    Mockito.when(mockEnricher.getMetadataFileContentWithRedirection(Mockito.anyString()))
+        .thenCallRealMethod();
+
+    List<String> result =
+        mockEnricher.getMetadataFileContentWithRedirection("src/test/resources/mock_target");
+    assertEquals(Collections.<String>emptyList(), result);
+  }
+
+  @Test
+  public void testGetMetadataFileContentWithRedireection_EmptyMetadataFile() throws IOException {
+    OneAgentMetadataEnricher mockEnricher = Mockito.mock(OneAgentMetadataEnricher.class);
+    Mockito.when(
+            mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class), Mockito.anyString()))
+        .thenReturn("src/test/resources/mock_target.properties");
+    Mockito.when(mockEnricher.getOneAgentMetadataFileContent(Mockito.any(FileReader.class)))
+        .thenReturn(Collections.emptyList());
+    Mockito.when(mockEnricher.getMetadataFileContentWithRedirection(Mockito.anyString()))
+        .thenCallRealMethod();
+
+    List<String> result =
+        mockEnricher.getMetadataFileContentWithRedirection("src/test/resources/mock_target");
+    assertEquals(Collections.<String>emptyList(), result);
   }
 }

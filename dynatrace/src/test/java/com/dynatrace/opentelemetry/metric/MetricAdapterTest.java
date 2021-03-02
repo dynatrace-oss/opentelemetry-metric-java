@@ -76,8 +76,7 @@ public class MetricAdapterTest {
   @Test
   public void generateSummarypointTest() {
     // this test also verifies that running the metric exporter with no tags set behaves as expected
-    // (i. e. no
-    // errors, and no added tags.
+    // (i. e. no errors, and no added tags.)
     List<ValueAtPercentile> list = new ArrayList<>(2);
     list.add(ValueAtPercentile.create(0.0, 1.56));
     list.add(ValueAtPercentile.create(100.0, 345.23));
