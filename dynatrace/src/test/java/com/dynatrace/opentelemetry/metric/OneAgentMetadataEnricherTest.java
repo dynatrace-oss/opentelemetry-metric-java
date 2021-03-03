@@ -11,7 +11,6 @@ import java.util.*;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import org.mockito.internal.util.reflection.FieldSetter;
 
 public class OneAgentMetadataEnricherTest {
   Logger logger = Logger.getLogger(getClass().getName());
@@ -31,11 +30,14 @@ public class OneAgentMetadataEnricherTest {
 
   @Test
   public void invalidMetrics() {
-    assertTrue(enricher.parseOneAgentMetadata(Arrays.asList("=0x5c14d9a68d569861")).isEmpty());
-    assertTrue(enricher.parseOneAgentMetadata(Arrays.asList("key_no_value=")).isEmpty());
-    assertTrue(enricher.parseOneAgentMetadata(Arrays.asList("===============")).isEmpty());
-    assertTrue(enricher.parseOneAgentMetadata(Arrays.asList("")).isEmpty());
-    assertTrue(enricher.parseOneAgentMetadata(Arrays.asList("=")).isEmpty());
+    assertTrue(
+        enricher.parseOneAgentMetadata(Collections.singletonList("=0x5c14d9a68d569861")).isEmpty());
+    assertTrue(
+        enricher.parseOneAgentMetadata(Collections.singletonList("key_no_value=")).isEmpty());
+    assertTrue(
+        enricher.parseOneAgentMetadata(Collections.singletonList("===============")).isEmpty());
+    assertTrue(enricher.parseOneAgentMetadata(Collections.singletonList("")).isEmpty());
+    assertTrue(enricher.parseOneAgentMetadata(Collections.singletonList("=")).isEmpty());
     assertTrue(enricher.parseOneAgentMetadata(Collections.emptyList()).isEmpty());
   }
 
@@ -161,7 +163,7 @@ public class OneAgentMetadataEnricherTest {
   }
 
   private String generateNonExistentFilename() {
-    File f = null;
+    File f;
     Random r = new Random();
     // generate random filenames until we find one that does not exist:
     do {
@@ -219,9 +221,7 @@ public class OneAgentMetadataEnricherTest {
   @Test
   public void testGetMetadataFileContentWithRedirection_IndirectionFileThrows() throws Exception {
     OneAgentMetadataEnricher mockEnricher = Mockito.mock(OneAgentMetadataEnricher.class);
-    // in this case, the logger needs to be set on the mock, otherwise the logging call will throw a
-    // NullReferenceException
-    FieldSetter.setField(mockEnricher, mockEnricher.getClass().getDeclaredField("logger"), logger);
+    Mockito.when(mockEnricher.getLogger()).thenReturn(logger);
     // ignore the return value of the testfile and mock the return value of the
     // getIndirectionFileName call:
     Mockito.when(
@@ -237,10 +237,10 @@ public class OneAgentMetadataEnricherTest {
 
   @Test
   public void testGetMetadataFileContentWithRedireection_MetadataFileDoesNotExist()
-      throws IOException, NoSuchFieldException {
+      throws IOException {
     String metadataFilename = generateNonExistentFilename();
     OneAgentMetadataEnricher mockEnricher = Mockito.mock(OneAgentMetadataEnricher.class);
-    FieldSetter.setField(mockEnricher, mockEnricher.getClass().getDeclaredField("logger"), logger);
+    Mockito.when(mockEnricher.getLogger()).thenReturn(logger);
     Mockito.when(
             mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class), Mockito.anyString()))
         .thenReturn(metadataFilename);
@@ -254,11 +254,13 @@ public class OneAgentMetadataEnricherTest {
 
   @Test
   public void testGetMetadataFileContentWithRedireection_MetadataFileReadThrows()
-      throws IOException, NoSuchFieldException {
+      throws IOException {
     OneAgentMetadataEnricher mockEnricher = Mockito.mock(OneAgentMetadataEnricher.class);
-    FieldSetter.setField(mockEnricher, mockEnricher.getClass().getDeclaredField("logger"), logger);
+    Mockito.when(mockEnricher.getLogger()).thenReturn(logger);
     Mockito.when(
             mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class), Mockito.anyString()))
+        .thenReturn("src/test/resources/mock_target.properties");
+    Mockito.when(mockEnricher.getOneAgentMetadataFileContent(Mockito.any(FileReader.class)))
         .thenThrow(new IOException("test exception"));
     Mockito.when(mockEnricher.getMetadataFileContentWithRedirection(Mockito.anyString()))
         .thenCallRealMethod();

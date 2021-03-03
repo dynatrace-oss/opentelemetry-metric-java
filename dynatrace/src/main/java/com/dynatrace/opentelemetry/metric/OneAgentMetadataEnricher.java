@@ -27,6 +27,10 @@ final class OneAgentMetadataEnricher {
     this.logger = logger;
   }
 
+  Logger getLogger() {
+    return this.logger;
+  }
+
   public Collection<AbstractMap.SimpleEntry<String, String>> getDimensionsFromOneAgentMetadata() {
     String indirectionBaseName = "dt_metadata_e617c525669e072eebe3d0f08212e8f2";
     return parseOneAgentMetadata(getMetadataFileContentWithRedirection(indirectionBaseName));
@@ -51,13 +55,13 @@ final class OneAgentMetadataEnricher {
 
     // iterate all lines from OneAgent metadata file.
     for (String line : lines) {
-      logger.info(String.format("parsing OneAgent metadata: %s", line));
+      getLogger().info(String.format("parsing OneAgent metadata: %s", line));
       // if there are more than one '=' in the line, split only at the first one.
       String[] split = line.split("=", 2);
 
       // occurs if there is no '=' in the line
       if (split.length != 2) {
-        logger.warning(String.format("could not parse OneAgent metadata line ('%s')", line));
+        getLogger().warning(String.format("could not parse OneAgent metadata line ('%s')", line));
         continue;
       }
 
@@ -66,7 +70,7 @@ final class OneAgentMetadataEnricher {
 
       // make sure key and value are set to non-null, non-empty values
       if ((key == null || key.isEmpty()) || (value == null || value.isEmpty())) {
-        logger.warning(String.format("could not parse OneAgent metadata line ('%s')", line));
+        getLogger().warning(String.format("could not parse OneAgent metadata line ('%s')", line));
         continue;
       }
       entries.add(new AbstractMap.SimpleEntry<>(key, value));
@@ -143,13 +147,15 @@ final class OneAgentMetadataEnricher {
         new FileReader(String.format("%s.properties", indirectionBaseName))) {
       oneAgentMetadataFileName = getIndirectionFilename(indirectionFileReader, indirectionBaseName);
     } catch (FileNotFoundException e) {
-      logger.info(
-          "OneAgent indirection file not found. This is normal if OneAgent is not installed.");
+      getLogger()
+          .info(
+              "OneAgent indirection file not found. This is normal if OneAgent is not installed.");
     } catch (IOException e) {
-      logger.info(
-          String.format(
-              "Error while trying to read contents of OneAgent indirection file: %s",
-              e.getMessage()));
+      getLogger()
+          .info(
+              String.format(
+                  "Error while trying to read contents of OneAgent indirection file: %s",
+                  e.getMessage()));
     }
 
     if (Strings.isNullOrEmpty(oneAgentMetadataFileName)) {
@@ -160,11 +166,13 @@ final class OneAgentMetadataEnricher {
     try (Reader metadataFileReader = new FileReader(oneAgentMetadataFileName)) {
       properties = getOneAgentMetadataFileContent(metadataFileReader);
     } catch (FileNotFoundException e) {
-      logger.warning("OneAgent indirection file pointed to non existent properties file.");
+      getLogger().warning("OneAgent indirection file pointed to non existent properties file.");
     } catch (IOException e) {
-      logger.info(
-          String.format(
-              "Error while trying to read contents of OneAgent metadata file: %s", e.getMessage()));
+      getLogger()
+          .info(
+              String.format(
+                  "Error while trying to read contents of OneAgent metadata file: %s",
+                  e.getMessage()));
     }
     return properties;
   }
