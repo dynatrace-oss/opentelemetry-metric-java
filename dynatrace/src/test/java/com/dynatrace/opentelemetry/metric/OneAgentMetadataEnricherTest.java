@@ -46,62 +46,27 @@ public class OneAgentMetadataEnricherTest {
     String expected = "dt_metadata_e617c525669e072eebe3d0f08212e8f2_private_target_file_specifier";
     // "mock" the contents of dt_metadata_e617c525669e072eebe3d0f08212e8f2.properties
     StringReader reader = new StringReader(expected);
-    String result =
-        enricher.getIndirectionFilename(reader, "dt_metadata_e617c525669e072eebe3d0f08212e8f2");
+    String result = enricher.getIndirectionFilename(reader);
     assertEquals(expected, result);
-  }
-
-  @Test
-  public void testGetIndirectionFileContentPassNullPrefix() throws IOException {
-    String expected = "dt_metadata_e617c525669e072eebe3d0f08212e8f2_private_target_file_specifier";
-    StringReader reader = new StringReader(expected);
-    String result = enricher.getIndirectionFilename(reader, null);
-    assertEquals(expected, result);
-  }
-
-  @Test
-  public void testGetIndirectionFilePrefixInString() throws IOException {
-    String input =
-        "some_other_prefix_dt_metadata_e617c525669e072eebe3d0f08212e8f2_private_target_file_specifier";
-    StringReader reader = new StringReader(input);
-    assertNull(
-        enricher.getIndirectionFilename(reader, "dt_metadata_e617c525669e072eebe3d0f08212e8f2"));
   }
 
   @Test
   public void testGetIndirectionFilePassNull() {
-    assertThrows(IOException.class, () -> enricher.getIndirectionFilename(null, "prefix"));
-  }
-
-  @Test
-  public void testGetIndirectionFileContentMissingPrefix() throws IOException {
-    String expected = "private_target_file_specifier";
-    StringReader reader = new StringReader(expected);
-    assertNull(
-        enricher.getIndirectionFilename(reader, "dt_metadata_e617c525669e072eebe3d0f08212e8f2"));
+    assertThrows(IOException.class, () -> enricher.getIndirectionFilename(null));
   }
 
   @Test
   public void testGetIndirectionFileContentEmptyContent() throws IOException {
     StringReader reader = new StringReader("");
-    assertNull(
-        enricher.getIndirectionFilename(reader, "dt_metadata_e617c525669e072eebe3d0f08212e8f2"));
-  }
-
-  @Test
-  public void testGetIndirectionFilePassEmpty() throws IOException {
-    StringReader reader = new StringReader("");
-    assertNull(
-        enricher.getIndirectionFilename(reader, "dt_metadata_e617c525669e072eebe3d0f08212e8f2"));
+    assertNull(enricher.getIndirectionFilename(reader));
   }
 
   @Test
   public void testGetIndirectionFileContentEmptyLines() throws IOException {
     String expected = "dt_metadata_e617c525669e072eebe3d0f08212e8f2_private_target_file_specifier";
-    String input = "this\nis\nirrelevant\n" + expected + "\neven\nmore\nirrelevant stuff\n\n\n";
+    String input = "\n\t\n" + expected + "\nthis\nis\nirrelevant\tstuff\n\n\n";
     StringReader reader = new StringReader(input);
-    String result =
-        enricher.getIndirectionFilename(reader, "dt_metadata_e617c525669e072eebe3d0f08212e8f2");
+    String result = enricher.getIndirectionFilename(reader);
     assertEquals(expected, result);
   }
 
@@ -110,8 +75,7 @@ public class OneAgentMetadataEnricherTest {
     String expected = "dt_metadata_e617c525669e072eebe3d0f08212e8f2_private_target_file_specifier";
     String input = "    \n    " + expected + "\t   \n   ";
     StringReader reader = new StringReader(input);
-    String result =
-        enricher.getIndirectionFilename(reader, "dt_metadata_e617c525669e072eebe3d0f08212e8f2");
+    String result = enricher.getIndirectionFilename(reader);
     assertEquals(expected, result);
   }
 
@@ -190,8 +154,7 @@ public class OneAgentMetadataEnricherTest {
     OneAgentMetadataEnricher mockEnricher = Mockito.mock(OneAgentMetadataEnricher.class);
     // ignore the return value of the testfile and mock the return value of the
     // getIndirectionFileName call:
-    Mockito.when(
-            mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class), Mockito.anyString()))
+    Mockito.when(mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class)))
         .thenReturn(null);
     Mockito.when(mockEnricher.getMetadataFileContentWithRedirection(Mockito.anyString()))
         .thenCallRealMethod();
@@ -207,9 +170,7 @@ public class OneAgentMetadataEnricherTest {
     OneAgentMetadataEnricher mockEnricher = Mockito.mock(OneAgentMetadataEnricher.class);
     // ignore the return value of the testfile and mock the return value of the
     // getIndirectionFileName call:
-    Mockito.when(
-            mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class), Mockito.anyString()))
-        .thenReturn("");
+    Mockito.when(mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class))).thenReturn("");
     Mockito.when(mockEnricher.getMetadataFileContentWithRedirection(Mockito.anyString()))
         .thenCallRealMethod();
 
@@ -224,8 +185,7 @@ public class OneAgentMetadataEnricherTest {
     Mockito.when(mockEnricher.getLogger()).thenReturn(logger);
     // ignore the return value of the testfile and mock the return value of the
     // getIndirectionFileName call:
-    Mockito.when(
-            mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class), Mockito.anyString()))
+    Mockito.when(mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class)))
         .thenThrow(new IOException("test exception"));
     Mockito.when(mockEnricher.getMetadataFileContentWithRedirection(Mockito.anyString()))
         .thenCallRealMethod();
@@ -241,8 +201,7 @@ public class OneAgentMetadataEnricherTest {
     String metadataFilename = generateNonExistentFilename();
     OneAgentMetadataEnricher mockEnricher = Mockito.mock(OneAgentMetadataEnricher.class);
     Mockito.when(mockEnricher.getLogger()).thenReturn(logger);
-    Mockito.when(
-            mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class), Mockito.anyString()))
+    Mockito.when(mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class)))
         .thenReturn(metadataFilename);
     Mockito.when(mockEnricher.getMetadataFileContentWithRedirection(Mockito.anyString()))
         .thenCallRealMethod();
@@ -257,8 +216,7 @@ public class OneAgentMetadataEnricherTest {
       throws IOException {
     OneAgentMetadataEnricher mockEnricher = Mockito.mock(OneAgentMetadataEnricher.class);
     Mockito.when(mockEnricher.getLogger()).thenReturn(logger);
-    Mockito.when(
-            mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class), Mockito.anyString()))
+    Mockito.when(mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class)))
         .thenReturn("src/test/resources/mock_target.properties");
     Mockito.when(mockEnricher.getOneAgentMetadataFileContent(Mockito.any(FileReader.class)))
         .thenThrow(new IOException("test exception"));
@@ -273,8 +231,7 @@ public class OneAgentMetadataEnricherTest {
   @Test
   public void testGetMetadataFileContentWithRedireection_EmptyMetadataFile() throws IOException {
     OneAgentMetadataEnricher mockEnricher = Mockito.mock(OneAgentMetadataEnricher.class);
-    Mockito.when(
-            mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class), Mockito.anyString()))
+    Mockito.when(mockEnricher.getIndirectionFilename(Mockito.any(FileReader.class)))
         .thenReturn("src/test/resources/mock_target.properties");
     Mockito.when(mockEnricher.getOneAgentMetadataFileContent(Mockito.any(FileReader.class)))
         .thenReturn(Collections.emptyList());

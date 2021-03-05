@@ -77,7 +77,7 @@ final class MetricAdapter {
 
     // the constantDimensions field is only populated once, and the dimensions are reused.
     if (this.constantDimensions == null) {
-      Map<String, Dimension> localDimensions = new HashMap<String, Dimension>();
+      Map<String, Dimension> localDimensions = new HashMap<>();
       for (AbstractMap.SimpleEntry<String, String> tag : tags) {
         try {
           Dimension d = toMintDimension(tag.getKey(), tag.getValue());
@@ -285,7 +285,8 @@ final class MetricAdapter {
           } catch (DynatraceExporterException dee) {
             logger.warning(
                 String.format(
-                    "Could not transform '%s/%s' to MINT dimension: %s", k, v, dee.getMessage()));
+                    "Could not transform OTel label '%s'->'%s' to Dynatrace dimension: %s",
+                    k, v, dee.getMessage()));
             // re-throw the exception so the datapoint will be skipped
             throw dee;
           }

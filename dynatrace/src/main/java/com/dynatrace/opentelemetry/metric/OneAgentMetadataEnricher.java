@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 
 final class OneAgentMetadataEnricher {
   private final Logger logger;
+  private static final String indirectionBaseName = "dt_metadata_e617c525669e072eebe3d0f08212e8f2";
 
   public OneAgentMetadataEnricher(Logger logger) {
     this.logger = logger;
@@ -31,7 +32,7 @@ final class OneAgentMetadataEnricher {
   }
 
   public Collection<AbstractMap.SimpleEntry<String, String>> getDimensionsFromOneAgentMetadata() {
-    String indirectionBaseName = "dt_metadata_e617c525669e072eebe3d0f08212e8f2";
+
     return parseOneAgentMetadata(getMetadataFileContentWithRedirection(indirectionBaseName));
   }
 
@@ -43,11 +44,11 @@ final class OneAgentMetadataEnricher {
    *
    * @param lines a {@link Collection<String>} containing key-value pairs (as one string) separated
    *     by an equal sign.
-   * @return A {@link Collection<AbstractMap.SimpleEntry<String,String>>}. These represent the the
-   *     lines passed in separated by the first occurring equal sign on each line, respectively. If
-   *     no line is parsable, returns an empty list
+   * @return A {@link Collection} of {@link AbstractMap.SimpleEntry SimpleEntries} mapping {@link
+   *     String} to {@link String}. These represent the the lines passed in separated by the first
+   *     occurring equal sign on each line, respectively. If no line is parsable, returns an empty
+   *     list.
    */
-  @SuppressWarnings("JavaDoc")
   protected Collection<AbstractMap.SimpleEntry<String, String>> parseOneAgentMetadata(
       Collection<String> lines) {
     ArrayList<AbstractMap.SimpleEntry<String, String>> entries = new ArrayList<>();
@@ -78,24 +79,15 @@ final class OneAgentMetadataEnricher {
   }
 
   /**
-   * Get the file name of the file to which OneAgent persists its parameters.
+   * Get the file name of the file in which OneAgent provides the metadata.
    *
-   * @param fileContents A {@link Reader} object pointing at the indirection file. Will be read
-   *     using a {@link BufferedReader}
-   * @param indirectionBaseName The prefix for the OneAgent metadata file. Lines in the indirection
-   *     file without this prefix are ignored. If null is passed as this parameter,
-   *     'dt_metadata_e617c525669e072eebe3d0f08212e8f2' is used.
+   * @param fileContents A {@link Reader} object pointing at the indirection file.
    * @return The string containing the filename, with no leading or trailing whitespace.
    * @throws IOException if an error occurs during reading of the file.
    */
-  String getIndirectionFilename(Reader fileContents, String indirectionBaseName)
-      throws IOException {
+  String getIndirectionFilename(Reader fileContents) throws IOException {
     if (fileContents == null) {
       throw new IOException("passed Reader cannot be null.");
-    }
-    String prefix = indirectionBaseName;
-    if (indirectionBaseName == null) {
-      prefix = "dt_metadata_e617c525669e072eebe3d0f08212e8f2";
     }
 
     String oneAgentMetadataFileName = null;
@@ -105,8 +97,7 @@ final class OneAgentMetadataEnricher {
       // read file line by line, and stop if the end of the file is reached.
       while ((line = reader.readLine()) != null) {
         line = line.trim();
-        // the secret file contains the basename and a random number at the end.
-        if (line.startsWith(prefix)) {
+        if (!Strings.isNullOrEmpty(line)) {
           oneAgentMetadataFileName = line;
           // if the secret file name has been found the loop can be left.
           break;
@@ -144,7 +135,7 @@ final class OneAgentMetadataEnricher {
 
     try (Reader indirectionFileReader =
         new FileReader(String.format("%s.properties", indirectionBaseName))) {
-      oneAgentMetadataFileName = getIndirectionFilename(indirectionFileReader, indirectionBaseName);
+      oneAgentMetadataFileName = getIndirectionFilename(indirectionFileReader);
     } catch (FileNotFoundException e) {
       getLogger()
           .info(
