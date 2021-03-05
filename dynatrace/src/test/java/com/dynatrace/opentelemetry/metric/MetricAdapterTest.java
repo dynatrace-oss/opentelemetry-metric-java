@@ -262,4 +262,19 @@ public class MetricAdapterTest {
     assertEquals(expected, got);
     assertNotSame(expected, got);
   }
+
+  @Test
+  public void Test_getUniqueCombinedDimensions_tagsEmpty() {
+    Labels labels = Labels.of("dim1", "dv1", "dim2", "dv2");
+
+    List<Dimension> expected =
+        Arrays.asList(Dimension.create("dim1", "dv1"), Dimension.create("dim2", "dv2"));
+
+    List<Dimension> got = new ArrayList<>(MetricAdapter.getUniqueCombinedDimensions(labels));
+    expected.sort(Comparator.comparing(Dimension::getKey));
+    got.sort(Comparator.comparing(Dimension::getKey));
+
+    assertEquals(expected, got);
+    assertNotSame(expected, got);
+  }
 }

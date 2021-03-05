@@ -73,7 +73,6 @@ public class NormalizationTest {
 
   @Test
   public void metricKeyTest() throws DynatraceExporterException {
-
     MetricAdapter.toMintMetricKey("a..b");
     MetricAdapter.toMintMetricKey("asd");
     MetricAdapter.toMintMetricKey(".");
@@ -105,10 +104,8 @@ public class NormalizationTest {
   @Test
   public void dimensionKeyTest() throws DynatraceExporterException {
     assertThrows(DynatraceExporterException.class, () -> MetricAdapter.toMintDimension(".", "b"));
-    MetricAdapter.toMintDimensionKey("test..e12");
     assertThrows(DynatraceExporterException.class, () -> MetricAdapter.toMintDimension(".a", "b"));
     assertThrows(DynatraceExporterException.class, () -> MetricAdapter.toMintDimension("a.", "b"));
-    MetricAdapter.toMintDimension("a..b", "b");
   }
 
   @Test
@@ -128,5 +125,6 @@ public class NormalizationTest {
     assertEquals("test?$%&!", MetricAdapter.toMintDimensionValue("test?$%&!"));
     assertEquals("\\\"\\\\", MetricAdapter.toMintDimensionValue("\"\\"));
     assertEquals("\\\\\\\\\\\\", MetricAdapter.toMintDimensionValue("\\\\\\"));
+    assertThrows(DynatraceExporterException.class, () -> MetricAdapter.toMintDimensionValue(""));
   }
 }

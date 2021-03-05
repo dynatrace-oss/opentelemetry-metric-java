@@ -85,7 +85,7 @@ final class MetricAdapter {
         } catch (DynatraceExporterException dee) {
           logger.warning(
               String.format(
-                  "Could not transform '%s/%s' to MINT dimension: %s",
+                  "Could not transform OTel label '%s'->'%s' to Dynatrace dimension: %s",
                   tag.getKey(), tag.getValue(), dee.getMessage()));
         }
       }
@@ -351,11 +351,10 @@ final class MetricAdapter {
    *     null value was passed.
    */
   static Dimension toMintDimension(String key, String value) throws DynatraceExporterException {
-    try {
-      return Dimension.create(toMintDimensionKey(key), toMintDimensionValue(value));
-    } catch (NullPointerException npe) {
-      throw new DynatraceExporterException(npe.getMessage());
+    if (key == null || value == null) {
+      throw new DynatraceExporterException("key and value cannot be null.");
     }
+    return Dimension.create(toMintDimensionKey(key), toMintDimensionValue(value));
   }
 
   /**
