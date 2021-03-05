@@ -13,12 +13,12 @@
  */
 package com.dynatrace.opentelemetry.metric;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.dynatrace.opentelemetry.metric.mint.Datapoint;
+import com.dynatrace.opentelemetry.metric.mint.Dimension;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.common.InstrumentationLibraryInfo;
@@ -131,7 +131,7 @@ public class MetricAdapterTest {
     list.add(ValueAtPercentile.create(0.0, 1.56));
     list.add(ValueAtPercentile.create(100.0, 345.23));
     assertEquals(
-        "metric_01,key01=value01,oneagenttag=oneagentvalue,anotheroneagenttag=anotheroneagentvalue gauge,min=1.56,max=345.23,sum=12934.0,count=42 456",
+        "metric_01,oneagenttag=oneagentvalue,key01=value01,anotheroneagenttag=anotheroneagentvalue gauge,min=1.56,max=345.23,sum=12934.0,count=42 456",
         MetricAdapter.generateSummaryPoint(
                 "metric_01",
                 DoubleSummaryPointData.create(
@@ -167,5 +167,99 @@ public class MetricAdapterTest {
                     12934,
                     list))
             .serialize());
+  }
+
+  @Test
+  public void TestOneAgentDimensionsOverwrite() {
+    Collection<AbstractMap.SimpleEntry<String, String>> tags =
+        Arrays.asList(
+            new AbstractMap.SimpleEntry<>("oneagenttag", "oneagentvalue"),
+            new AbstractMap.SimpleEntry<>("oneagenttag2", "oneagentvalue2"));
+    MetricAdapter.getInstance().setTags(tags);
+
+    List<ValueAtPercentile> list = new ArrayList<>(2);
+    list.add(ValueAtPercentile.create(0.0, 1.56));
+    list.add(ValueAtPercentile.create(100.0, 345.23));
+    assertEquals(
+        "metric_01,oneagenttag=oneagentvalue,oneagenttag2=oneagentvalue2 gauge,min=1.56,max=345.23,sum=12934.0,count=42 456",
+        MetricAdapter.generateSummaryPoint(
+                "metric_01",
+                DoubleSummaryPointData.create(
+                    123,
+                    TimeUnit.MILLISECONDS.toNanos(456),
+                    // these will be overritten by the tags set in the singleton.
+                    Labels.of("oneAgentTag", "someValue", "oneAgentTag2", "someOtherValue"),
+                    42,
+                    12934,
+                    list))
+            .serialize());
+  }
+
+  @Test
+  public void Test_getUniqueCombinedDimensions_Valid() {
+    Labels labels = Labels.of("dim1", "dv1", "dim2", "dv2");
+    Collection<AbstractMap.SimpleEntry<String, String>> tags =
+        Arrays.asList(
+            new AbstractMap.SimpleEntry<>("tag1", "tv1"),
+            new AbstractMap.SimpleEntry<>("tag2", "tv2"));
+    MetricAdapter.getInstance().setTags(tags);
+
+    List<Dimension> expected =
+        Arrays.asList(
+            Dimension.create("dim1", "dv1"),
+            Dimension.create("dim2", "dv2"),
+            Dimension.create("tag1", "tv1"),
+            Dimension.create("tag2", "tv2"));
+    // the array list wrap is so the list is sortable as it is otherwise unmodifiable.
+    List<Dimension> got = new ArrayList<>(MetricAdapter.getUniqueCombinedDimensions(labels));
+
+    expected.sort(Comparator.comparing(Dimension::getKey));
+    got.sort(Comparator.comparing(Dimension::getKey));
+
+    assertEquals(expected, got);
+    assertNotSame(expected, got);
+  }
+
+  @Test
+  public void Test_getUniqueCombinedDimensions_Overwriting() {
+    Labels labels = Labels.of("dim1", "dv1", "dim2", "dv2");
+    Collection<AbstractMap.SimpleEntry<String, String>> tags =
+        Arrays.asList(
+            new AbstractMap.SimpleEntry<>("dim1", "tagValue1"),
+            new AbstractMap.SimpleEntry<>("tag2", "tagValue2"));
+    MetricAdapter.getInstance().setTags(tags);
+
+    List<Dimension> expected =
+        Arrays.asList(
+            Dimension.create("dim1", "tagValue1"),
+            Dimension.create("dim2", "dv2"),
+            Dimension.create("tag2", "tagValue2"));
+
+    List<Dimension> got = new ArrayList<>(MetricAdapter.getUniqueCombinedDimensions(labels));
+    expected.sort(Comparator.comparing(Dimension::getKey));
+    got.sort(Comparator.comparing(Dimension::getKey));
+
+    assertEquals(expected, got);
+    assertNotSame(expected, got);
+  }
+
+  @Test
+  public void Test_getUniqueCombinedDimensions_OverwritingSameKey() {
+    Labels labels = Labels.of("dim1", "dv1", "dim1", "dv2");
+    Collection<AbstractMap.SimpleEntry<String, String>> tags =
+        Arrays.asList(
+            new AbstractMap.SimpleEntry<>("dim1", "tagValue1"),
+            new AbstractMap.SimpleEntry<>("dim1", "tagValue2"));
+    MetricAdapter.getInstance().setTags(tags);
+
+    List<Dimension> expected = Arrays.asList(Dimension.create("dim1", "tagValue2"));
+
+    List<Dimension> got = new ArrayList<>(MetricAdapter.getUniqueCombinedDimensions(labels));
+    expected.sort(Comparator.comparing(Dimension::getKey));
+    got.sort(Comparator.comparing(Dimension::getKey));
+
+    assertEquals(1, got.size());
+    assertEquals(expected, got);
+    assertNotSame(expected, got);
   }
 }

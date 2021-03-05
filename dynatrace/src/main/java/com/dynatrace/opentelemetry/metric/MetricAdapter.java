@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright 2020 Dynatrace LLC
  *
  * <p>Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
@@ -59,7 +59,7 @@ final class MetricAdapter {
    * Contains the static dimensions (i.e., tags and OneAgent metadata enrichment, if set up) that
    * are added to each MINT line sent to the ingestion API.
    */
-  private Set<Dimension> constantDimensions = null;
+  private Map<String, Dimension> constantDimensions = null;
 
   /**
    * Sets the dimensions (as key-value pairs) that should be added as dimensions to all metrics.
@@ -77,10 +77,11 @@ final class MetricAdapter {
 
     // the constantDimensions field is only populated once, and the dimensions are reused.
     if (this.constantDimensions == null) {
-      Set<Dimension> localConstantDimensions = new LinkedHashSet<>();
+      Map<String, Dimension> localDimensions = new HashMap<String, Dimension>();
       for (AbstractMap.SimpleEntry<String, String> tag : tags) {
         try {
-          localConstantDimensions.add(toMintDimension(tag.getKey(), tag.getValue()));
+          Dimension d = toMintDimension(tag.getKey(), tag.getValue());
+          localDimensions.put(d.getKey(), d);
         } catch (DynatraceExporterException dee) {
           logger.warning(
               String.format(
@@ -88,7 +89,7 @@ final class MetricAdapter {
                   tag.getKey(), tag.getValue(), dee.getMessage()));
         }
       }
-      constantDimensions = Collections.unmodifiableSet(localConstantDimensions);
+      constantDimensions = Collections.unmodifiableMap(localDimensions);
     } else {
       logger.warning("overwriting of tags not allowed. Skipping...");
     }
@@ -173,7 +174,7 @@ final class MetricAdapter {
 
     return Datapoint.create(metricKeyName)
         .timestamp(summaryPoint.getEpochNanos())
-        .dimensions(getCombinedDimensions(summaryPoint.getLabels()))
+        .dimensions(getUniqueCombinedDimensions(summaryPoint.getLabels()))
         .value(Values.longGauge(doubleSummaryStat))
         .build();
   }
@@ -187,7 +188,7 @@ final class MetricAdapter {
         Datapoint p =
             Datapoint.create(metricKeyName)
                 .timestamp(data.getEpochNanos())
-                .dimensions(getCombinedDimensions(data.getLabels()))
+                .dimensions(getUniqueCombinedDimensions(data.getLabels()))
                 .value(Values.doubleCount(data.getValue(), /* isDelta= */ isDeltaDouble))
                 .build();
         datapoints.add(p);
@@ -203,7 +204,7 @@ final class MetricAdapter {
         Datapoint p =
             Datapoint.create(metricKeyName)
                 .timestamp(data.getEpochNanos())
-                .dimensions(getCombinedDimensions(data.getLabels()))
+                .dimensions(getUniqueCombinedDimensions(data.getLabels()))
                 .value(Values.longCount(data.getValue(), /* isDelta= */ isDeltaLong))
                 .build();
         datapoints.add(p);
@@ -221,7 +222,7 @@ final class MetricAdapter {
         Datapoint p =
             Datapoint.create(metricKeyName)
                 .timestamp(data.getEpochNanos())
-                .dimensions(getCombinedDimensions(data.getLabels()))
+                .dimensions(getUniqueCombinedDimensions(data.getLabels()))
                 .value(Values.doubleCount(data.getValue(), /* isDelta= */ true))
                 .build();
         datapoints.add(p);
@@ -235,7 +236,7 @@ final class MetricAdapter {
         Datapoint p =
             Datapoint.create(metricKeyName)
                 .timestamp(data.getEpochNanos())
-                .dimensions(getCombinedDimensions(data.getLabels()))
+                .dimensions(getUniqueCombinedDimensions(data.getLabels()))
                 .value(Values.longCount(data.getValue(), /* isDelta= */ true))
                 .build();
         datapoints.add(p);
@@ -249,19 +250,20 @@ final class MetricAdapter {
    * This function first transforms the given labels to dimensions using {@link
    * #convertLabelsToDimensions(Labels)} and then adds static labels that are stored in the
    * singleton instance, if there are any. If two labels have the same key, the last added label is
-   * retained. Constant dimensions such as tags and OneAgent metadata labels are added last.
+   * retained. Constant dimensions such as tags and OneAgent metadata labels are added last and will
+   * overwrite existing labels.
    *
    * @param labels the labels to be transformed by {@link #convertLabelsToDimensions}.
    * @return A list of {@link Dimension} objects to be serialized.
    */
-  private static List<Dimension> getCombinedDimensions(Labels labels) {
-    Set<Dimension> dynamicDimensions = convertLabelsToDimensions(labels);
+  static List<Dimension> getUniqueCombinedDimensions(Labels labels) {
+    Map<String, Dimension> dynamicDimensions = convertLabelsToDimensions(labels);
 
     if (getInstance().constantDimensions != null) {
-      dynamicDimensions.addAll(getInstance().constantDimensions);
+      dynamicDimensions.putAll(getInstance().constantDimensions);
     }
 
-    return Collections.unmodifiableList(new ArrayList<>(dynamicDimensions));
+    return Collections.unmodifiableList(new ArrayList<>(dynamicDimensions.values()));
   }
 
   /**
@@ -272,14 +274,14 @@ final class MetricAdapter {
    *     requirements. The last specified label for each key will be kept, if multiple labels with
    *     the same key exists.
    */
-  private static Set<Dimension> convertLabelsToDimensions(Labels labels)
+  private static Map<String, Dimension> convertLabelsToDimensions(Labels labels)
       throws DynatraceExporterException {
-    // LinkedHashSet will retain the order in which the elements are added.
-    final Set<Dimension> dimensions = new LinkedHashSet<>();
+    final Map<String, Dimension> dimensions = new HashMap<>();
     labels.forEach(
         (String k, String v) -> {
           try {
-            dimensions.add(toMintDimension(k, v));
+            Dimension d = toMintDimension(k, v);
+            dimensions.put(d.getKey(), d);
           } catch (DynatraceExporterException dee) {
             logger.warning(
                 String.format(
