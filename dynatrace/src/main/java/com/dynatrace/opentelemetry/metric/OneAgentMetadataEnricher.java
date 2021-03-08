@@ -21,7 +21,8 @@ import java.util.stream.Collectors;
 
 final class OneAgentMetadataEnricher {
   private final Logger logger;
-  private static final String indirectionBaseName = "dt_metadata_e617c525669e072eebe3d0f08212e8f2";
+  private static final String INDIRECTION_FILE_NAME =
+      "dt_metadata_e617c525669e072eebe3d0f08212e8f2.properties";
 
   public OneAgentMetadataEnricher(Logger logger) {
     this.logger = logger;
@@ -33,7 +34,7 @@ final class OneAgentMetadataEnricher {
 
   public Collection<AbstractMap.SimpleEntry<String, String>> getDimensionsFromOneAgentMetadata() {
 
-    return parseOneAgentMetadata(getMetadataFileContentWithRedirection(indirectionBaseName));
+    return parseOneAgentMetadata(getMetadataFileContentWithRedirection(INDIRECTION_FILE_NAME));
   }
 
   /**
@@ -82,26 +83,20 @@ final class OneAgentMetadataEnricher {
    * Get the file name of the file in which OneAgent provides the metadata.
    *
    * @param fileContents A {@link Reader} object pointing at the indirection file.
-   * @return The string containing the filename, with no leading or trailing whitespace.
+   * @return The string containing the filename or null if the file is empty.
    * @throws IOException if an error occurs during reading of the file.
    */
-  String getIndirectionFilename(Reader fileContents) throws IOException {
+  String getMetadataFileName(Reader fileContents) throws IOException {
     if (fileContents == null) {
       throw new IOException("passed Reader cannot be null.");
     }
 
     String oneAgentMetadataFileName = null;
-    String line;
 
     try (BufferedReader reader = new BufferedReader(fileContents)) {
-      // read file line by line, and stop if the end of the file is reached.
-      while ((line = reader.readLine()) != null) {
-        line = line.trim();
-        if (!Strings.isNullOrEmpty(line)) {
-          oneAgentMetadataFileName = line;
-          // if the secret file name has been found the loop can be left.
-          break;
-        }
+      String line = reader.readLine();
+      if (!Strings.isNullOrEmpty(line)) {
+        oneAgentMetadataFileName = line;
       }
     }
     return oneAgentMetadataFileName;
@@ -130,12 +125,11 @@ final class OneAgentMetadataEnricher {
    * @return A {@link List<String>} representing the contents of the OneAgent metadata file. Leading
    *     and trailing whitespaces are {@link String#trim() trimmed} for each of the lines.
    */
-  List<String> getMetadataFileContentWithRedirection(String indirectionBaseName) {
+  List<String> getMetadataFileContentWithRedirection(String indirectionFileName) {
     String oneAgentMetadataFileName = null;
 
-    try (Reader indirectionFileReader =
-        new FileReader(String.format("%s.properties", indirectionBaseName))) {
-      oneAgentMetadataFileName = getIndirectionFilename(indirectionFileReader);
+    try (Reader indirectionFileReader = new FileReader(indirectionFileName)) {
+      oneAgentMetadataFileName = getMetadataFileName(indirectionFileReader);
     } catch (FileNotFoundException e) {
       getLogger()
           .info(
