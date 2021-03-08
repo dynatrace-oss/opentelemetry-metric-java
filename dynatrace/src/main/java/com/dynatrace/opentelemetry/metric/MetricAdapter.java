@@ -251,10 +251,10 @@ final class MetricAdapter {
    * #convertLabelsToDimensions(Labels)} and then adds static labels that are stored in the
    * singleton instance, if there are any. If two labels have the same key, the last added label is
    * retained. Constant dimensions such as tags and OneAgent metadata labels are added last and will
-   * overwrite existing labels.
+   * overwrite the labels passed to this method.
    *
    * @param labels the labels to be transformed by {@link #convertLabelsToDimensions}.
-   * @return A list of {@link Dimension} objects to be serialized.
+   * @return An unmodifiable {@link List list} of {@link Dimension} objects to be serialized.
    */
   static List<Dimension> getUniqueCombinedDimensions(Labels labels) {
     Map<String, Dimension> dynamicDimensions = convertLabelsToDimensions(labels);
@@ -277,21 +277,20 @@ final class MetricAdapter {
   private static Map<String, Dimension> convertLabelsToDimensions(Labels labels)
       throws DynatraceExporterException {
     final Map<String, Dimension> dimensions = new HashMap<>();
-    labels.forEach(
-        (String k, String v) -> {
-          try {
-            Dimension d = toMintDimension(k, v);
-            dimensions.put(d.getKey(), d);
-          } catch (DynatraceExporterException dee) {
-            logger.warning(
-                String.format(
-                    "Could not transform OTel label '%s'->'%s' to Dynatrace dimension: %s",
-                    k, v, dee.getMessage()));
-            // re-throw the exception so the datapoint will be skipped
-            throw dee;
-          }
-        });
-
+    if (labels != null) {
+      labels.forEach(
+          (String k, String v) -> {
+            try {
+              Dimension d = toMintDimension(k, v);
+              dimensions.put(d.getKey(), d);
+            } catch (DynatraceExporterException dee) {
+              logger.warning(
+                  String.format(
+                      "Could not transform OTel label '%s'->'%s' to Dynatrace dimension: %s",
+                      k, v, dee.getMessage()));
+            }
+          });
+    }
     return dimensions;
   }
 

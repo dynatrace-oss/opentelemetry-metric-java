@@ -22,12 +22,7 @@ import com.dynatrace.opentelemetry.metric.mint.Dimension;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.common.InstrumentationLibraryInfo;
-import io.opentelemetry.sdk.metrics.data.DoubleGaugeData;
-import io.opentelemetry.sdk.metrics.data.DoublePointData;
-import io.opentelemetry.sdk.metrics.data.DoubleSummaryData;
-import io.opentelemetry.sdk.metrics.data.DoubleSummaryPointData;
-import io.opentelemetry.sdk.metrics.data.MetricData;
-import io.opentelemetry.sdk.metrics.data.ValueAtPercentile;
+import io.opentelemetry.sdk.metrics.data.*;
 import io.opentelemetry.sdk.resources.Resource;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -211,13 +206,13 @@ public class MetricAdapterTest {
             Dimension.create("tag1", "tv1"),
             Dimension.create("tag2", "tv2"));
     // the array list wrap is so the list is sortable as it is otherwise unmodifiable.
-    List<Dimension> got = new ArrayList<>(MetricAdapter.getUniqueCombinedDimensions(labels));
+    List<Dimension> actual = new ArrayList<>(MetricAdapter.getUniqueCombinedDimensions(labels));
 
     expected.sort(Comparator.comparing(Dimension::getKey));
-    got.sort(Comparator.comparing(Dimension::getKey));
+    actual.sort(Comparator.comparing(Dimension::getKey));
 
-    assertEquals(expected, got);
-    assertNotSame(expected, got);
+    assertEquals(expected, actual);
+    assertNotSame(expected, actual);
   }
 
   @Test
@@ -235,12 +230,12 @@ public class MetricAdapterTest {
             Dimension.create("dim2", "dv2"),
             Dimension.create("tag2", "tagValue2"));
 
-    List<Dimension> got = new ArrayList<>(MetricAdapter.getUniqueCombinedDimensions(labels));
+    List<Dimension> actual = new ArrayList<>(MetricAdapter.getUniqueCombinedDimensions(labels));
     expected.sort(Comparator.comparing(Dimension::getKey));
-    got.sort(Comparator.comparing(Dimension::getKey));
+    actual.sort(Comparator.comparing(Dimension::getKey));
 
-    assertEquals(expected, got);
-    assertNotSame(expected, got);
+    assertEquals(expected, actual);
+    assertNotSame(expected, actual);
   }
 
   @Test
@@ -254,13 +249,13 @@ public class MetricAdapterTest {
 
     List<Dimension> expected = Arrays.asList(Dimension.create("dim1", "tagValue2"));
 
-    List<Dimension> got = new ArrayList<>(MetricAdapter.getUniqueCombinedDimensions(labels));
+    List<Dimension> actual = new ArrayList<>(MetricAdapter.getUniqueCombinedDimensions(labels));
     expected.sort(Comparator.comparing(Dimension::getKey));
-    got.sort(Comparator.comparing(Dimension::getKey));
+    actual.sort(Comparator.comparing(Dimension::getKey));
 
-    assertEquals(1, got.size());
-    assertEquals(expected, got);
-    assertNotSame(expected, got);
+    assertEquals(1, actual.size());
+    assertEquals(expected, actual);
+    assertNotSame(expected, actual);
   }
 
   @Test
@@ -270,11 +265,58 @@ public class MetricAdapterTest {
     List<Dimension> expected =
         Arrays.asList(Dimension.create("dim1", "dv1"), Dimension.create("dim2", "dv2"));
 
-    List<Dimension> got = new ArrayList<>(MetricAdapter.getUniqueCombinedDimensions(labels));
+    List<Dimension> actual = new ArrayList<>(MetricAdapter.getUniqueCombinedDimensions(labels));
     expected.sort(Comparator.comparing(Dimension::getKey));
-    got.sort(Comparator.comparing(Dimension::getKey));
+    actual.sort(Comparator.comparing(Dimension::getKey));
 
-    assertEquals(expected, got);
-    assertNotSame(expected, got);
+    assertEquals(expected, actual);
+    assertNotSame(expected, actual);
+  }
+
+  @Test
+  public void Test_getUniqueCombinedDimensions_passNull() {
+    List<Dimension> expected = new ArrayList<>();
+    List<Dimension> actual = MetricAdapter.getUniqueCombinedDimensions(null);
+
+    assertEquals(expected, actual);
+    assertNotSame(expected, actual);
+  }
+
+  @Test
+  public void Test_setTags_setNull() {
+    // should not do anything:
+    MetricAdapter.getInstance().setTags(null);
+
+    Collection<AbstractMap.SimpleEntry<String, String>> tags =
+        Arrays.asList(new AbstractMap.SimpleEntry<>("dim1", "tagValue1"));
+    MetricAdapter.getInstance().setTags(tags);
+
+    List<Dimension> expected = Arrays.asList(Dimension.create("dim1", "tagValue1"));
+    List<Dimension> actual = MetricAdapter.getUniqueCombinedDimensions(null);
+
+    assertEquals(expected, actual);
+    assertNotSame(expected, actual);
+  }
+
+  @Test
+  public void Test_setTags_Twice() {
+    Collection<AbstractMap.SimpleEntry<String, String>> tags1 =
+        Arrays.asList(
+            new AbstractMap.SimpleEntry<>("tag1", "tagValue1"),
+            new AbstractMap.SimpleEntry<>("tag2", "tagValue2"));
+    MetricAdapter.getInstance().setTags(tags1);
+
+    Collection<AbstractMap.SimpleEntry<String, String>> tags2 =
+        Arrays.asList(
+            new AbstractMap.SimpleEntry<>("someOtherTag1", "tagValue1"),
+            new AbstractMap.SimpleEntry<>("someOtherTag2", "tagValue2"));
+    MetricAdapter.getInstance().setTags(tags2);
+
+    List<Dimension> expected =
+        Arrays.asList(Dimension.create("tag1", "tagValue1"), Dimension.create("tag2", "tagValue2"));
+    List<Dimension> actual = MetricAdapter.getUniqueCombinedDimensions(null);
+
+    assertEquals(expected, actual);
+    assertNotSame(expected, actual);
   }
 }
