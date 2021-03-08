@@ -49,15 +49,16 @@ public class NormalizationTest {
     byteCounter.add(42, Labels.empty());
     Collection<MetricData> metricData = provider.collectAllMetrics();
     MintMetricsMessage msg = MetricAdapter.toMint(metricData);
-    assertEquals(1, msg.datapoints().size());
+    assertEquals(2, msg.datapoints().size());
     assertEquals(0, msg.datapoints().get(0).dimensions().size());
+    assertEquals(0, msg.datapoints().get(1).dimensions().size());
     String expected =
         Datapoint.create("byte_received")
             .timestamp(0)
             .value(Values.longCount(46, false))
             .build()
             .serialize();
-    String received = msg.datapoints().get(0).serialize();
+    String received = msg.datapoints().get(1).serialize();
     assertEquals(
         expected.substring(0, expected.lastIndexOf(" ")),
         received.substring(0, received.lastIndexOf(" ")));
@@ -106,6 +107,8 @@ public class NormalizationTest {
     assertThrows(DynatraceExporterException.class, () -> MetricAdapter.toMintDimension(".", "b"));
     assertThrows(DynatraceExporterException.class, () -> MetricAdapter.toMintDimension(".a", "b"));
     assertThrows(DynatraceExporterException.class, () -> MetricAdapter.toMintDimension("a.", "b"));
+    assertEquals("test.e12", MetricAdapter.toMintDimensionKey("test..e12"));
+    assertEquals(Dimension.create("a.b", "b"), MetricAdapter.toMintDimension("a..b", "b"));
   }
 
   @Test
