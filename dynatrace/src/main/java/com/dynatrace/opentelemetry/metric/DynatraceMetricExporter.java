@@ -61,10 +61,9 @@ public final class DynatraceMetricExporter implements MetricExporter {
     try {
       builder
           .setUrl(new URL("http://127.0.0.1:14499/metrics/ingest"))
-          .setEnrichWithOneAgentMetaData(true)
-          .build();
+          .setEnrichWithOneAgentMetaData(true);
     } catch (Exception e) {
-      // we can ignore
+      // we can ignore the URL exception.
     }
     return builder.build();
   }
