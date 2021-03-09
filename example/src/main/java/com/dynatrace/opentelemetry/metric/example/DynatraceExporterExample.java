@@ -25,9 +25,9 @@ import java.util.Collections;
 import java.util.Random;
 
 public class DynatraceExporterExample {
-  
+
   private static final Random random = new Random();
-  
+
   public static void main(String[] args) throws Exception {
     DynatraceMetricExporter exporter;
     if (args.length == 2) {
@@ -59,13 +59,14 @@ public class DynatraceExporterExample {
     // Create a counter
     LongCounter counter =
         meter
-            .longCounterBuilder("example_counter")
+            .longCounterBuilder("otel.dynatrace.java.example_counter")
             .setDescription("Just some counter used as an example")
             .setUnit("1")
             .build();
 
     // Use a bound counter with a pre-defined label set
-    BoundLongCounter someWorkCounter = counter.bind(Labels.of("bound_dimension", "dimension_value"));
+    BoundLongCounter someWorkCounter =
+        counter.bind(Labels.of("bound_dimension", "dimension_value"));
 
     while (true) {
       // Record data with bound labels
