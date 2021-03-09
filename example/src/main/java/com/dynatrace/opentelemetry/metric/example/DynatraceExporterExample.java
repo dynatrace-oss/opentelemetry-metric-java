@@ -22,8 +22,12 @@ import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.export.IntervalMetricReader;
 import java.util.Collections;
+import java.util.Random;
 
 public class DynatraceExporterExample {
+  
+  private static final Random random = new Random();
+  
   public static void main(String[] args) throws Exception {
     DynatraceMetricExporter exporter;
     if (args.length == 2) {
@@ -61,14 +65,15 @@ public class DynatraceExporterExample {
             .build();
 
     // Use a bound counter with a pre-defined label set
-    BoundLongCounter someWorkCounter = counter.bind(Labels.of("some_dimension", "dimension1"));
+    BoundLongCounter someWorkCounter = counter.bind(Labels.of("bound_dimension", "dimension_value"));
 
     while (true) {
       // Record data with bound labels
-      someWorkCounter.add(1);
+      someWorkCounter.add(random.nextInt(5));
 
       // Or record data on unbound counter and explicitly specify the label set at call-time
-      counter.add(2, Labels.of("some_dimension", "dimension2"));
+      counter.add(random.nextInt(10), Labels.of("environment", "testing"));
+      counter.add(random.nextInt(20), Labels.of("environment", "staging"));
 
       Thread.sleep(1000);
     }
