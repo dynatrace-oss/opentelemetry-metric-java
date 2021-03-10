@@ -59,7 +59,7 @@ public class DynatraceExporterExample {
     // Create a counter
     LongCounter counter =
         meter
-            .longCounterBuilder("otel.dynatrace.java.example_counter")
+            .longCounterBuilder("otel.java.example_counter")
             .setDescription("Just some counter used as an example")
             .setUnit("1")
             .build();
