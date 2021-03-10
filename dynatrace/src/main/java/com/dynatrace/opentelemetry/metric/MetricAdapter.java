@@ -16,6 +16,7 @@ package com.dynatrace.opentelemetry.metric;
 import com.dynatrace.opentelemetry.metric.mint.Datapoint;
 import com.dynatrace.opentelemetry.metric.mint.Dimension;
 import com.dynatrace.opentelemetry.metric.mint.MintMetricsMessage;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
@@ -24,18 +25,13 @@ import io.opentelemetry.sdk.metrics.data.DoubleSummaryPointData;
 import io.opentelemetry.sdk.metrics.data.LongPointData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.data.ValueAtPercentile;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.function.BiConsumer;
+import java.util.*;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-public final class MetricAdapter {
+final class MetricAdapter {
 
   private static final Logger logger = Logger.getLogger(MetricAdapter.class.getName());
-  private static final List<Dimension> EMPTY = Collections.<Dimension>emptyList();
   private static final Pattern TO_ESCAPE = Pattern.compile("[,=\\s\\\\]");
   private static final Pattern METRICKEY_NOT_ALLOWED = Pattern.compile("[^a-zA-Z0-9:_\\-]");
   private static final Pattern DOESNT_START_WITH_LETTER = Pattern.compile("[^a-zA-Z]");
@@ -43,6 +39,66 @@ public final class MetricAdapter {
   private static final Splitter SPLITTER = Splitter.on('.').trimResults().omitEmptyStrings();
 
   private MetricAdapter() {}
+
+  private static MetricAdapter instance = null;
+
+  /**
+   * Singleton access method. Sets up a new instance if none exists and always returns that
+   * instance.
+   *
+   * @return the instance of type {@link MetricAdapter}
+   */
+  public static MetricAdapter getInstance() {
+    if (instance == null) {
+      instance = new MetricAdapter();
+    }
+    return instance;
+  }
+
+  /**
+   * Contains the static dimensions (i.e., tags and OneAgent metadata enrichment, if set up) that
+   * are added to each MINT line sent to the ingestion API.
+   */
+  private Map<String, Dimension> constantDimensions = null;
+
+  /**
+   * Sets the dimensions (as key-value pairs) that should be added as dimensions to all metrics.
+   * Keys and values are sanitized by {@link #toMintDimension}. Tags specified here will overwrite
+   * any labels added by the application using instruments. These tags can only be set once, so this
+   * should be called in the setup.
+   *
+   * @param tags A collection of tags added as dimensions to all metrics, in the form of key-value
+   *     pairs mapping {@link String} to {@link String}.
+   */
+  public void setTags(Collection<AbstractMap.SimpleEntry<String, String>> tags) {
+    if (tags == null) {
+      return;
+    }
+
+    // the constantDimensions field is only populated once, and the dimensions are reused.
+    if (this.constantDimensions == null) {
+      Map<String, Dimension> localDimensions = new HashMap<>();
+      for (AbstractMap.SimpleEntry<String, String> tag : tags) {
+        try {
+          Dimension d = toMintDimension(tag.getKey(), tag.getValue());
+          localDimensions.put(d.getKey(), d);
+        } catch (DynatraceExporterException dee) {
+          logger.warning(
+              String.format(
+                  "Could not transform OTel label '%s'->'%s' to Dynatrace dimension: %s",
+                  tag.getKey(), tag.getValue(), dee.getMessage()));
+        }
+      }
+      constantDimensions = Collections.unmodifiableMap(localDimensions);
+    } else {
+      logger.warning("overwriting of tags not allowed. Skipping...");
+    }
+  }
+
+  @VisibleForTesting
+  static void resetForTest() {
+    instance = null;
+  }
 
   /**
    * Generates a MintLineProtocolSerializable MintMetricsMessage, that can be ingested to MINT.
@@ -118,7 +174,7 @@ public final class MetricAdapter {
 
     return Datapoint.create(metricKeyName)
         .timestamp(summaryPoint.getEpochNanos())
-        .dimensions(convertLabelsToDimensions(summaryPoint.getLabels()))
+        .dimensions(getUniqueCombinedDimensions(summaryPoint.getLabels()))
         .value(Values.longGauge(doubleSummaryStat))
         .build();
   }
@@ -132,7 +188,7 @@ public final class MetricAdapter {
         Datapoint p =
             Datapoint.create(metricKeyName)
                 .timestamp(data.getEpochNanos())
-                .dimensions(convertLabelsToDimensions(data.getLabels()))
+                .dimensions(getUniqueCombinedDimensions(data.getLabels()))
                 .value(Values.doubleCount(data.getValue(), /* isDelta= */ isDeltaDouble))
                 .build();
         datapoints.add(p);
@@ -148,7 +204,7 @@ public final class MetricAdapter {
         Datapoint p =
             Datapoint.create(metricKeyName)
                 .timestamp(data.getEpochNanos())
-                .dimensions(convertLabelsToDimensions(data.getLabels()))
+                .dimensions(getUniqueCombinedDimensions(data.getLabels()))
                 .value(Values.longCount(data.getValue(), /* isDelta= */ isDeltaLong))
                 .build();
         datapoints.add(p);
@@ -166,7 +222,7 @@ public final class MetricAdapter {
         Datapoint p =
             Datapoint.create(metricKeyName)
                 .timestamp(data.getEpochNanos())
-                .dimensions(convertLabelsToDimensions(data.getLabels()))
+                .dimensions(getUniqueCombinedDimensions(data.getLabels()))
                 .value(Values.doubleCount(data.getValue(), /* isDelta= */ true))
                 .build();
         datapoints.add(p);
@@ -180,7 +236,7 @@ public final class MetricAdapter {
         Datapoint p =
             Datapoint.create(metricKeyName)
                 .timestamp(data.getEpochNanos())
-                .dimensions(convertLabelsToDimensions(data.getLabels()))
+                .dimensions(getUniqueCombinedDimensions(data.getLabels()))
                 .value(Values.longCount(data.getValue(), /* isDelta= */ true))
                 .build();
         datapoints.add(p);
@@ -191,27 +247,51 @@ public final class MetricAdapter {
   }
 
   /**
+   * This function first transforms the given labels to dimensions using {@link
+   * #convertLabelsToDimensions(Labels)} and then adds static labels that are stored in the
+   * singleton instance, if there are any. If two labels have the same key, the last added label is
+   * retained. Constant dimensions such as tags and OneAgent metadata labels are added last and will
+   * overwrite the labels passed to this method.
+   *
+   * @param labels the labels to be transformed by {@link #convertLabelsToDimensions}.
+   * @return An unmodifiable {@link List list} of {@link Dimension} objects to be serialized.
+   */
+  static List<Dimension> getUniqueCombinedDimensions(Labels labels) {
+    Map<String, Dimension> dynamicDimensions = convertLabelsToDimensions(labels);
+
+    if (getInstance().constantDimensions != null) {
+      dynamicDimensions.putAll(getInstance().constantDimensions);
+    }
+
+    return Collections.unmodifiableList(new ArrayList<>(dynamicDimensions.values()));
+  }
+
+  /**
    * Converts a Map of key-value labels to a List of MINT compatible Dimensions.
    *
    * @param labels are the labels generated by OT.
    * @return all sanitized Dimensions. List is empty, if a key-value pair doesn't match the MINT
-   *     requirements
+   *     requirements. The last specified label for each key will be kept, if multiple labels with
+   *     the same key exists.
    */
-  private static List<Dimension> convertLabelsToDimensions(Labels labels)
+  private static Map<String, Dimension> convertLabelsToDimensions(Labels labels)
       throws DynatraceExporterException {
-    final List<Dimension> dimensions = new ArrayList<>(labels.size());
-    labels.forEach(
-        new BiConsumer<String, String>() {
-          @Override
-          public void accept(String k, String v) {
-            dimensions.add(toMintDimension(k, v));
-          }
-        });
-
-    if (dimensions.size() != labels.size()) {
-      return EMPTY;
+    final Map<String, Dimension> dimensions = new HashMap<>();
+    if (labels != null) {
+      labels.forEach(
+          (String k, String v) -> {
+            try {
+              Dimension d = toMintDimension(k, v);
+              dimensions.put(d.getKey(), d);
+            } catch (DynatraceExporterException dee) {
+              logger.warning(
+                  String.format(
+                      "Could not transform OTel label '%s'->'%s' to Dynatrace dimension: %s",
+                      k, v, dee.getMessage()));
+            }
+          });
     }
-    return Collections.unmodifiableList(dimensions);
+    return dimensions;
   }
 
   /**
@@ -267,9 +347,13 @@ public final class MetricAdapter {
    * @param key is the key as String.
    * @param value is the value as String.
    * @return a MINT-compatible Dimension (sanitized key and value).
-   * @throws DynatraceExporterException if an error occured during sanitizing the Strings.
+   * @throws DynatraceExporterException if an error occurred during sanitizing the Strings or if a
+   *     null value was passed.
    */
   static Dimension toMintDimension(String key, String value) throws DynatraceExporterException {
+    if (key == null || value == null) {
+      throw new DynatraceExporterException("key and value cannot be null.");
+    }
     return Dimension.create(toMintDimensionKey(key), toMintDimensionValue(value));
   }
 

@@ -49,15 +49,16 @@ public class NormalizationTest {
     byteCounter.add(42, Labels.empty());
     Collection<MetricData> metricData = provider.collectAllMetrics();
     MintMetricsMessage msg = MetricAdapter.toMint(metricData);
-    assertEquals(1, msg.datapoints().size());
+    assertEquals(2, msg.datapoints().size());
     assertEquals(0, msg.datapoints().get(0).dimensions().size());
+    assertEquals(0, msg.datapoints().get(1).dimensions().size());
     String expected =
         Datapoint.create("byte_received")
             .timestamp(0)
             .value(Values.longCount(46, false))
             .build()
             .serialize();
-    String received = msg.datapoints().get(0).serialize();
+    String received = msg.datapoints().get(1).serialize();
     assertEquals(
         expected.substring(0, expected.lastIndexOf(" ")),
         received.substring(0, received.lastIndexOf(" ")));
@@ -73,7 +74,6 @@ public class NormalizationTest {
 
   @Test
   public void metricKeyTest() throws DynatraceExporterException {
-
     MetricAdapter.toMintMetricKey("a..b");
     MetricAdapter.toMintMetricKey("asd");
     MetricAdapter.toMintMetricKey(".");
@@ -105,10 +105,18 @@ public class NormalizationTest {
   @Test
   public void dimensionKeyTest() throws DynatraceExporterException {
     assertThrows(DynatraceExporterException.class, () -> MetricAdapter.toMintDimension(".", "b"));
-    MetricAdapter.toMintDimensionKey("test..e12");
     assertThrows(DynatraceExporterException.class, () -> MetricAdapter.toMintDimension(".a", "b"));
     assertThrows(DynatraceExporterException.class, () -> MetricAdapter.toMintDimension("a.", "b"));
-    MetricAdapter.toMintDimension("a..b", "b");
+    assertEquals("test.e12", MetricAdapter.toMintDimensionKey("test..e12"));
+    assertEquals(Dimension.create("a.b", "b"), MetricAdapter.toMintDimension("a..b", "b"));
+  }
+
+  @Test
+  public void nullDimensionKeyTest() {
+    assertThrows(
+        DynatraceExporterException.class, () -> MetricAdapter.toMintDimension(null, "value"));
+    assertThrows(
+        DynatraceExporterException.class, () -> MetricAdapter.toMintDimension("key", null));
   }
 
   @Test
@@ -120,5 +128,6 @@ public class NormalizationTest {
     assertEquals("test?$%&!", MetricAdapter.toMintDimensionValue("test?$%&!"));
     assertEquals("\\\"\\\\", MetricAdapter.toMintDimensionValue("\"\\"));
     assertEquals("\\\\\\\\\\\\", MetricAdapter.toMintDimensionValue("\\\\\\"));
+    assertThrows(DynatraceExporterException.class, () -> MetricAdapter.toMintDimensionValue(""));
   }
 }

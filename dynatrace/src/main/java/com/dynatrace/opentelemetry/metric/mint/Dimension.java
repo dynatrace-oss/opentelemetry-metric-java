@@ -21,7 +21,7 @@ import com.google.auto.value.extension.memoized.Memoized;
 @AutoValue
 public abstract class Dimension implements MintLineProtocolSerializable {
 
-  abstract String getKey();
+  public abstract String getKey();
 
   abstract String getValue();
 
