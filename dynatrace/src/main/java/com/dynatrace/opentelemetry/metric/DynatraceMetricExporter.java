@@ -34,7 +34,6 @@ import javax.annotation.Nonnull;
 public final class DynatraceMetricExporter implements MetricExporter {
   private final URL url;
   private final String apiToken;
-  private final String prefix;
 
   private static final Logger logger = Logger.getLogger(DynatraceMetricExporter.class.getName());
 
@@ -46,7 +45,6 @@ public final class DynatraceMetricExporter implements MetricExporter {
       Boolean enrichWithOneAgentMetaData) {
     this.url = url;
     this.apiToken = apiToken;
-    this.prefix = prefix;
 
     Collection<AbstractMap.SimpleEntry<String, String>> localDimensions = new ArrayList<>();
 
