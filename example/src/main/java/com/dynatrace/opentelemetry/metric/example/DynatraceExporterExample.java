@@ -21,16 +21,18 @@ import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.export.IntervalMetricReader;
-
-import java.awt.*;
 import java.util.Collections;
 import java.util.Random;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
 
 public class DynatraceExporterExample {
+
+  static {
+    // read logging.properties to set up the logging levels.
+    String path =
+        DynatraceExporterExample.class.getClassLoader().getResource("logging.properties").getFile();
+
+    System.setProperty("java.util.logging.config.file", path);
+  }
 
   private static final Random random = new Random();
 
@@ -44,11 +46,11 @@ public class DynatraceExporterExample {
       Labels defaultDimensions = Labels.of("environment", "staging");
       exporter =
           DynatraceMetricExporter.builder()
-                  .setUrl(endpointUrl)
-                  .setApiToken(apiToken)
-                  .setPrefix("otel.java")
-                  .setDefaultDimensions(defaultDimensions)
-                  .build();
+              .setUrl(endpointUrl)
+              .setApiToken(apiToken)
+              .setPrefix("otel.java")
+              .setDefaultDimensions(defaultDimensions)
+              .build();
     } else {
       // default is to export to local OneAgent
       System.out.println("No endpoint URL and API token passed as command line args");
