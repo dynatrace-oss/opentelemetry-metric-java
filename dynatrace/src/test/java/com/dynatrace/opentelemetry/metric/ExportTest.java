@@ -30,9 +30,15 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Collections;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class ExportTest {
+
+  @BeforeEach
+  void reset() {
+    MetricAdapter.resetForTest();
+  }
 
   public static MetricData generateMetricData() {
     return MetricData.createDoubleSum(
