@@ -34,6 +34,7 @@ import javax.annotation.Nonnull;
 public final class DynatraceMetricExporter implements MetricExporter {
   private final URL url;
   private final String apiToken;
+  private final String prefix;
 
   private static final Logger logger = Logger.getLogger(DynatraceMetricExporter.class.getName());
 
@@ -45,25 +46,32 @@ public final class DynatraceMetricExporter implements MetricExporter {
       Boolean enrichWithOneAgentMetaData) {
     this.url = url;
     this.apiToken = apiToken;
+    this.prefix = prefix;
 
-    Collection<AbstractMap.SimpleEntry<String, String>> defaultAndOneAgentDimensions =
-        new ArrayList<>();
+    Collection<AbstractMap.SimpleEntry<String, String>> localDimensions = new ArrayList<>();
 
     if (enrichWithOneAgentMetaData) {
       OneAgentMetadataEnricher enricher = new OneAgentMetadataEnricher(logger);
-      defaultAndOneAgentDimensions.addAll(enricher.getDimensionsFromOneAgentMetadata());
+      localDimensions.addAll(enricher.getDimensionsFromOneAgentMetadata());
     }
 
     if (defaultDimensions != null) {
       defaultDimensions.forEach(
           (String k, String v) -> {
-            defaultAndOneAgentDimensions.add(new AbstractMap.SimpleEntry<>(k, v));
+            localDimensions.add(new AbstractMap.SimpleEntry<>(k, v));
+          });
+    }
+
+    if (defaultDimensions != null) {
+      defaultDimensions.forEach(
+          (String k, String v) -> {
+            localDimensions.add(new AbstractMap.SimpleEntry<>(k, v));
           });
     }
 
     MetricAdapter.getInstance().setPrefix(prefix);
     // add the tags to the MetricAdapter.
-    MetricAdapter.getInstance().setTags(defaultAndOneAgentDimensions);
+    MetricAdapter.getInstance().setTags(localDimensions);
   }
 
   public static Builder builder() {
@@ -76,6 +84,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
     try {
       builder
           .setUrl(new URL("http://127.0.0.1:14499/metrics/ingest"))
+              .setPrefix("otel.java")
           .setEnrichWithOneAgentMetaData(true);
     } catch (MalformedURLException e) {
       // we can ignore the URL exception.
