@@ -13,6 +13,8 @@
  */
 package com.dynatrace.opentelemetry.metric.example;
 
+import com.dynatrace.metric.util.Dimension;
+import com.dynatrace.metric.util.DimensionList;
 import com.dynatrace.opentelemetry.metric.DynatraceMetricExporter;
 import io.opentelemetry.api.metrics.BoundLongCounter;
 import io.opentelemetry.api.metrics.GlobalMetricsProvider;
@@ -43,7 +45,8 @@ public class DynatraceExporterExample {
       String endpointUrl = args[0];
       String apiToken = args[1];
       System.out.println("Setting up DynatraceMetricExporter to export to " + endpointUrl);
-      Labels defaultDimensions = Labels.of("environment", "staging");
+      DimensionList defaultDimensions =
+          DimensionList.create(Dimension.create("environment", "staging"));
       exporter =
           DynatraceMetricExporter.builder()
               .setUrl(endpointUrl)

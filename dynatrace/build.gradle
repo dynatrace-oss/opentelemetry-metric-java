@@ -34,11 +34,15 @@ dependencies {
     implementation("io.opentelemetry:opentelemetry-sdk:${otelVersion}")
     implementation("io.opentelemetry:opentelemetry-sdk-metrics:${otelVersion}-alpha")
     implementation("com.google.guava:guava:30.0-jre")
+
+    // todo add library reference
+
     annotationProcessor("com.google.auto.value:auto-value:${autovalueVersion}")
     compileOnly("com.google.auto.value:auto-value-annotations:${autovalueVersion}")
     testImplementation(platform('org.junit:junit-bom:5.7.0'))
     testImplementation('org.junit.jupiter:junit-jupiter')
     testImplementation("org.mockito:mockito-core:3.8.0")
+    
 }
 
 test {

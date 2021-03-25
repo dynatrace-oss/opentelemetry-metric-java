@@ -13,9 +13,12 @@
  */
 package com.dynatrace.opentelemetry.metric;
 
+import com.dynatrace.metric.util.DimensionList;
+import com.dynatrace.metric.util.MetricBuilderFactory;
 import com.google.common.annotations.VisibleForTesting;
-import io.opentelemetry.api.metrics.common.Labels;
+import com.google.common.base.Strings;
 import io.opentelemetry.sdk.common.CompletableResultCode;
+import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import java.io.OutputStream;
@@ -23,7 +26,6 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.logging.Level;
@@ -34,6 +36,7 @@ import javax.annotation.Nonnull;
 public final class DynatraceMetricExporter implements MetricExporter {
   private final URL url;
   private final String apiToken;
+  private final MetricBuilderFactory metricBuilderFactory;
 
   private static final Logger logger = Logger.getLogger(DynatraceMetricExporter.class.getName());
 
@@ -41,16 +44,23 @@ public final class DynatraceMetricExporter implements MetricExporter {
       URL url,
       String apiToken,
       String prefix,
-      Labels defaultDimensions,
+      DimensionList defaultDimensions,
       Boolean enrichWithOneAgentMetaData) {
     this.url = url;
     this.apiToken = apiToken;
 
-    Collection<AbstractMap.SimpleEntry<String, String>> localDimensions = new ArrayList<>();
+    MetricBuilderFactory.MetricBuilderFactoryBuilder builder = MetricBuilderFactory.builder();
+
+    if (!Strings.isNullOrEmpty(prefix)) {
+      builder = builder.withPrefix(prefix);
+    }
 
     if (enrichWithOneAgentMetaData) {
-      OneAgentMetadataEnricher enricher = new OneAgentMetadataEnricher(logger);
-      localDimensions.addAll(enricher.getDimensionsFromOneAgentMetadata());
+      builder = builder.withOneAgentMetadata();
+    }
+
+    if (defaultDimensions != null && !defaultDimensions.isEmpty()) {
+      builder = builder.withDefaultDimensions(defaultDimensions);
     }
 
     if (defaultDimensions != null) {
@@ -59,17 +69,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
             localDimensions.add(new AbstractMap.SimpleEntry<>(k, v));
           });
     }
-
-    if (defaultDimensions != null) {
-      defaultDimensions.forEach(
-          (String k, String v) -> {
-            localDimensions.add(new AbstractMap.SimpleEntry<>(k, v));
-          });
-    }
-
-    MetricAdapter.getInstance().setPrefix(prefix);
-    // add the tags to the MetricAdapter.
-    MetricAdapter.getInstance().setTags(localDimensions);
+    metricBuilderFactory = builder.build();
   }
 
   public static Builder builder() {
@@ -109,10 +109,41 @@ public final class DynatraceMetricExporter implements MetricExporter {
     return export(metrics, connection);
   }
 
+  String makeExportString(Collection<MetricData> metrics) {
+    ArrayList<String> metricLines = new ArrayList<String>();
+    Serializer serializer = new Serializer(metricBuilderFactory);
+    for (MetricData metric : metrics) {
+      boolean isDelta;
+      switch (metric.getType()) {
+        case LONG_GAUGE:
+          serializer.addLongGaugeLines(metricLines, metric);
+          break;
+        case LONG_SUM:
+          isDelta =
+              metric.getLongSumData().getAggregationTemporality() == AggregationTemporality.DELTA;
+          serializer.addLongSumLines(metricLines, metric, isDelta);
+          break;
+        case DOUBLE_GAUGE:
+          serializer.addDoubleGaugeLines(metricLines, metric);
+          break;
+        case DOUBLE_SUM:
+          isDelta =
+              metric.getDoubleSumData().getAggregationTemporality() == AggregationTemporality.DELTA;
+          serializer.addDoubleSumLines(metricLines, metric, isDelta);
+          break;
+        case SUMMARY:
+          serializer.addDoubleSummaryLines(metricLines, metric);
+      }
+    }
+
+    return String.join("\n", metricLines);
+  }
+
   @VisibleForTesting
   protected CompletableResultCode export(
       Collection<MetricData> metrics, HttpURLConnection connection) {
-    String mintMetricsMessage = MetricAdapter.toMint(metrics).serialize();
+
+    String mintMetricsMessage = makeExportString(metrics);
     logger.log(Level.FINEST, "Exporting: {0}", mintMetricsMessage);
     try {
       connection.setRequestMethod("POST");
@@ -150,7 +181,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
     private String apiToken = null;
     private Boolean enrichWithOneAgentMetaData = false;
     private String prefix;
-    private Labels defaultDimensions;
+    private DimensionList defaultDimensions;
 
     public Builder setUrl(String url) throws MalformedURLException {
       this.url = new URL(url);
@@ -177,7 +208,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
       return this;
     }
 
-    public Builder setDefaultDimensions(Labels defaultDimensions) {
+    public Builder setDefaultDimensions(DimensionList defaultDimensions) {
       this.defaultDimensions = defaultDimensions;
       return this;
     }
