@@ -13,9 +13,8 @@
  */
 package com.dynatrace.opentelemetry.metric;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.*;
-
+import com.dynatrace.metric.util.Dimension;
+import com.dynatrace.metric.util.DimensionList;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.common.CompletableResultCode;
@@ -25,20 +24,18 @@ import io.opentelemetry.sdk.metrics.data.DoublePointData;
 import io.opentelemetry.sdk.metrics.data.DoubleSumData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.resources.Resource;
+import org.junit.jupiter.api.Test;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Collections;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.*;
 
 public class ExportTest {
-
-  @BeforeEach
-  void reset() {
-    MetricAdapter.resetForTest();
-  }
 
   public static MetricData generateMetricData() {
     return MetricData.createDoubleSum(
@@ -86,7 +83,7 @@ public class ExportTest {
     verify(connection).setRequestMethod("POST");
     verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
     verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals(bos.toString(), MetricAdapter.toMint(Collections.singleton(md)).serialize());
+    assertEquals("name count,194 0", bos.toString());
     assertEquals(CompletableResultCode.ofSuccess(), result);
   }
 
@@ -130,7 +127,7 @@ public class ExportTest {
     verify(connection).setRequestMethod("POST");
     verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
     verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals("prefix.name count,194.0 4\n", bos.toString());
+    assertEquals("prefix.name count,194 0", bos.toString());
     assertEquals(CompletableResultCode.ofSuccess(), result);
   }
 
@@ -147,7 +144,7 @@ public class ExportTest {
         DynatraceMetricExporter.builder()
             .setApiToken("mytoken")
             .setUrl(connection.getURL())
-            .setDefaultDimensions(Labels.of("default", "value"))
+            .setDefaultDimensions(DimensionList.create(Dimension.create("default", "value")))
             .build();
 
     CompletableResultCode result = metricExporter.export(Collections.singleton(md), connection);
@@ -155,7 +152,7 @@ public class ExportTest {
     verify(connection).setRequestMethod("POST");
     verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
     verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals("name,default=value count,194.0 4\n", bos.toString());
+    assertEquals("name,default=value count,194 0", bos.toString());
     assertEquals(CompletableResultCode.ofSuccess(), result);
   }
 
@@ -179,7 +176,7 @@ public class ExportTest {
     verify(connection).setRequestMethod("POST");
     verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
     verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals("name,label1=val1,label2=val2 count,194.0 4\n", bos.toString());
+    assertEquals("name,label1=val1,label2=val2 count,194 0", bos.toString());
     assertEquals(CompletableResultCode.ofSuccess(), result);
   }
 }

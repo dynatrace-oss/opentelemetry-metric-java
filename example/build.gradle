@@ -38,5 +38,6 @@ dependencies {
     implementation("io.opentelemetry:opentelemetry-sdk-metrics:${otelVersion}-alpha")
     implementation project(":dynatrace")
 
+    implementation(files("../../dynatrace-metric-utils-java/lib/build/libs/lib.jar"))
     // todo add library reference
 }

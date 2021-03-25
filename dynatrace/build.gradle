@@ -36,6 +36,7 @@ dependencies {
     implementation("com.google.guava:guava:30.0-jre")
 
     // todo add library reference
+    implementation(files("../../dynatrace-metric-utils-java/lib/build/libs/lib.jar"))
 
     annotationProcessor("com.google.auto.value:auto-value:${autovalueVersion}")
     compileOnly("com.google.auto.value:auto-value-annotations:${autovalueVersion}")
