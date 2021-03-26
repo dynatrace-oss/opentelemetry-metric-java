@@ -36,7 +36,7 @@ import javax.annotation.Nonnull;
 public final class DynatraceMetricExporter implements MetricExporter {
   private final URL url;
   private final String apiToken;
-  private final MetricBuilderFactory metricBuilderFactory;
+  private final Serializer serializer;
 
   private static final Logger logger = Logger.getLogger(DynatraceMetricExporter.class.getName());
 
@@ -69,7 +69,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
             localDimensions.add(new AbstractMap.SimpleEntry<>(k, v));
           });
     }
-    metricBuilderFactory = builder.build();
+    serializer = new Serializer(builder.build());
   }
 
   public static Builder builder() {
@@ -109,30 +109,32 @@ public final class DynatraceMetricExporter implements MetricExporter {
     return export(metrics, connection);
   }
 
+  private boolean isDeltaTemporality(AggregationTemporality temporality) {
+    return temporality == AggregationTemporality.DELTA;
+  }
+
   String makeExportString(Collection<MetricData> metrics) {
-    ArrayList<String> metricLines = new ArrayList<String>();
-    Serializer serializer = new Serializer(metricBuilderFactory);
+    ArrayList<String> metricLines = new ArrayList<>();
     for (MetricData metric : metrics) {
       boolean isDelta;
       switch (metric.getType()) {
         case LONG_GAUGE:
-          serializer.addLongGaugeLines(metricLines, metric);
+          metricLines.addAll(serializer.createLongGaugeLines(metric));
           break;
         case LONG_SUM:
-          isDelta =
-              metric.getLongSumData().getAggregationTemporality() == AggregationTemporality.DELTA;
-          serializer.addLongSumLines(metricLines, metric, isDelta);
+          isDelta = isDeltaTemporality(metric.getLongSumData().getAggregationTemporality());
+          metricLines.addAll(serializer.createLongSumLines(metric, isDelta));
           break;
         case DOUBLE_GAUGE:
-          serializer.addDoubleGaugeLines(metricLines, metric);
+          metricLines.addAll(serializer.createDoubleGaugeLines(metric));
           break;
         case DOUBLE_SUM:
-          isDelta =
-              metric.getDoubleSumData().getAggregationTemporality() == AggregationTemporality.DELTA;
-          serializer.addDoubleSumLines(metricLines, metric, isDelta);
+          isDelta = isDeltaTemporality(metric.getDoubleSumData().getAggregationTemporality());
+          metricLines.addAll(serializer.createDoubleSumLines(metric, isDelta));
           break;
         case SUMMARY:
-          serializer.addDoubleSummaryLines(metricLines, metric);
+          metricLines.addAll(serializer.createDoubleSummaryLines(metric));
+          break;
       }
     }
 

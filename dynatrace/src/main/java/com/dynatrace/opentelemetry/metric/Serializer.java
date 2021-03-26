@@ -29,10 +29,11 @@ final class Serializer {
   static DimensionList fromLabels(Labels labels) {
     ArrayList<Dimension> dimensions = new ArrayList<>(labels.size());
     labels.forEach((k, v) -> dimensions.add(Dimension.create(k, v)));
-    return DimensionList.create(dimensions.toArray(new Dimension[0]));
+    return DimensionList.fromCollection(dimensions);
   }
 
-  void addLongSumLines(ArrayList<String> metricLines, MetricData metric, boolean isDelta) {
+  List<String> createLongSumLines(MetricData metric, boolean isDelta) {
+    List<String> lines = new ArrayList<>();
     for (LongPointData point : metric.getLongSumData().getPoints()) {
       try {
         Metric.Builder builder = createMetricBuilder(metric, point);
@@ -43,19 +44,21 @@ final class Serializer {
           builder.setLongCounterValue(point.getValue());
         }
 
-        metricLines.add(builder.serialize());
+        lines.add(builder.serialize());
       } catch (MetricException me) {
         logger.warning(
             String.format(
                 "could not create metric line for data point with name %s.", metric.getName()));
       }
     }
+    return lines;
   }
 
-  void addLongGaugeLines(ArrayList<String> metricLines, MetricData metric) {
+  List<String> createLongGaugeLines(MetricData metric) {
+    List<String> lines = new ArrayList<>();
     for (LongPointData point : metric.getLongGaugeData().getPoints()) {
       try {
-        metricLines.add(
+        lines.add(
             createMetricBuilder(metric, point).setLongGaugeValue(point.getValue()).serialize());
       } catch (MetricException me) {
         logger.warning(
@@ -63,12 +66,14 @@ final class Serializer {
                 "could not create metric line for data point with name %s.", metric.getName()));
       }
     }
+    return lines;
   }
 
-  public void addDoubleGaugeLines(ArrayList<String> metricLines, MetricData metric) {
+  public List<String> createDoubleGaugeLines(MetricData metric) {
+    List<String> lines = new ArrayList<>();
     for (DoublePointData point : metric.getDoubleGaugeData().getPoints()) {
       try {
-        metricLines.add(
+        lines.add(
             createMetricBuilder(metric, point).setDoubleGaugeValue(point.getValue()).serialize());
       } catch (MetricException me) {
         logger.warning(
@@ -76,9 +81,11 @@ final class Serializer {
                 "could not create metric line for data point with name %s.", metric.getName()));
       }
     }
+    return lines;
   }
 
-  void addDoubleSumLines(ArrayList<String> metricLines, MetricData metric, boolean isDelta) {
+  List<String> createDoubleSumLines(MetricData metric, boolean isDelta) {
+    List<String> lines = new ArrayList<>();
     for (DoublePointData point : metric.getDoubleSumData().getPoints()) {
       try {
         Metric.Builder builder = createMetricBuilder(metric, point);
@@ -89,16 +96,18 @@ final class Serializer {
           builder.setDoubleCounterValue(point.getValue());
         }
 
-        metricLines.add(builder.serialize());
+        lines.add(builder.serialize());
       } catch (MetricException me) {
         logger.warning(
             String.format(
                 "could not create metric line for data point with name %s.", metric.getName()));
       }
     }
+    return lines;
   }
 
-  public void addDoubleSummaryLines(ArrayList<String> metricLines, MetricData metric) {
+  public List<String> createDoubleSummaryLines(MetricData metric) {
+    List<String> lines = new ArrayList<>();
     for (DoubleSummaryPointData point : metric.getDoubleSummaryData().getPoints()) {
       double min = .0;
       double max = .0;
@@ -115,7 +124,7 @@ final class Serializer {
       }
 
       try {
-        metricLines.add(
+        lines.add(
             createMetricBuilder(metric, point)
                 .setDoubleSummaryValue(min, max, sum, count)
                 .serialize());
@@ -125,5 +134,6 @@ final class Serializer {
                 "could not create metric line for data point with name %s.", metric.getName()));
       }
     }
+    return lines;
   }
 }
