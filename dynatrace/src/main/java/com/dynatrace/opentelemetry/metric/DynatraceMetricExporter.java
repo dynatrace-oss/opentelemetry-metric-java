@@ -46,23 +46,24 @@ public final class DynatraceMetricExporter implements MetricExporter {
     this.url = url;
     this.apiToken = apiToken;
 
-    Collection<AbstractMap.SimpleEntry<String, String>> localDimensions = new ArrayList<>();
+    Collection<AbstractMap.SimpleEntry<String, String>> defaultAndOneAgentDimensions =
+        new ArrayList<>();
 
     if (enrichWithOneAgentMetaData) {
       OneAgentMetadataEnricher enricher = new OneAgentMetadataEnricher(logger);
-      localDimensions.addAll(enricher.getDimensionsFromOneAgentMetadata());
+      defaultAndOneAgentDimensions.addAll(enricher.getDimensionsFromOneAgentMetadata());
     }
 
     if (defaultDimensions != null) {
       defaultDimensions.forEach(
           (String k, String v) -> {
-            localDimensions.add(new AbstractMap.SimpleEntry<>(k, v));
+            defaultAndOneAgentDimensions.add(new AbstractMap.SimpleEntry<>(k, v));
           });
     }
 
     MetricAdapter.getInstance().setPrefix(prefix);
     // add the tags to the MetricAdapter.
-    MetricAdapter.getInstance().setTags(localDimensions);
+    MetricAdapter.getInstance().setTags(defaultAndOneAgentDimensions);
   }
 
   public static Builder builder() {
@@ -75,7 +76,6 @@ public final class DynatraceMetricExporter implements MetricExporter {
     try {
       builder
           .setUrl(new URL("http://127.0.0.1:14499/metrics/ingest"))
-          .setPrefix("otel.java")
           .setEnrichWithOneAgentMetaData(true);
     } catch (MalformedURLException e) {
       // we can ignore the URL exception.

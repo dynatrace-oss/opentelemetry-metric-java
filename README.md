@@ -87,19 +87,18 @@ The scope required for sending metrics is the `Ingest metrics` scope in the **AP
 
 #### Metric Key Prefix
 
-The `setPrefix` function of the builder specifies an optional prefix, which is prepended metric key, separated by a dot (`<prefix>.<namespace>.<name>`).
-When running `DynatraceMetricExporter.getDefault()`, the prefix will be set to `otel.java`.
+The `setPrefix` method of the builder specifies an optional prefix, which is prepended metric key, separated by a dot (`<prefix>.<namespace>.<name>`).
 
 #### Default Dimensions
 
-The `setDefaultDimensions` parameter can be used to optionally specify a list of key/value pairs (`Label`s), which will be added as additional dimensions to all data points.
-Dimension keys are unique will be de-duplicated, and only one dimension value per key will be sent to the server.
+The `setDefaultDimensions` method can be used to optionally specify a list of key/value pairs (`Label`s), which will be added as additional dimensions to all data points.
+Dimension keys are unique and will be de-duplicated, and only one dimension value per key will be sent to the server.
 
 #### Export OneAgent Metadata
 
 Can be set by adding `setEnrichWithOneAgentMetaData`. If running on a host with a running OneAgent, setting this option will export metadata collected by the OneAgent to the Dynatrace endpoint.
 If no Dynatrace API endpoint is set, the default exporter endpoint will be the OneAgent endpoint, and this option will be set automatically.
-Therefore, if no endpoint is specified, we assume a OneAgent is running and export to it, including metadata.
+Therefore, if no endpoint is specified, a OneAgent is assumed to be running and exported to, including metadata.
 
 ### Logging
 

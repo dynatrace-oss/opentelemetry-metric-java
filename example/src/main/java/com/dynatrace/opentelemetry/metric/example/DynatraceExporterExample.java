@@ -27,7 +27,7 @@ import java.util.Random;
 public class DynatraceExporterExample {
 
   static {
-    // read logging.properties to set up the logging levels.
+    // Read logging.properties to set up the logging levels.
     String path =
         DynatraceExporterExample.class.getClassLoader().getResource("logging.properties").getFile();
 
