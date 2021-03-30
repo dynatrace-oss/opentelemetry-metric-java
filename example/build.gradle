@@ -27,6 +27,7 @@ version = "0.1.0-alpha"
 repositories {
     mavenCentral()
     jcenter()
+    mavenLocal()
 }
 
 def otelVersion = '0.16.0'
@@ -38,5 +39,5 @@ dependencies {
     implementation("io.opentelemetry:opentelemetry-sdk-metrics:${otelVersion}-alpha")
     implementation project(":dynatrace")
 
-    // todo add library reference
+    implementation("com.dynatrace.metric.utils:lib:1.0")
 }

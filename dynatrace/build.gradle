@@ -25,6 +25,7 @@ version = "0.1.0-alpha"
 repositories {
     mavenCentral()
     jcenter()
+    mavenLocal()
 }
 
 def autovalueVersion = '1.7.4'
@@ -35,7 +36,7 @@ dependencies {
     implementation("io.opentelemetry:opentelemetry-sdk-metrics:${otelVersion}-alpha")
     implementation("com.google.guava:guava:30.0-jre")
 
-    // todo add library reference
+    implementation("com.dynatrace.metric.utils:lib:1.0")
 
     annotationProcessor("com.google.auto.value:auto-value:${autovalueVersion}")
     compileOnly("com.google.auto.value:auto-value-annotations:${autovalueVersion}")
