@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright 2020 Dynatrace LLC
  *
  * <p>Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
@@ -14,6 +14,7 @@
 package com.dynatrace.opentelemetry.metric;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
@@ -36,19 +37,33 @@ public final class DynatraceMetricExporter implements MetricExporter {
 
   private static final Logger logger = Logger.getLogger(DynatraceMetricExporter.class.getName());
 
-  private DynatraceMetricExporter(URL url, String apiToken, Boolean enrichWithOneAgentMetaData) {
+  private DynatraceMetricExporter(
+      URL url,
+      String apiToken,
+      String prefix,
+      Labels defaultDimensions,
+      Boolean enrichWithOneAgentMetaData) {
     this.url = url;
     this.apiToken = apiToken;
 
-    Collection<AbstractMap.SimpleEntry<String, String>> localTags = new ArrayList<>();
+    Collection<AbstractMap.SimpleEntry<String, String>> defaultAndOneAgentDimensions =
+        new ArrayList<>();
 
     if (enrichWithOneAgentMetaData) {
       OneAgentMetadataEnricher enricher = new OneAgentMetadataEnricher(logger);
-      localTags.addAll(enricher.getDimensionsFromOneAgentMetadata());
+      defaultAndOneAgentDimensions.addAll(enricher.getDimensionsFromOneAgentMetadata());
     }
 
+    if (defaultDimensions != null) {
+      defaultDimensions.forEach(
+          (String k, String v) -> {
+            defaultAndOneAgentDimensions.add(new AbstractMap.SimpleEntry<>(k, v));
+          });
+    }
+
+    MetricAdapter.getInstance().setPrefix(prefix);
     // add the tags to the MetricAdapter.
-    MetricAdapter.getInstance().setTags(localTags);
+    MetricAdapter.getInstance().setTags(defaultAndOneAgentDimensions);
   }
 
   public static Builder builder() {
@@ -127,6 +142,8 @@ public final class DynatraceMetricExporter implements MetricExporter {
     private URL url;
     private String apiToken = null;
     private Boolean enrichWithOneAgentMetaData = false;
+    private String prefix;
+    private Labels defaultDimensions;
 
     public Builder setUrl(String url) throws MalformedURLException {
       this.url = new URL(url);
@@ -148,8 +165,19 @@ public final class DynatraceMetricExporter implements MetricExporter {
       return this;
     }
 
+    public Builder setPrefix(String prefix) {
+      this.prefix = prefix;
+      return this;
+    }
+
+    public Builder setDefaultDimensions(Labels defaultDimensions) {
+      this.defaultDimensions = defaultDimensions;
+      return this;
+    }
+
     public DynatraceMetricExporter build() {
-      return new DynatraceMetricExporter(url, apiToken, enrichWithOneAgentMetaData);
+      return new DynatraceMetricExporter(
+          url, apiToken, prefix, defaultDimensions, enrichWithOneAgentMetaData);
     }
   }
 }

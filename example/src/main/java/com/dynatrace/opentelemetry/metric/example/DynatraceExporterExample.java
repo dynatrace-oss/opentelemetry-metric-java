@@ -26,6 +26,14 @@ import java.util.Random;
 
 public class DynatraceExporterExample {
 
+  static {
+    // Read logging.properties to set up the logging levels.
+    String path =
+        DynatraceExporterExample.class.getClassLoader().getResource("logging.properties").getFile();
+
+    System.setProperty("java.util.logging.config.file", path);
+  }
+
   private static final Random random = new Random();
 
   public static void main(String[] args) throws Exception {
@@ -35,8 +43,14 @@ public class DynatraceExporterExample {
       String endpointUrl = args[0];
       String apiToken = args[1];
       System.out.println("Setting up DynatraceMetricExporter to export to " + endpointUrl);
+      Labels defaultDimensions = Labels.of("environment", "staging");
       exporter =
-          DynatraceMetricExporter.builder().setUrl(endpointUrl).setApiToken(apiToken).build();
+          DynatraceMetricExporter.builder()
+              .setUrl(endpointUrl)
+              .setApiToken(apiToken)
+              .setPrefix("otel.java")
+              .setDefaultDimensions(defaultDimensions)
+              .build();
     } else {
       // default is to export to local OneAgent
       System.out.println("No endpoint URL and API token passed as command line args");
@@ -59,7 +73,7 @@ public class DynatraceExporterExample {
     // Create a counter
     LongCounter counter =
         meter
-            .longCounterBuilder("otel.java.example_counter")
+            .longCounterBuilder("example_counter")
             .setDescription("Just some counter used as an example")
             .setUnit("1")
             .build();

@@ -18,6 +18,7 @@ import com.dynatrace.opentelemetry.metric.mint.Dimension;
 import com.dynatrace.opentelemetry.metric.mint.MintMetricsMessage;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.DoublePointData;
@@ -61,6 +62,8 @@ final class MetricAdapter {
    */
   private Map<String, Dimension> constantDimensions = null;
 
+  private String prefix = null;
+
   /**
    * Sets the dimensions (as key-value pairs) that should be added as dimensions to all metrics.
    * Keys and values are sanitized by {@link #toMintDimension}. Tags specified here will overwrite
@@ -92,6 +95,12 @@ final class MetricAdapter {
       constantDimensions = Collections.unmodifiableMap(localDimensions);
     } else {
       logger.warning("overwriting of tags not allowed. Skipping...");
+    }
+  }
+
+  public void setPrefix(String prefix) {
+    if (this.prefix == null) {
+      this.prefix = prefix;
     }
   }
 
@@ -305,6 +314,10 @@ final class MetricAdapter {
    *     allowed length limits.
    */
   static String toMintMetricKey(String metricKey) throws DynatraceExporterException {
+    String prefix = MetricAdapter.getInstance().prefix;
+    if (!Strings.isNullOrEmpty(prefix)) {
+      metricKey = prefix + "." + metricKey;
+    }
     StringBuilder builder = new StringBuilder();
     for (String metricKeySection : SPLITTER.split(metricKey)) {
       if (builder.length() != 0) {
