@@ -36,7 +36,7 @@ dependencies {
     implementation("io.opentelemetry:opentelemetry-sdk-metrics:${otelVersion}-alpha")
     implementation("com.google.guava:guava:30.0-jre")
 
-    implementation("com.dynatrace.metric.utils:lib:1.0")
+    implementation('com.dynatrace.metric.util:dynatrace-metric-utils-java:0.1.1')
 
     annotationProcessor("com.google.auto.value:auto-value:${autovalueVersion}")
     compileOnly("com.google.auto.value:auto-value-annotations:${autovalueVersion}")

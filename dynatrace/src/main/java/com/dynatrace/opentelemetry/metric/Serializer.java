@@ -11,7 +11,10 @@ import java.util.logging.Logger;
 
 final class Serializer {
   private static final Logger logger = Logger.getLogger(Serializer.class.getName());
+  // the precision used to identify whether a percentile is the 0% (min) or 100% (max) percentile.
   private static final double PERCENTILE_PRECISION = 0.0000001;
+  private static final String TEMPLATE_ERR_METRIC_LINE =
+      "Could not create metric line for data point with name %s (%s).";
 
   private final MetricBuilderFactory builderFactory;
 
@@ -39,16 +42,14 @@ final class Serializer {
         Metric.Builder builder = createMetricBuilder(metric, point);
 
         if (isDelta) {
-          builder.setLongAbsoluteCounterValue(point.getValue());
+          builder.setLongCounterValueDelta(point.getValue());
         } else {
-          builder.setLongCounterValue(point.getValue());
+          builder.setLongCounterValueTotal(point.getValue());
         }
 
         lines.add(builder.serialize());
       } catch (MetricException me) {
-        logger.warning(
-            String.format(
-                "could not create metric line for data point with name %s.", metric.getName()));
+        logger.warning(String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
       }
     }
     return lines;
@@ -61,9 +62,7 @@ final class Serializer {
         lines.add(
             createMetricBuilder(metric, point).setLongGaugeValue(point.getValue()).serialize());
       } catch (MetricException me) {
-        logger.warning(
-            String.format(
-                "could not create metric line for data point with name %s.", metric.getName()));
+        logger.warning(String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
       }
     }
     return lines;
@@ -76,9 +75,7 @@ final class Serializer {
         lines.add(
             createMetricBuilder(metric, point).setDoubleGaugeValue(point.getValue()).serialize());
       } catch (MetricException me) {
-        logger.warning(
-            String.format(
-                "could not create metric line for data point with name %s.", metric.getName()));
+        logger.warning(String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
       }
     }
     return lines;
@@ -91,16 +88,14 @@ final class Serializer {
         Metric.Builder builder = createMetricBuilder(metric, point);
 
         if (isDelta) {
-          builder.setDoubleAbsoluteCounterValue(point.getValue());
+          builder.setDoubleCounterValueDelta(point.getValue());
         } else {
-          builder.setDoubleCounterValue(point.getValue());
+          builder.setDoubleCounterValueTotal(point.getValue());
         }
 
         lines.add(builder.serialize());
       } catch (MetricException me) {
-        logger.warning(
-            String.format(
-                "could not create metric line for data point with name %s.", metric.getName()));
+        logger.warning(String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
       }
     }
     return lines;
@@ -128,10 +123,8 @@ final class Serializer {
             createMetricBuilder(metric, point)
                 .setDoubleSummaryValue(min, max, sum, count)
                 .serialize());
-      } catch (MetricException e) {
-        logger.warning(
-            String.format(
-                "could not create metric line for data point with name %s.", metric.getName()));
+      } catch (MetricException me) {
+        logger.warning(String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
       }
     }
     return lines;

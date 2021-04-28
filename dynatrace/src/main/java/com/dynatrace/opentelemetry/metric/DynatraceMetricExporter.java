@@ -63,12 +63,6 @@ public final class DynatraceMetricExporter implements MetricExporter {
       builder = builder.withDefaultDimensions(defaultDimensions);
     }
 
-    if (defaultDimensions != null) {
-      defaultDimensions.forEach(
-          (String k, String v) -> {
-            localDimensions.add(new AbstractMap.SimpleEntry<>(k, v));
-          });
-    }
     serializer = new Serializer(builder.build());
   }
 
@@ -150,7 +144,9 @@ public final class DynatraceMetricExporter implements MetricExporter {
     try {
       connection.setRequestMethod("POST");
       connection.setRequestProperty("Accept", "*/*; q=0");
-      connection.setRequestProperty("Authorization", "Api-Token " + apiToken);
+      if (this.apiToken != null) {
+        connection.setRequestProperty("Authorization", "Api-Token " + apiToken);
+      }
       connection.setRequestProperty("Content-Type", "text/plain; charset=utf-8");
       connection.setDoOutput(true);
       try (final OutputStream outputStream = connection.getOutputStream()) {

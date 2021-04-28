@@ -23,10 +23,13 @@ import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.export.IntervalMetricReader;
+import java.net.MalformedURLException;
 import java.util.Collections;
 import java.util.Random;
+import java.util.logging.Logger;
 
 public class DynatraceExporterExample {
+  private static final Logger logger = Logger.getLogger(DynatraceExporterExample.class.getName());
 
   static {
     // read logging.properties to set up the logging levels.
@@ -39,27 +42,10 @@ public class DynatraceExporterExample {
   private static final Random random = new Random();
 
   public static void main(String[] args) throws Exception {
-    DynatraceMetricExporter exporter;
-    if (args.length == 2) {
-      // Endpoint URL and API token passed as args
-      String endpointUrl = args[0];
-      String apiToken = args[1];
-      System.out.println("Setting up DynatraceMetricExporter to export to " + endpointUrl);
-      DimensionList defaultDimensions =
-          DimensionList.create(Dimension.create("environment", "staging"));
-      exporter =
-          DynatraceMetricExporter.builder()
-              .setUrl(endpointUrl)
-              .setApiToken(apiToken)
-              .setPrefix("otel.java")
-              .setDefaultDimensions(defaultDimensions)
-              .build();
-    } else {
-      // default is to export to local OneAgent
-      System.out.println("No endpoint URL and API token passed as command line args");
-      System.out.println("Setting up DynatraceMetricExporter to export to local OneAgent endpoint");
-      exporter = DynatraceMetricExporter.getDefault();
-    }
+    // Create a DynatraceMetricExporter. This method tries to create one from environment variables,
+    // then from program arguments, and falls back to the default OneAgent endpoint if nothing is
+    // set.
+    DynatraceMetricExporter exporter = getExampleExporter(args);
 
     SdkMeterProvider provider = SdkMeterProvider.builder().buildAndRegisterGlobal();
     IntervalMetricReader intervalMetricReader =
@@ -94,6 +80,70 @@ public class DynatraceExporterExample {
       counter.add(random.nextInt(20), Labels.of("environment", "staging"));
 
       Thread.sleep(1000);
+    }
+  }
+
+  private static DynatraceMetricExporter getExampleExporter(String[] args) {
+    DynatraceMetricExporter exporter;
+
+    logger.info("Trying to create a DynatraceMetricExporter from environment variables.");
+    exporter = tryGetExporterFromEnvironmentVariables();
+
+    if (exporter == null) {
+      logger.info(
+          "Trying to create a DynatraceMetricExporter from the first two program arguments.");
+      exporter = tryGetExporterFromArgs(args);
+    }
+
+    if (exporter == null) {
+      logger.info("Falling back to the default OneAgent exporter.");
+      exporter = DynatraceMetricExporter.getDefault();
+    }
+
+    return exporter;
+  }
+
+  private static DynatraceMetricExporter tryGetExporterFromArgs(String[] args) {
+    if (args.length >= 2) {
+      return makeExampleExporter(args[0], args[1]);
+    }
+    logger.info("Failed to set up a DynatraceMetricExporter from program arguments.");
+    return null;
+  }
+
+  private static DynatraceMetricExporter tryGetExporterFromEnvironmentVariables() {
+    String endpoint = System.getenv("DYNATRACEAPI_METRICS_INGEST_ENDPOINT");
+    String token = System.getenv("DYNATRACEAPI_METRICS_INGEST_TOKEN");
+
+    if (endpoint != null && !endpoint.isEmpty()) {
+      logger.info(String.format("Endpoint read from environment: %s", endpoint));
+      if (token == null) {
+        logger.info(
+            "No token set in environment. Assuming that the endpoint is a local OneAgent that does not require an API token.");
+      } else {
+        logger.info("Token read from the environment.");
+      }
+      // this will pass null to the exporter when no token is set.
+      return makeExampleExporter(endpoint, token);
+    }
+
+    logger.info("Failed to set up DynatraceMetricExporter from environment variables.");
+    return null;
+  }
+
+  private static DynatraceMetricExporter makeExampleExporter(String endpoint, String token) {
+    try {
+      DimensionList exampleDimensions =
+          DimensionList.create(Dimension.create("environment", "example"));
+      return DynatraceMetricExporter.builder()
+          .setPrefix("otel.java")
+          .setDefaultDimensions(exampleDimensions)
+          .setUrl(endpoint)
+          .setApiToken(token)
+          .build();
+    } catch (MalformedURLException e) {
+      logger.warning(String.format("Endpoint '%s' is not a valid URL.", endpoint));
+      return null;
     }
   }
 }
