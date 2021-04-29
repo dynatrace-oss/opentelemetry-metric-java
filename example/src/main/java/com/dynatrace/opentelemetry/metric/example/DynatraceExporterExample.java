@@ -58,7 +58,6 @@ public class DynatraceExporterExample {
     // set.
     DynatraceMetricExporter exporter = getExampleExporter(args);
 
-    logger.info("Creating a default MeterProvider and registering it globally.");
     SdkMeterProvider provider = SdkMeterProvider.builder().buildAndRegisterGlobal();
     IntervalMetricReader intervalMetricReader =
         IntervalMetricReader.builder()

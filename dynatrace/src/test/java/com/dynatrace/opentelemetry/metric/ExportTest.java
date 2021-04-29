@@ -27,6 +27,7 @@ import io.opentelemetry.sdk.metrics.data.DoublePointData;
 import io.opentelemetry.sdk.metrics.data.DoubleSumData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.resources.Resource;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -37,16 +38,7 @@ import org.junit.jupiter.api.Test;
 public class ExportTest {
 
   public static MetricData generateMetricData() {
-    return MetricData.createDoubleSum(
-        Resource.create(Attributes.builder().build()),
-        InstrumentationLibraryInfo.getEmpty(),
-        "name",
-        "desc",
-        "",
-        DoubleSumData.create(
-            true,
-            AggregationTemporality.CUMULATIVE,
-            Collections.singleton(DoublePointData.create(123, 4560000, Labels.empty(), 194.0))));
+    return generateMetricDataWithLabels(Labels.empty());
   }
 
   public static MetricData generateMetricDataWithLabels(Labels labels) {
@@ -59,7 +51,9 @@ public class ExportTest {
         DoubleSumData.create(
             true,
             AggregationTemporality.CUMULATIVE,
-            Collections.singleton(DoublePointData.create(123, 4560000, labels, 194.0))));
+            Collections.singleton(
+                DoublePointData.create(
+                    1619687639000000000L, 1619687659000000000L, labels, 194.0))));
   }
 
   @Test
@@ -70,6 +64,10 @@ public class ExportTest {
     when(connection.getURL()).thenReturn(new URL("http://localhost"));
     when(connection.getOutputStream()).thenReturn(bos);
     when(connection.getResponseCode()).thenReturn(202);
+    when(connection.getInputStream())
+        .thenReturn(
+            new ByteArrayInputStream(
+                "{\n\"linesOk\": 1,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes()));
 
     DynatraceMetricExporter metricExporter =
         DynatraceMetricExporter.builder()
@@ -82,7 +80,7 @@ public class ExportTest {
     verify(connection).setRequestMethod("POST");
     verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
     verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals("name count,194 0", bos.toString());
+    assertEquals("name,dt.metrics.source=opentelemetry count,194.0 1619687659000", bos.toString());
     assertEquals(CompletableResultCode.ofSuccess(), result);
   }
 
@@ -113,6 +111,10 @@ public class ExportTest {
     when(connection.getURL()).thenReturn(new URL("http://localhost"));
     when(connection.getOutputStream()).thenReturn(bos);
     when(connection.getResponseCode()).thenReturn(202);
+    when(connection.getInputStream())
+        .thenReturn(
+            new ByteArrayInputStream(
+                "{\n\"linesOk\": 1,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes()));
 
     DynatraceMetricExporter metricExporter =
         DynatraceMetricExporter.builder()
@@ -126,7 +128,8 @@ public class ExportTest {
     verify(connection).setRequestMethod("POST");
     verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
     verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals("prefix.name count,194 0", bos.toString());
+    assertEquals(
+        "prefix.name,dt.metrics.source=opentelemetry count,194.0 1619687659000", bos.toString());
     assertEquals(CompletableResultCode.ofSuccess(), result);
   }
 
@@ -138,6 +141,10 @@ public class ExportTest {
     when(connection.getURL()).thenReturn(new URL("http://localhost"));
     when(connection.getOutputStream()).thenReturn(bos);
     when(connection.getResponseCode()).thenReturn(202);
+    when(connection.getInputStream())
+        .thenReturn(
+            new ByteArrayInputStream(
+                "{\n\"linesOk\": 1,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes()));
 
     DynatraceMetricExporter metricExporter =
         DynatraceMetricExporter.builder()
@@ -151,7 +158,9 @@ public class ExportTest {
     verify(connection).setRequestMethod("POST");
     verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
     verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals("name,default=value count,194 0", bos.toString());
+    assertEquals(
+        "name,default=value,dt.metrics.source=opentelemetry count,194.0 1619687659000",
+        bos.toString());
     assertEquals(CompletableResultCode.ofSuccess(), result);
   }
 
@@ -163,6 +172,10 @@ public class ExportTest {
     when(connection.getURL()).thenReturn(new URL("http://localhost"));
     when(connection.getOutputStream()).thenReturn(bos);
     when(connection.getResponseCode()).thenReturn(202);
+    when(connection.getInputStream())
+        .thenReturn(
+            new ByteArrayInputStream(
+                "{\n\"linesOk\": 1,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes()));
 
     DynatraceMetricExporter metricExporter =
         DynatraceMetricExporter.builder()
@@ -175,7 +188,9 @@ public class ExportTest {
     verify(connection).setRequestMethod("POST");
     verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
     verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals("name,label1=val1,label2=val2 count,194 0", bos.toString());
+    assertEquals(
+        "name,dt.metrics.source=opentelemetry,label1=val1,label2=val2 count,194.0 1619687659000",
+        bos.toString());
     assertEquals(CompletableResultCode.ofSuccess(), result);
   }
 }

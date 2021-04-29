@@ -18,6 +18,7 @@ import com.dynatrace.metric.util.DimensionList;
 import com.dynatrace.metric.util.MetricBuilderFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
+import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.common.io.CharStreams;
 import io.opentelemetry.sdk.common.CompletableResultCode;
@@ -129,7 +130,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
     return temporality == AggregationTemporality.DELTA;
   }
 
-  String makeExportString(Collection<MetricData> metrics) {
+  List<String> makeExportString(Collection<MetricData> metrics) {
     ArrayList<String> metricLines = new ArrayList<>();
     for (MetricData metric : metrics) {
       boolean isDelta;
@@ -154,14 +155,15 @@ public final class DynatraceMetricExporter implements MetricExporter {
       }
     }
 
-    return String.join("\n", metricLines);
+    return metricLines;
   }
 
   @VisibleForTesting
   protected CompletableResultCode export(
       Collection<MetricData> metrics, HttpURLConnection connection) {
 
-    String mintMetricsMessage = makeExportString(metrics);
+    List<String> metricLines = makeExportString(metrics);
+    String mintMetricsMessage = Joiner.on('\n').join(metricLines);
     if (logger.isLoggable(Level.FINER)) {
       logger.finer(String.format("Exporting metrics:\n%s", mintMetricsMessage));
     }
@@ -181,7 +183,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
         String response =
             CharStreams.toString(
                 new InputStreamReader(connection.getInputStream(), Charsets.UTF_8));
-        return handleSuccess(code, response);
+        return handleSuccess(code, metricLines.size(), response);
       } else {
         return CompletableResultCode.ofFailure();
       }
@@ -191,7 +193,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
     }
   }
 
-  private CompletableResultCode handleSuccess(int code, String response) {
+  private CompletableResultCode handleSuccess(int code, int totalLines, String response) {
     if (code == 202) {
       if (IS_NULL_ERROR_RESPONSE.matcher(response).find()) {
         Matcher linesOkMatchResult = EXTRACT_LINES_OK.matcher(response);
@@ -199,8 +201,8 @@ public final class DynatraceMetricExporter implements MetricExporter {
         if (linesOkMatchResult.find() && linesInvalidMatchResult.find()) {
           logger.info(
               String.format(
-                  "Sent metric lines, linesOk: %s linesInvalid: %s",
-                  linesOkMatchResult.group(1), linesInvalidMatchResult.group(1)));
+                  "Sent %d metric lines, linesOk: %s linesInvalid: %s",
+                  totalLines, linesOkMatchResult.group(1), linesInvalidMatchResult.group(1)));
           return CompletableResultCode.ofSuccess();
         }
       }

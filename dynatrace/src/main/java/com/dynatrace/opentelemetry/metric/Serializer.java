@@ -12,7 +12,7 @@ import java.util.logging.Logger;
 final class Serializer {
   private static final Logger logger = Logger.getLogger(Serializer.class.getName());
   // the precision used to identify whether a percentile is the 0% (min) or 100% (max) percentile.
-  private static final double PERCENTILE_PRECISION = 0.0000001;
+  private static final double PERCENTILE_PRECISION = 0.0001;
   private static final String TEMPLATE_ERR_METRIC_LINE =
       "Could not create metric line for data point with name %s (%s).";
 
