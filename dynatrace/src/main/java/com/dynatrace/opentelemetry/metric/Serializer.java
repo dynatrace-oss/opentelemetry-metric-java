@@ -104,8 +104,8 @@ final class Serializer {
   public List<String> createDoubleSummaryLines(MetricData metric) {
     List<String> lines = new ArrayList<>();
     for (DoubleSummaryPointData point : metric.getDoubleSummaryData().getPoints()) {
-      double min = .0;
-      double max = .0;
+      double min = Double.NaN;
+      double max = Double.NaN;
       double sum = point.getSum();
       long count = point.getCount();
 

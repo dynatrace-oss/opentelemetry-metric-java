@@ -99,8 +99,8 @@ public final class DynatraceMetricExporter implements MetricExporter {
     try {
       builder
           .setUrl(new URL("http://127.0.0.1:14499/metrics/ingest"))
-          .setPrefix("otel.java")
-          .setEnrichWithOneAgentMetaData(true);
+          .setEnrichWithOneAgentMetaData(true)
+          .setPrefix("otel.java");
     } catch (MalformedURLException e) {
       // We can ignore the URL exception since we know we are passing a valid URL.
     }
