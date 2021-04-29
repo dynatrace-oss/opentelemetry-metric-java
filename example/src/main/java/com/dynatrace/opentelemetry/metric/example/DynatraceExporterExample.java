@@ -23,23 +23,34 @@ import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.export.IntervalMetricReader;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.Random;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 public class DynatraceExporterExample {
   private static final Logger logger = Logger.getLogger(DynatraceExporterExample.class.getName());
+  private static final Random random = new Random();
 
   static {
-    // read logging.properties to set up the logging levels.
-    String path =
-        DynatraceExporterExample.class.getClassLoader().getResource("logging.properties").getFile();
-
-    System.setProperty("java.util.logging.config.file", path);
+    // read logging.properties and set it to the global LogManager.
+    LogManager logManager = LogManager.getLogManager();
+    try {
+      logManager.readConfiguration(
+          new FileInputStream(
+              Objects.requireNonNull(
+                      DynatraceExporterExample.class
+                          .getClassLoader()
+                          .getResource("logging.properties"))
+                  .getFile()));
+    } catch (NullPointerException | IOException e) {
+      logger.warning("Failed to read logging setup from logging.properties: " + e.getMessage());
+    }
   }
-
-  private static final Random random = new Random();
 
   public static void main(String[] args) throws Exception {
     // Create a DynatraceMetricExporter. This method tries to create one from environment variables,
@@ -47,6 +58,7 @@ public class DynatraceExporterExample {
     // set.
     DynatraceMetricExporter exporter = getExampleExporter(args);
 
+    logger.info("Creating a default MeterProvider and registering it globally.");
     SdkMeterProvider provider = SdkMeterProvider.builder().buildAndRegisterGlobal();
     IntervalMetricReader intervalMetricReader =
         IntervalMetricReader.builder()
