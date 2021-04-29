@@ -126,11 +126,11 @@ public final class DynatraceMetricExporter implements MetricExporter {
     return export(metrics, connection);
   }
 
-  private boolean isDeltaTemporality(AggregationTemporality temporality) {
+  private static boolean isDeltaTemporality(AggregationTemporality temporality) {
     return temporality == AggregationTemporality.DELTA;
   }
 
-  List<String> makeExportString(Collection<MetricData> metrics) {
+  List<String> makeMetricLines(Collection<MetricData> metrics) {
     ArrayList<String> metricLines = new ArrayList<>();
     for (MetricData metric : metrics) {
       boolean isDelta;
@@ -162,7 +162,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
   protected CompletableResultCode export(
       Collection<MetricData> metrics, HttpURLConnection connection) {
 
-    List<String> metricLines = makeExportString(metrics);
+    List<String> metricLines = makeMetricLines(metrics);
     String mintMetricsMessage = Joiner.on('\n').join(metricLines);
     if (logger.isLoggable(Level.FINER)) {
       logger.finer(String.format("Exporting metrics:\n%s", mintMetricsMessage));
