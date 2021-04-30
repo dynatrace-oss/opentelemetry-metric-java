@@ -59,11 +59,11 @@ LongCounter counter = meter
 counter.add(123, Labels.of("job-type", "print-receipt"));
 ```
 
-A full setup is provided in our [example project](example/).
+A full setup is provided in our [example project](example/src/main/java/com/dynatrace/opentelemetry/metric/example/DynatraceExporterExample.java)
 
 ### Configuration
 
-The exporter allows for configuring the following settings using its builder:
+The exporter allows for configuring the following settings using its builder (`DynatraceMetricExporter.builder()`):
 
 #### Dynatrace API Endpoint
 
@@ -79,6 +79,7 @@ The default metric API endpoint exposed by the OneAgent is `http://localhost:144
 #### Dynatrace API Token
 
 The Dynatrace API token to be used by the exporter is specified using `setApiToken` and could, for example, be read from an environment variable.
+It should not be hardcoded into the code, especially if that code is stored in a VCS.
 
 Creating an API token for your Dynatrace environment is described in the [Dynatrace API documentation](https://www.dynatrace.com/support/help/dynatrace-api/basics/dynatrace-api-authentication/).
 The scope required for sending metrics is the `Ingest metrics` scope in the **API v2** section:
@@ -87,35 +88,21 @@ The scope required for sending metrics is the `Ingest metrics` scope in the **AP
 
 #### Metric Key Prefix
 
-The `setPrefix` method of the builder specifies an optional prefix, which is prepended to each metric key, separated by a dot (`<prefix>.<namespace>.<name>`).
+The `setPrefix` method of the builder specifies an optional prefix, which is prepended to each metric key, separated by a dot (e.g. `<prefix>.<namespace>.<name>`).
 
 #### Default Dimensions
 
-The `setDefaultDimensions` method can be used to optionally specify a list of key/value pairs (`Label`s), which will be added as additional dimensions to all data points.
+The `setDefaultDimensions` method can be used to optionally specify a list of key/value pairs (a `DimensionList`), which will be added as additional dimensions to all data points.
 Dimension keys are unique and will be de-duplicated, and only one dimension value per key will be sent to the server.
 Dimensions set on instruments will overwrite default dimensions.
 
 #### Export OneAgent Metadata
 
 The `setEnrichWithOneAgentMetaData` method on the builder can be used to enable OneAgent metadata export.
-If running on a host with a running OneAgent, setting this option will export metadata collected by the OneAgent to the Dynatrace endpoint.
+If running on a host with a OneAgent, setting this option will export metadata collected by the OneAgent to the Dynatrace endpoint.
 If no Dynatrace API endpoint is set, the default exporter endpoint will be the OneAgent endpoint, and this option will be set automatically.
 Therefore, if no endpoint is specified, a OneAgent is assumed to be running and exported to, including metadata.
 If the OneAgent is running and metrics are exported to an explicitly specified endpoint but this method is not called, no OneAgent metadata will be exported.
-=======
-The `setPrefix` function of the builder specifies an optional prefix, which is prepended metric key, separated by a dot (`<prefix>.<namespace>.<name>`).
-When running `DynatraceMetricExporter.getDefault()`, the prefix will be set to `otel.java`.
-
-#### Default Dimensions
-
-The `setDefaultDimensions` parameter can be used to optionally specify a list of key/value pairs (`Label`s), which will be added as additional dimensions to all data points.
-Dimension keys are unique will be de-duplicated, and only one dimension value per key will be sent to the server.
-
-#### Export OneAgent Metadata
-
-Can be set by adding `setEnrichWithOneAgentMetaData`. If running on a host with a running OneAgent, setting this option will export metadata collected by the OneAgent to the Dynatrace endpoint.
-If no Dynatrace API endpoint is set, the default exporter endpoint will be the OneAgent endpoint, and this option will be set automatically.
-Therefore, if no endpoint is specified, we assume a OneAgent is running and export to it, including metadata.
 
 ### Logging
 

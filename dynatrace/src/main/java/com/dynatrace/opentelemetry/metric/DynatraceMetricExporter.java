@@ -130,7 +130,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
     return temporality == AggregationTemporality.DELTA;
   }
 
-  List<String> makeMetricLines(Collection<MetricData> metrics) {
+  private List<String> makeMetricLines(Collection<MetricData> metrics) {
     ArrayList<String> metricLines = new ArrayList<>();
     for (MetricData metric : metrics) {
       boolean isDelta;

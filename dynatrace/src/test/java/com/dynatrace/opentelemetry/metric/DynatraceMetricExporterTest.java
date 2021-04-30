@@ -35,7 +35,7 @@ import java.net.URL;
 import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
-public class DynatraceMetricExporterTest {
+class DynatraceMetricExporterTest {
 
   public static MetricData generateMetricData() {
     return generateMetricDataWithLabels(Labels.empty());
