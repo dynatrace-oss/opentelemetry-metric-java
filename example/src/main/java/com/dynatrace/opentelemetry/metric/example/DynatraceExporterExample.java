@@ -58,15 +58,19 @@ public class DynatraceExporterExample {
     // set.
     DynatraceMetricExporter exporter = getExampleExporter(args);
 
+    // Create a meter provider and set it as global meter provider.
     SdkMeterProvider provider = SdkMeterProvider.builder().buildAndRegisterGlobal();
-    IntervalMetricReader intervalMetricReader =
-        IntervalMetricReader.builder()
-            .setMetricProducers(Collections.singleton(provider))
-            .setExportIntervalMillis(5000)
-            .setMetricExporter(exporter)
-            .build();
+    // Set the Dynatrace exporter to read from the provider created above (in this case the global
+    // meter provider).
+    IntervalMetricReader.builder()
+        .setMetricProducers(Collections.singleton(provider))
+        .setExportIntervalMillis(5000)
+        .setMetricExporter(exporter)
+        .build()
+        .start();
 
-    // Gets or creates a named meter instance
+    // Get or create a named meter instance. If a reference to the Provider ist kept,
+    // provider.get(...) would do the same.
     Meter meter =
         GlobalMeterProvider.getMeter(DynatraceExporterExample.class.getName(), "0.1.0-beta");
 
