@@ -56,7 +56,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
 
   private static final Pattern EXTRACT_LINES_OK = Pattern.compile("\"linesOk\":\\s?(\\d+)");
   private static final Pattern EXTRACT_LINES_INVALID =
-      Pattern.compile("\"linesInvalid\":\\s?(\\d+),");
+      Pattern.compile("\"linesInvalid\":\\s?(\\d+)");
   private static final Pattern IS_NULL_ERROR_RESPONSE = Pattern.compile("\"error\":\\s?null");
 
   private DynatraceMetricExporter(
