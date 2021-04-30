@@ -152,6 +152,9 @@ public final class DynatraceMetricExporter implements MetricExporter {
         case SUMMARY:
           metricLines.addAll(serializer.createDoubleSummaryLines(metric));
           break;
+        case HISTOGRAM:
+          metricLines.addAll(serializer.createDoubleHistogramLines(metric));
+          break;
       }
     }
 

@@ -117,7 +117,40 @@ final class Serializer {
           max = percentileValue.getValue();
         }
       }
+      if (Double.isNaN(min) || Double.isNaN(max)) {
+        logger.warning(
+            "The min and/or max value could not be retrieved. This happens if the 0% and 100% quantile are not set for the summary.");
+      }
 
+      try {
+        lines.add(
+            createMetricBuilder(metric, point)
+                .setDoubleSummaryValue(min, max, sum, count)
+                .serialize());
+      } catch (MetricException me) {
+        logger.warning(String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
+      }
+    }
+    return lines;
+  }
+
+  public List<String> createDoubleHistogramLines(MetricData metric) {
+    List<String> lines = new ArrayList<>();
+    for (DoubleHistogramPointData point : metric.getDoubleHistogramData().getPoints()) {
+      double min = Double.POSITIVE_INFINITY;
+      double max = Double.NEGATIVE_INFINITY;
+      double sum = point.getSum();
+      long count = point.getCount();
+
+      for (Double boundary : point.getBoundaries()) {
+        if (boundary < min && boundary > Double.NEGATIVE_INFINITY) {
+          min = boundary;
+        }
+
+        if (boundary > max && boundary < Double.POSITIVE_INFINITY) {
+          max = boundary;
+        }
+      }
       try {
         lines.add(
             createMetricBuilder(metric, point)

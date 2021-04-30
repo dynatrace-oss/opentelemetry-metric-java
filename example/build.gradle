@@ -30,7 +30,7 @@ repositories {
     mavenLocal()
 }
 
-def otelVersion = '0.16.0'
+def otelVersion = '1.1.0'
 
 dependencies {
     implementation("io.opentelemetry:opentelemetry-api:${otelVersion}")

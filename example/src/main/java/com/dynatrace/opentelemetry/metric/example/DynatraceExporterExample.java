@@ -17,7 +17,7 @@ import com.dynatrace.metric.util.Dimension;
 import com.dynatrace.metric.util.DimensionList;
 import com.dynatrace.opentelemetry.metric.DynatraceMetricExporter;
 import io.opentelemetry.api.metrics.BoundLongCounter;
-import io.opentelemetry.api.metrics.GlobalMetricsProvider;
+import io.opentelemetry.api.metrics.GlobalMeterProvider;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.common.Labels;
@@ -68,7 +68,7 @@ public class DynatraceExporterExample {
 
     // Gets or creates a named meter instance
     Meter meter =
-        GlobalMetricsProvider.getMeter(DynatraceExporterExample.class.getName(), "0.1.0-beta");
+        GlobalMeterProvider.getMeter(DynatraceExporterExample.class.getName(), "0.1.0-beta");
 
     // Create a counter
     LongCounter counter =

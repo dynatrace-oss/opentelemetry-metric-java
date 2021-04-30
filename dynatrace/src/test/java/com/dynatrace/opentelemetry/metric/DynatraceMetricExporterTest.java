@@ -35,7 +35,7 @@ import java.net.URL;
 import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
-public class ExportTest {
+public class DynatraceMetricExporterTest {
 
   public static MetricData generateMetricData() {
     return generateMetricDataWithLabels(Labels.empty());
@@ -44,7 +44,7 @@ public class ExportTest {
   public static MetricData generateMetricDataWithLabels(Labels labels) {
     return MetricData.createDoubleSum(
         Resource.create(Attributes.builder().build()),
-        InstrumentationLibraryInfo.getEmpty(),
+        InstrumentationLibraryInfo.empty(),
         "name",
         "desc",
         "",
