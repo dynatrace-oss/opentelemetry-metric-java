@@ -14,8 +14,7 @@
 package com.dynatrace.opentelemetry.metric;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.dynatrace.metric.util.Dimension;
 import com.dynatrace.metric.util.DimensionList;
@@ -523,5 +522,122 @@ class SerializerTest {
     assertThat(doubleHistogramLines).hasSize(1);
     assertThat(doubleHistogramLines.get(0))
         .isEqualTo("doubleHistogram gauge,min=0.1,max=5.6,sum=10.123,count=6 1619687659000");
+  }
+
+  @Test
+  void createInvalidDoubleHistogramLines() {
+    Collection<DoubleHistogramPointData> doubleHistogramPointDataCollection =
+        new ArrayList<DoubleHistogramPointData>() {
+          {
+            add(
+                DoubleHistogramPointData.create(
+                    0L,
+                    0L,
+                    Labels.empty(),
+                    10.123d,
+                    Arrays.asList(0.1d, 1.2d, 3.4d, 5.6d),
+                    Arrays.asList(0L, 2L, 1L, 3L, 0L)));
+            add(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    Double.NaN,
+                    Arrays.asList(0.1d, 1.2d, 3.4d, 5.6d),
+                    Arrays.asList(0L, 2L, 1L, 3L, 0L)));
+            add(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    Double.NEGATIVE_INFINITY,
+                    Arrays.asList(0.1d, 1.2d, 3.4d, 5.6d),
+                    Arrays.asList(0L, 2L, 1L, 3L, 0L)));
+            add(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    Double.POSITIVE_INFINITY,
+                    Arrays.asList(0.1d, 1.2d, 3.4d, 5.6d),
+                    Arrays.asList(0L, 2L, 1L, 3L, 0L)));
+            add(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    10.234,
+                    Arrays.asList(0.1d, 1.2d, 3.4d, Double.NaN),
+                    Arrays.asList(0L, 2L, 1L, 3L, 0L)));
+          }
+        };
+
+    DoubleHistogramData doubleHistogramData =
+        DoubleHistogramData.create(
+            AggregationTemporality.CUMULATIVE, doubleHistogramPointDataCollection);
+    MetricData metricData =
+        MetricData.createDoubleHistogram(
+            Resource.getDefault(),
+            InstrumentationLibraryInfo.empty(),
+            "doubleHistogram",
+            "",
+            "",
+            doubleHistogramData);
+
+    List<String> doubleHistogramLines = serializer.createDoubleHistogramLines(metricData);
+    assertThat(doubleHistogramLines).hasSize(1);
+    assertThat(doubleHistogramLines.get(0))
+        .isEqualTo("doubleHistogram gauge,min=0.1,max=5.6,sum=10.123,count=6");
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            DoubleHistogramPointData.create(
+                1619687639000000000L,
+                1619687659000000000L,
+                Labels.empty(),
+                10.234,
+                Arrays.asList(Double.NaN, 1.2d, 3.4d, 5.6d),
+                Arrays.asList(0L, 2L, 1L, 3L, 0L)));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            DoubleHistogramPointData.create(
+                1619687639000000000L,
+                1619687659000000000L,
+                Labels.empty(),
+                10.234,
+                Arrays.asList(0.1d, 1.2d, 3.4d, Double.POSITIVE_INFINITY),
+                Arrays.asList(0L, 2L, 1L, 3L, 0L)));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            DoubleHistogramPointData.create(
+                1619687639000000000L,
+                1619687659000000000L,
+                Labels.empty(),
+                10.234,
+                Arrays.asList(Double.POSITIVE_INFINITY, 1.2d, 3.4d, 5.6d),
+                Arrays.asList(0L, 2L, 1L, 3L, 0L)));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            DoubleHistogramPointData.create(
+                1619687639000000000L,
+                1619687659000000000L,
+                Labels.empty(),
+                10.234,
+                Arrays.asList(0.1d, 1.2d, 3.4d, Double.NEGATIVE_INFINITY),
+                Arrays.asList(0L, 2L, 1L, 3L, 0L)));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            DoubleHistogramPointData.create(
+                1619687639000000000L,
+                1619687659000000000L,
+                Labels.empty(),
+                10.234,
+                Arrays.asList(Double.NEGATIVE_INFINITY, 1.2d, 3.4d, 5.6d),
+                Arrays.asList(0L, 2L, 1L, 3L, 0L)));
   }
 }

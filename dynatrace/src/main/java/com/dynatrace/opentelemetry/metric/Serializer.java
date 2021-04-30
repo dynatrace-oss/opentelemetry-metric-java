@@ -158,20 +158,19 @@ final class Serializer {
   List<String> createDoubleHistogramLines(MetricData metric) {
     List<String> lines = new ArrayList<>();
     for (DoubleHistogramPointData point : metric.getDoubleHistogramData().getPoints()) {
-      double min = Double.POSITIVE_INFINITY;
-      double max = Double.NEGATIVE_INFINITY;
+      double min = Double.NEGATIVE_INFINITY;
+      double max = Double.POSITIVE_INFINITY;
       double sum = point.getSum();
       long count = point.getCount();
 
-      for (Double boundary : point.getBoundaries()) {
-        if (boundary < min && boundary > Double.NEGATIVE_INFINITY) {
-          min = boundary;
-        }
-
-        if (boundary > max && boundary < Double.POSITIVE_INFINITY) {
-          max = boundary;
-        }
+      List<Double> boundaries = point.getBoundaries();
+      // the histogram constructor checks that the boundaries are sorted in ascending order and
+      // that -Inf and Inf are not included.
+      if (boundaries.size() > 0) {
+        min = boundaries.get(0);
+        max = boundaries.get(boundaries.size() - 1);
       }
+
       try {
         lines.add(
             createMetricBuilder(metric, point)
