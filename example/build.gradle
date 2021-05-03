@@ -38,6 +38,4 @@ dependencies {
     implementation("io.opentelemetry:opentelemetry-sdk:${otelVersion}")
     implementation("io.opentelemetry:opentelemetry-sdk-metrics:${otelVersion}-alpha")
     implementation project(":dynatrace")
-
-    implementation('com.dynatrace.metric.util:dynatrace-metric-utils-java:0.2.0')
 }

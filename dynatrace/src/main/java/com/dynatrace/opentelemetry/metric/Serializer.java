@@ -43,11 +43,14 @@ final class Serializer {
         .setTimestamp(Instant.ofEpochMilli(TimeUnit.NANOSECONDS.toMillis(point.getEpochNanos())));
   }
 
-  @VisibleForTesting
-  static DimensionList fromLabels(Labels labels) {
+  static List<Dimension> toListOfDimensions(Labels labels) {
     ArrayList<Dimension> dimensions = new ArrayList<>(labels.size());
     labels.forEach((k, v) -> dimensions.add(Dimension.create(k, v)));
-    return DimensionList.fromCollection(dimensions);
+    return dimensions;
+  }
+
+  static DimensionList fromLabels(Labels labels) {
+    return DimensionList.fromCollection(toListOfDimensions(labels));
   }
 
   @VisibleForTesting

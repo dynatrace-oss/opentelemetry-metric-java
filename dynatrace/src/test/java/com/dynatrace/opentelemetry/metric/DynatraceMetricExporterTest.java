@@ -16,8 +16,6 @@ package com.dynatrace.opentelemetry.metric;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
-import com.dynatrace.metric.util.Dimension;
-import com.dynatrace.metric.util.DimensionList;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.common.CompletableResultCode;
@@ -150,7 +148,7 @@ class DynatraceMetricExporterTest {
         DynatraceMetricExporter.builder()
             .setApiToken("mytoken")
             .setUrl(connection.getURL())
-            .setDefaultDimensions(DimensionList.create(Dimension.create("default", "value")))
+            .setDefaultDimensions(Labels.of("default", "value"))
             .build();
 
     CompletableResultCode result = metricExporter.export(Collections.singleton(md), connection);

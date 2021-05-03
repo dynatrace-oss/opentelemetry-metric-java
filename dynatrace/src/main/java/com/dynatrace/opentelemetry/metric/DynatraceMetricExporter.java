@@ -20,7 +20,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
+import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.MetricData;
@@ -57,13 +59,15 @@ public final class DynatraceMetricExporter implements MetricExporter {
   private static final Pattern EXTRACT_LINES_OK = Pattern.compile("\"linesOk\":\\s?(\\d+)");
   private static final Pattern EXTRACT_LINES_INVALID =
       Pattern.compile("\"linesInvalid\":\\s?(\\d+)");
-  private static final Pattern IS_NULL_ERROR_RESPONSE = Pattern.compile("\"error\":\\s?null");
+  private static final Pattern PATTERN_RETURNED_ERROR_IS_NULL =
+      Pattern.compile("\"error\":\\s?null");
+  private static final int MAX_BATCH_SIZE = 1000;
 
   private DynatraceMetricExporter(
       URL url,
       String apiToken,
       String prefix,
-      DimensionList defaultDimensions,
+      Labels defaultDimensions,
       Boolean enrichWithOneAgentMetaData) {
     this.url = url;
     this.apiToken = apiToken;
@@ -78,9 +82,11 @@ public final class DynatraceMetricExporter implements MetricExporter {
       builder = builder.withOneAgentMetadata();
     }
 
-    List<Dimension> dimensions = new ArrayList<>();
-    if (defaultDimensions != null && !defaultDimensions.isEmpty()) {
-      dimensions.addAll(defaultDimensions.getDimensions());
+    List<Dimension> dimensions;
+    if (defaultDimensions != null) {
+      dimensions = Serializer.toListOfDimensions(defaultDimensions);
+    } else {
+      dimensions = new ArrayList<>();
     }
 
     dimensions.addAll(staticDimensions);
@@ -126,10 +132,6 @@ public final class DynatraceMetricExporter implements MetricExporter {
     return export(metrics, connection);
   }
 
-  private static boolean isDeltaTemporality(AggregationTemporality temporality) {
-    return temporality == AggregationTemporality.DELTA;
-  }
-
   private List<String> makeMetricLines(Collection<MetricData> metrics) {
     ArrayList<String> metricLines = new ArrayList<>();
     for (MetricData metric : metrics) {
@@ -139,14 +141,16 @@ public final class DynatraceMetricExporter implements MetricExporter {
           metricLines.addAll(serializer.createLongGaugeLines(metric));
           break;
         case LONG_SUM:
-          isDelta = isDeltaTemporality(metric.getLongSumData().getAggregationTemporality());
+          isDelta =
+              metric.getLongSumData().getAggregationTemporality() == AggregationTemporality.DELTA;
           metricLines.addAll(serializer.createLongSumLines(metric, isDelta));
           break;
         case DOUBLE_GAUGE:
           metricLines.addAll(serializer.createDoubleGaugeLines(metric));
           break;
         case DOUBLE_SUM:
-          isDelta = isDeltaTemporality(metric.getDoubleSumData().getAggregationTemporality());
+          isDelta =
+              metric.getDoubleSumData().getAggregationTemporality() == AggregationTemporality.DELTA;
           metricLines.addAll(serializer.createDoubleSumLines(metric, isDelta));
           break;
         case SUMMARY:
@@ -166,39 +170,47 @@ public final class DynatraceMetricExporter implements MetricExporter {
       Collection<MetricData> metrics, HttpURLConnection connection) {
 
     List<String> metricLines = makeMetricLines(metrics);
-    String mintMetricsMessage = Joiner.on('\n').join(metricLines);
-    if (logger.isLoggable(Level.FINER)) {
-      logger.finer(String.format("Exporting metrics:\n%s", mintMetricsMessage));
+    for (List<String> partition : Lists.partition(metricLines, MAX_BATCH_SIZE)) {
+      CompletableResultCode resultCode;
+      String joinedMetricLines = Joiner.on('\n').join(partition);
+
+      if (logger.isLoggable(Level.FINER)) {
+        logger.finer(String.format("Exporting metrics:\n%s", joinedMetricLines));
+      }
+      try {
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Accept", "*/*; q=0");
+        if (this.apiToken != null) {
+          connection.setRequestProperty("Authorization", "Api-Token " + apiToken);
+        }
+        connection.setRequestProperty("Content-Type", "text/plain; charset=utf-8");
+        connection.setDoOutput(true);
+        try (final OutputStream outputStream = connection.getOutputStream()) {
+          outputStream.write(joinedMetricLines.getBytes(StandardCharsets.UTF_8));
+        }
+        int code = connection.getResponseCode();
+        if (code < 400) {
+          String response =
+              CharStreams.toString(
+                  new InputStreamReader(connection.getInputStream(), Charsets.UTF_8));
+          resultCode = handleSuccess(code, metricLines.size(), response);
+        } else {
+          resultCode = CompletableResultCode.ofFailure();
+        }
+      } catch (Exception e) {
+        logger.log(Level.WARNING, "Error while exporting", e);
+        resultCode = CompletableResultCode.ofFailure();
+      }
+      if (!resultCode.isSuccess()) {
+        return resultCode;
+      }
     }
-    try {
-      connection.setRequestMethod("POST");
-      connection.setRequestProperty("Accept", "*/*; q=0");
-      if (this.apiToken != null) {
-        connection.setRequestProperty("Authorization", "Api-Token " + apiToken);
-      }
-      connection.setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-      connection.setDoOutput(true);
-      try (final OutputStream outputStream = connection.getOutputStream()) {
-        outputStream.write(mintMetricsMessage.getBytes(StandardCharsets.UTF_8));
-      }
-      int code = connection.getResponseCode();
-      if (code < 400) {
-        String response =
-            CharStreams.toString(
-                new InputStreamReader(connection.getInputStream(), Charsets.UTF_8));
-        return handleSuccess(code, metricLines.size(), response);
-      } else {
-        return CompletableResultCode.ofFailure();
-      }
-    } catch (Exception e) {
-      logger.log(Level.WARNING, "Error while exporting", e);
-      return CompletableResultCode.ofFailure();
-    }
+    return CompletableResultCode.ofSuccess();
   }
 
   private CompletableResultCode handleSuccess(int code, int totalLines, String response) {
     if (code == 202) {
-      if (IS_NULL_ERROR_RESPONSE.matcher(response).find()) {
+      if (PATTERN_RETURNED_ERROR_IS_NULL.matcher(response).find()) {
         Matcher linesOkMatchResult = EXTRACT_LINES_OK.matcher(response);
         Matcher linesInvalidMatchResult = EXTRACT_LINES_INVALID.matcher(response);
         if (linesOkMatchResult.find() && linesInvalidMatchResult.find()) {
@@ -235,7 +247,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
     private String apiToken = null;
     private Boolean enrichWithOneAgentMetaData = false;
     private String prefix;
-    private DimensionList defaultDimensions;
+    private Labels defaultDimensions;
 
     public Builder setUrl(String url) throws MalformedURLException {
       this.url = new URL(url);
@@ -262,7 +274,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
       return this;
     }
 
-    public Builder setDefaultDimensions(DimensionList defaultDimensions) {
+    public Builder setDefaultDimensions(Labels defaultDimensions) {
       this.defaultDimensions = defaultDimensions;
       return this;
     }
