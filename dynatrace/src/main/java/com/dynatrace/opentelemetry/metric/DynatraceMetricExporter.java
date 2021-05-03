@@ -59,8 +59,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
   private static final Pattern EXTRACT_LINES_OK = Pattern.compile("\"linesOk\":\\s?(\\d+)");
   private static final Pattern EXTRACT_LINES_INVALID =
       Pattern.compile("\"linesInvalid\":\\s?(\\d+)");
-  private static final Pattern PATTERN_RETURNED_ERROR_IS_NULL =
-      Pattern.compile("\"error\":\\s?null");
+  private static final Pattern RETURNED_ERROR_FIELD_IS_NULL = Pattern.compile("\"error\":\\s?null");
   private static final int MAX_BATCH_SIZE = 1000;
 
   private DynatraceMetricExporter(
@@ -210,7 +209,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
 
   private CompletableResultCode handleSuccess(int code, int totalLines, String response) {
     if (code == 202) {
-      if (PATTERN_RETURNED_ERROR_IS_NULL.matcher(response).find()) {
+      if (RETURNED_ERROR_FIELD_IS_NULL.matcher(response).find()) {
         Matcher linesOkMatchResult = EXTRACT_LINES_OK.matcher(response);
         Matcher linesInvalidMatchResult = EXTRACT_LINES_INVALID.matcher(response);
         if (linesOkMatchResult.find() && linesInvalidMatchResult.find()) {
