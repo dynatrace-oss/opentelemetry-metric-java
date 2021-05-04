@@ -15,6 +15,7 @@ package com.dynatrace.opentelemetry.metric;
 
 import com.dynatrace.metric.util.Dimension;
 import com.dynatrace.metric.util.DimensionList;
+import com.dynatrace.metric.util.DynatraceMetricApiConstants;
 import com.dynatrace.metric.util.MetricBuilderFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
@@ -60,7 +61,6 @@ public final class DynatraceMetricExporter implements MetricExporter {
   private static final Pattern EXTRACT_LINES_INVALID =
       Pattern.compile("\"linesInvalid\":\\s?(\\d+)");
   private static final Pattern RETURNED_ERROR_FIELD_IS_NULL = Pattern.compile("\"error\":\\s?null");
-  private static final int MAX_BATCH_SIZE = 1000;
 
   private DynatraceMetricExporter(
       URL url,
@@ -103,7 +103,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
     Builder builder = new Builder();
     try {
       builder
-          .setUrl(new URL("http://127.0.0.1:14499/metrics/ingest"))
+          .setUrl(new URL(DynatraceMetricApiConstants.getDefaultOneAgentEndpoint()))
           .setEnrichWithOneAgentMetaData(true)
           .setPrefix("otel.java");
     } catch (MalformedURLException e) {
@@ -169,7 +169,8 @@ public final class DynatraceMetricExporter implements MetricExporter {
       Collection<MetricData> metrics, HttpURLConnection connection) {
 
     List<String> metricLines = makeMetricLines(metrics);
-    for (List<String> partition : Lists.partition(metricLines, MAX_BATCH_SIZE)) {
+    for (List<String> partition :
+        Lists.partition(metricLines, DynatraceMetricApiConstants.getMetricPayloadLinesLimit())) {
       CompletableResultCode resultCode;
       String joinedMetricLines = Joiner.on('\n').join(partition);
 
