@@ -56,13 +56,18 @@ public class DynatraceExporterExample {
     // set.
     DynatraceMetricExporter exporter = getExampleExporter(args);
 
-    // Create a meter provider and set it as global meter provider.
+    // Create a metrics producer and a meter provider (SdkMeterProvider is both). As noted in the
+    // documentation (https://opentelemetry.io/docs/java/manual_instrumentation/, under the metrics
+    // section), the APIs for acquiring a MeterProvider are in flux and the example below is
+    // probably outdated. Please consult the OpenTelemetry documentation for more information on
+    // the preferred way to acquire a MeterProvider.
     SdkMeterProvider provider = SdkMeterProvider.builder().buildAndRegisterGlobal();
+
     // Set the Dynatrace exporter to read from the provider created above (in this case the global
     // meter provider).
     IntervalMetricReader.builder()
         .setMetricProducers(Collections.singleton(provider))
-        .setExportIntervalMillis(5000)
+        .setExportIntervalMillis(60000)
         .setMetricExporter(exporter)
         .build()
         .start();
