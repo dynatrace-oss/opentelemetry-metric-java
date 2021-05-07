@@ -158,6 +158,12 @@ public final class DynatraceMetricExporter implements MetricExporter {
         case HISTOGRAM:
           metricLines.addAll(serializer.createDoubleHistogramLines(metric));
           break;
+        default:
+          logger.warning(
+              String.format(
+                  "Tried to serialize metric of type %s. The Dynatrace metrics exporter does not handle metrics of that type at the time.",
+                  metric.getType().toString()));
+          break;
       }
     }
 

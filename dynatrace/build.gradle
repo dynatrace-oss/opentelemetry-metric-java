@@ -20,12 +20,11 @@ plugins {
 }
 
 group = "com.dynatrace.opentelemetry.metric"
-version = "0.1.0-alpha"
+version = "0.2.0-alpha"
 
 repositories {
     mavenCentral()
     jcenter()
-    mavenLocal()
 }
 
 def otelVersion = '1.1.0'
