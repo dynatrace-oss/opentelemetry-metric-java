@@ -176,7 +176,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
 
     List<String> metricLines = makeMetricLines(metrics);
     for (List<String> partition :
-        Lists.partition(metricLines, DynatraceMetricApiConstants.getMetricPayloadLinesLimit())) {
+        Lists.partition(metricLines, DynatraceMetricApiConstants.getPayloadLinesLimit())) {
       CompletableResultCode resultCode;
       String joinedMetricLines = Joiner.on('\n').join(partition);
 
