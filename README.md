@@ -14,7 +14,7 @@ See [open-telemetry/opentelemetry-java](https://github.com/open-telemetry/opente
 The general setup of OpenTelemetry Java is explained in the official [Getting Started Guide](https://opentelemetry.io/docs/java/manual_instrumentation/).
 Using the Metrics API is explained in the [Metrics section](https://opentelemetry.io/docs/java/manual_instrumentation/#metrics-alpha-only).
 
-To include the Dynatrace OpenTelemetry Metrics exporter use the following in your `settings.gradle` and `build.gradle`:
+To include the Dynatrace OpenTelemetry Metrics exporter in a Gradle build, for example, use the following in your `settings.gradle` and `build.gradle`:
 
 ```groovy
 // settings.gradle:
@@ -26,7 +26,7 @@ sourceControl {
 
 // build.gradle:
 // use the name of a specific tag from https://github.com/dynatrace-oss/opentelemetry-metric-java/tags
-def dynatraceMetricsExporterVersion = "otel-java-v0.15.0"
+def dynatraceMetricsExporterVersion = "otel-java-v1.2.0"
 
 dependencies {
     implementation("com.dynatrace.opentelemetry.metric:dynatrace:${dynatraceMetricsExporterVersion}")
@@ -43,13 +43,14 @@ DynatraceMetricExporter exporter = DynatraceMetricExporter.getDefault();
 ```
 
 Alternatively, or if no OneAgent is running on the host, the exporter can be set up using an endpoint URL and an API token with the "ingest metrics" (`metrics.ingest`) permission set.
+It is recommended to limit token scope to only this permission.
 More information on setting up API access using tokens can be found [in the documentation](https://www.dynatrace.com/support/help/dynatrace-api/basics/dynatrace-api-authentication/) and [below](#dynatrace-api-token).
 
 ```java
 DynatraceMetricExporter exporter =
     DynatraceMetricExporter.builder()
       .setUrl("https://{your-environment-id}.live.dynatrace.com/api/v2/metrics/ingest")
-      .setApiToken({YOUR_API_TOKEN})
+      .setApiToken({YOUR_API_TOKEN}) // read from environment or config
       .build();
 ```
 
@@ -75,7 +76,7 @@ In the example case above, metrics are exported every 60 seconds.
 Once metrics are reported using the Metrics API, data will be exported to Dynatrace:
 
 ```java
-Meter meter = GlobalMeterProvider.getMeter("opentelemetry.instrumented_library", "0.1.0-alpha");
+Meter meter = GlobalMeterProvider.getMeter("com.example.my_instrumentation_library", "0.1.0-alpha");
 
 LongCounter counter = meter
         .longCounterBuilder("processed_jobs")
@@ -130,7 +131,7 @@ Dimension keys will be normalized, de-duplicated, and only one dimension value p
 Dimensions set on instruments will overwrite default dimensions if they share the same name after normalization.
 [OneAgent metadata](#export-oneagent-metadata) will overwrite all dimensions described above, but keys are prefixed and therefore highly unlikely to collide.
 
-The dimension `dt.metrics.source=opentelemetry` will automatically be added to every exported metric when using the exporter.
+The reserved dimension `dt.metrics.source=opentelemetry` will automatically be added to every exported metric when using the exporter.
 
 #### Export OneAgent Metadata
 
