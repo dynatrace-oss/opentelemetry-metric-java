@@ -104,8 +104,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
     try {
       builder
           .setUrl(new URL(DynatraceMetricApiConstants.getDefaultOneAgentEndpoint()))
-          .setEnrichWithOneAgentMetaData(true)
-          .setPrefix("otel.java");
+          .setEnrichWithOneAgentMetaData(true);
     } catch (MalformedURLException e) {
       // We can ignore the URL exception since we know we are passing a valid URL.
     }
@@ -131,7 +130,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
     return export(metrics, connection);
   }
 
-  private List<String> makeMetricLines(Collection<MetricData> metrics) {
+  private List<String> serializeToMetricLines(Collection<MetricData> metrics) {
     ArrayList<String> metricLines = new ArrayList<>();
     for (MetricData metric : metrics) {
       boolean isDelta;
@@ -174,7 +173,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
   protected CompletableResultCode export(
       Collection<MetricData> metrics, HttpURLConnection connection) {
 
-    List<String> metricLines = makeMetricLines(metrics);
+    List<String> metricLines = serializeToMetricLines(metrics);
     for (List<String> partition :
         Lists.partition(metricLines, DynatraceMetricApiConstants.getPayloadLinesLimit())) {
       CompletableResultCode resultCode;
@@ -190,6 +189,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
           connection.setRequestProperty("Authorization", "Api-Token " + apiToken);
         }
         connection.setRequestProperty("Content-Type", "text/plain; charset=utf-8");
+        connection.setRequestProperty("User-Agent", "opentelemetry-metric-java");
         connection.setDoOutput(true);
         try (final OutputStream outputStream = connection.getOutputStream()) {
           outputStream.write(joinedMetricLines.getBytes(StandardCharsets.UTF_8));
@@ -201,6 +201,13 @@ public final class DynatraceMetricExporter implements MetricExporter {
                   new InputStreamReader(connection.getInputStream(), Charsets.UTF_8));
           resultCode = handleSuccess(code, metricLines.size(), response);
         } else {
+          String response =
+              CharStreams.toString(
+                  new InputStreamReader(connection.getErrorStream(), Charsets.UTF_8));
+          logger.log(
+              Level.WARNING,
+              String.format(
+                  "Error while exporting. Status code: %d; Response: %s", code, response));
           resultCode = CompletableResultCode.ofFailure();
         }
       } catch (Exception e) {
@@ -220,10 +227,12 @@ public final class DynatraceMetricExporter implements MetricExporter {
         Matcher linesOkMatchResult = EXTRACT_LINES_OK.matcher(response);
         Matcher linesInvalidMatchResult = EXTRACT_LINES_INVALID.matcher(response);
         if (linesOkMatchResult.find() && linesInvalidMatchResult.find()) {
-          logger.info(
-              String.format(
-                  "Sent %d metric lines, linesOk: %s linesInvalid: %s",
-                  totalLines, linesOkMatchResult.group(1), linesInvalidMatchResult.group(1)));
+          if (logger.isLoggable(Level.FINE)) {
+            logger.fine(
+                String.format(
+                    "Sent %d metric lines, linesOk: %s linesInvalid: %s",
+                    totalLines, linesOkMatchResult.group(1), linesInvalidMatchResult.group(1)));
+          }
           return CompletableResultCode.ofSuccess();
         }
       }
