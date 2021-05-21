@@ -27,7 +27,7 @@ repositories {
     jcenter()
 }
 
-def otelVersion = '1.1.0'
+def otelVersion = '1.2.0'
 
 dependencies {
     implementation("io.opentelemetry:opentelemetry-sdk:${otelVersion}")
