@@ -37,10 +37,16 @@ final class Serializer {
   }
 
   private Metric.Builder createMetricBuilder(MetricData metric, PointData point) {
-    return builderFactory
-        .newMetricBuilder(metric.getName())
-        .setDimensions(fromLabels(point.getLabels()))
-        .setTimestamp(Instant.ofEpochMilli(TimeUnit.NANOSECONDS.toMillis(point.getEpochNanos())));
+    Metric.Builder builder =
+        builderFactory
+            .newMetricBuilder(metric.getName())
+            .setDimensions(fromLabels(point.getLabels()));
+    long epochNanos = point.getEpochNanos();
+    // only set a timestamp if it is available for the PointData.
+    if (epochNanos > 0) {
+      builder.setTimestamp(Instant.ofEpochMilli(TimeUnit.NANOSECONDS.toMillis(epochNanos)));
+    }
+    return builder;
   }
 
   static List<Dimension> toListOfDimensions(Labels labels) {

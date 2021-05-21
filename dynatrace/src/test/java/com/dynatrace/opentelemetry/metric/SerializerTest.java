@@ -93,7 +93,7 @@ class SerializerTest {
   }
 
   @Test
-  void createInvalidLongSumLinesCumulative() {
+  void createLongSumLinesCumulativeNoTimestamp() {
     Collection<LongPointData> longPointDataCollection =
         new ArrayList<LongPointData>() {
           {
@@ -147,7 +147,7 @@ class SerializerTest {
   }
 
   @Test
-  void createLongSumLinesInvalidTimeDelta() {
+  void createLongSumLinesTimeDeltaNoTimestamp() {
     Collection<LongPointData> longPointDataCollection =
         new ArrayList<LongPointData>() {
           {
@@ -233,7 +233,6 @@ class SerializerTest {
     Collection<DoublePointData> doublePointDataCollection =
         new ArrayList<DoublePointData>() {
           {
-            add(DoublePointData.create(0L, 0L, Labels.empty(), 123.456d));
             add(
                 DoublePointData.create(
                     1619687639000000000L, 1619687659000000000L, Labels.empty(), Double.NaN));
@@ -262,8 +261,7 @@ class SerializerTest {
             doubleGaugeData);
 
     List<String> doubleGaugeLines = serializer.createDoubleGaugeLines(metricData);
-    assertThat(doubleGaugeLines).hasSize(1);
-    assertThat(doubleGaugeLines.get(0)).isEqualTo("doubleGaugeData gauge,123.456");
+    assertThat(doubleGaugeLines).isEmpty();
   }
 
   @Test
@@ -301,7 +299,6 @@ class SerializerTest {
     Collection<DoublePointData> doublePointDataCollection =
         new ArrayList<DoublePointData>() {
           {
-            add(DoublePointData.create(0L, 0L, Labels.empty(), 123.456d));
             add(
                 DoublePointData.create(
                     1619687639000000000L, 1619687659000000000L, Labels.empty(), Double.NaN));
@@ -331,8 +328,7 @@ class SerializerTest {
             doubleSumData);
 
     List<String> doubleSumLines = serializer.createDoubleSumLines(metricData, false);
-    assertThat(doubleSumLines).hasSize(1);
-    assertThat(doubleSumLines.get(0)).isEqualTo("doubleSumData count,123.456");
+    assertThat(doubleSumLines).isEmpty();
   }
 
   @Test
@@ -386,7 +382,7 @@ class SerializerTest {
                     1619687659000000000L,
                     Labels.empty(),
                     3,
-                    660.66d,
+                    202.66d,
                     Arrays.asList(
                         ValueAtPercentile.create(0.0, 0.22),
                         ValueAtPercentile.create(100.0, 123.45))));
@@ -409,7 +405,7 @@ class SerializerTest {
     assertThat(doubleSummaryLines.get(0))
         .isEqualTo("doubleSummary gauge,min=0.1,max=100.1,sum=700.7,count=7 1619687659000");
     assertThat(doubleSummaryLines.get(1))
-        .isEqualTo("doubleSummary gauge,min=0.22,max=123.45,sum=660.66,count=3 1619687659000");
+        .isEqualTo("doubleSummary gauge,min=0.22,max=123.45,sum=202.66,count=3 1619687659000");
   }
 
   @Test
@@ -417,17 +413,6 @@ class SerializerTest {
     Collection<DoubleSummaryPointData> doubleSummaryPointDataCollection =
         new ArrayList<DoubleSummaryPointData>() {
           {
-            // Invalid timestamp
-            add(
-                DoubleSummaryPointData.create(
-                    0L,
-                    0L,
-                    Labels.empty(),
-                    7,
-                    700.70d,
-                    Arrays.asList(
-                        ValueAtPercentile.create(0.0, 0.1),
-                        ValueAtPercentile.create(100.0, 100.1))));
             // NaN
             add(
                 DoubleSummaryPointData.create(
@@ -485,9 +470,7 @@ class SerializerTest {
             doubleSummaryData);
 
     List<String> doubleSummaryLines = serializer.createDoubleSummaryLines(metricData);
-    assertThat(doubleSummaryLines).hasSize(1);
-    assertThat(doubleSummaryLines.get(0))
-        .isEqualTo("doubleSummary gauge,min=0.1,max=100.1,sum=700.7,count=7");
+    assertThat(doubleSummaryLines).isEmpty();
   }
 
   @Test
@@ -529,14 +512,6 @@ class SerializerTest {
     Collection<DoubleHistogramPointData> doubleHistogramPointDataCollection =
         new ArrayList<DoubleHistogramPointData>() {
           {
-            add(
-                DoubleHistogramPointData.create(
-                    0L,
-                    0L,
-                    Labels.empty(),
-                    10.123d,
-                    Arrays.asList(0.1d, 1.2d, 3.4d, 5.6d),
-                    Arrays.asList(0L, 2L, 1L, 3L, 0L)));
             add(
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
@@ -585,9 +560,7 @@ class SerializerTest {
             doubleHistogramData);
 
     List<String> doubleHistogramLines = serializer.createDoubleHistogramLines(metricData);
-    assertThat(doubleHistogramLines).hasSize(1);
-    assertThat(doubleHistogramLines.get(0))
-        .isEqualTo("doubleHistogram gauge,min=0.1,max=5.6,sum=10.123,count=6");
+    assertThat(doubleHistogramLines).isEmpty();
 
     assertThrows(
         IllegalArgumentException.class,
