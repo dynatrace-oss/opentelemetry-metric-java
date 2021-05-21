@@ -42,7 +42,7 @@ final class Serializer {
             .newMetricBuilder(metric.getName())
             .setDimensions(fromLabels(point.getLabels()));
     long epochNanos = point.getEpochNanos();
-    // only set a timestamp if it is available for the PointData.
+    // Only set a timestamp if it is available for the PointData.
     if (epochNanos > 0) {
       builder.setTimestamp(Instant.ofEpochMilli(TimeUnit.NANOSECONDS.toMillis(epochNanos)));
     }
