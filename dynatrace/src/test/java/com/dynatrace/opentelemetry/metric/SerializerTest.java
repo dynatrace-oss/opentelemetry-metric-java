@@ -372,7 +372,7 @@ class SerializerTest {
                     1619687659000000000L,
                     Labels.empty(),
                     7,
-                    700.70d,
+                    500.70d,
                     Arrays.asList(
                         ValueAtPercentile.create(0.0, 0.1),
                         ValueAtPercentile.create(100.0, 100.1))));
@@ -403,7 +403,7 @@ class SerializerTest {
     List<String> doubleSummaryLines = serializer.createDoubleSummaryLines(metricData);
     assertThat(doubleSummaryLines).hasSize(2);
     assertThat(doubleSummaryLines.get(0))
-        .isEqualTo("doubleSummary gauge,min=0.1,max=100.1,sum=700.7,count=7 1619687659000");
+        .isEqualTo("doubleSummary gauge,min=0.1,max=100.1,sum=500.7,count=7 1619687659000");
     assertThat(doubleSummaryLines.get(1))
         .isEqualTo("doubleSummary gauge,min=0.22,max=123.45,sum=202.66,count=3 1619687659000");
   }
