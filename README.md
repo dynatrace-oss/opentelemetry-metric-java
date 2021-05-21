@@ -113,7 +113,8 @@ The token could, for example, be read from an environment variable.
 It should not be hardcoded into the code, especially if that code is stored in a VCS.
 
 Creating an API token for your Dynatrace environment is described in the [Dynatrace API documentation](https://www.dynatrace.com/support/help/dynatrace-api/basics/dynatrace-api-authentication/).
-The scope required for sending metrics is the `Ingest metrics` scope in the **API v2** section:
+The permission required for sending metrics is the `Ingest metrics` (`metrics.ingest`) permission in the **API v2** section
+and it is recommended to limit scope to only this permission:
 
 ![API token creation](docs/img/api_token.png)
 
@@ -129,7 +130,7 @@ The `setDefaultDimensions` method can be used to optionally specify a `Labels` o
 `Labels` represent key-value pairs.
 Dimension keys will be normalized, de-duplicated, and only one dimension value per key will be sent to the server.
 Dimensions set on instruments will overwrite default dimensions if they share the same name after normalization.
-[OneAgent metadata](#export-oneagent-metadata) will overwrite all dimensions described above, but keys are prefixed and therefore highly unlikely to collide.
+[OneAgent metadata](#export-oneagent-metadata) will overwrite all dimensions described above, but it only uses Dynatrace-reserved keys starting with `dt.*`.
 
 The reserved dimension `dt.metrics.source=opentelemetry` will automatically be added to every exported metric when using the exporter.
 
