@@ -43,6 +43,7 @@ final class Serializer {
             .setDimensions(fromLabels(point.getLabels()));
     long epochNanos = point.getEpochNanos();
     // Only set a timestamp if it is available for the PointData.
+    // If it is missing, the server will use the current time at ingest.
     if (epochNanos > 0) {
       builder.setTimestamp(Instant.ofEpochMilli(TimeUnit.NANOSECONDS.toMillis(epochNanos)));
     }
