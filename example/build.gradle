@@ -22,14 +22,14 @@ plugins {
 mainClassName = "com.dynatrace.opentelemetry.metric.example.DynatraceExporterExample"
 
 group = "com.dynatrace.opentelemetry.metric.example"
-version = "0.1.0-alpha"
+version = "0.2.0-alpha"
 
 repositories {
     mavenCentral()
     jcenter()
 }
 
-def otelVersion = '0.16.0'
+def otelVersion = '1.2.0'
 
 dependencies {
     implementation("io.opentelemetry:opentelemetry-api:${otelVersion}")

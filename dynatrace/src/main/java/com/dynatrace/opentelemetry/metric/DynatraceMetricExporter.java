@@ -13,29 +13,54 @@
  */
 package com.dynatrace.opentelemetry.metric;
 
+import com.dynatrace.metric.util.Dimension;
+import com.dynatrace.metric.util.DimensionList;
+import com.dynatrace.metric.util.DynatraceMetricApiConstants;
+import com.dynatrace.metric.util.MetricBuilderFactory;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
+import com.google.common.base.Joiner;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.io.CharStreams;
 import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.common.CompletableResultCode;
+import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 
 /** Export metric to Dynatrace. */
 public final class DynatraceMetricExporter implements MetricExporter {
   private final URL url;
   private final String apiToken;
+  private final Serializer serializer;
 
   private static final Logger logger = Logger.getLogger(DynatraceMetricExporter.class.getName());
+  private static final List<Dimension> staticDimensions =
+      new ArrayList<Dimension>() {
+        {
+          add(Dimension.create("dt.metrics.source", "opentelemetry"));
+        }
+      };
+
+  private static final Pattern EXTRACT_LINES_OK = Pattern.compile("\"linesOk\":\\s?(\\d+)");
+  private static final Pattern EXTRACT_LINES_INVALID =
+      Pattern.compile("\"linesInvalid\":\\s?(\\d+)");
+  private static final Pattern RETURNED_ERROR_FIELD_IS_NULL = Pattern.compile("\"error\":\\s?null");
 
   private DynatraceMetricExporter(
       URL url,
@@ -46,24 +71,27 @@ public final class DynatraceMetricExporter implements MetricExporter {
     this.url = url;
     this.apiToken = apiToken;
 
-    Collection<AbstractMap.SimpleEntry<String, String>> defaultAndOneAgentDimensions =
-        new ArrayList<>();
+    MetricBuilderFactory.MetricBuilderFactoryBuilder builder = MetricBuilderFactory.builder();
+
+    if (!Strings.isNullOrEmpty(prefix)) {
+      builder = builder.withPrefix(prefix);
+    }
 
     if (enrichWithOneAgentMetaData) {
-      OneAgentMetadataEnricher enricher = new OneAgentMetadataEnricher(logger);
-      defaultAndOneAgentDimensions.addAll(enricher.getDimensionsFromOneAgentMetadata());
+      builder = builder.withOneAgentMetadata();
     }
 
+    List<Dimension> dimensions;
     if (defaultDimensions != null) {
-      defaultDimensions.forEach(
-          (String k, String v) -> {
-            defaultAndOneAgentDimensions.add(new AbstractMap.SimpleEntry<>(k, v));
-          });
+      dimensions = Serializer.toListOfDimensions(defaultDimensions);
+    } else {
+      dimensions = new ArrayList<>();
     }
 
-    MetricAdapter.getInstance().setPrefix(prefix);
-    // add the tags to the MetricAdapter.
-    MetricAdapter.getInstance().setTags(defaultAndOneAgentDimensions);
+    dimensions.addAll(staticDimensions);
+    builder.withDefaultDimensions(DimensionList.fromCollection(dimensions));
+
+    serializer = new Serializer(builder.build());
   }
 
   public static Builder builder() {
@@ -75,10 +103,10 @@ public final class DynatraceMetricExporter implements MetricExporter {
     Builder builder = new Builder();
     try {
       builder
-          .setUrl(new URL("http://127.0.0.1:14499/metrics/ingest"))
+          .setUrl(new URL(DynatraceMetricApiConstants.getDefaultOneAgentEndpoint()))
           .setEnrichWithOneAgentMetaData(true);
     } catch (MalformedURLException e) {
-      // we can ignore the URL exception.
+      // We can ignore the URL exception since we know we are passing a valid URL.
     }
     return builder.build();
   }
@@ -102,30 +130,121 @@ public final class DynatraceMetricExporter implements MetricExporter {
     return export(metrics, connection);
   }
 
+  private List<String> serializeToMetricLines(Collection<MetricData> metrics) {
+    ArrayList<String> metricLines = new ArrayList<>();
+    for (MetricData metric : metrics) {
+      boolean isDelta;
+      switch (metric.getType()) {
+        case LONG_GAUGE:
+          metricLines.addAll(serializer.createLongGaugeLines(metric));
+          break;
+        case LONG_SUM:
+          isDelta =
+              metric.getLongSumData().getAggregationTemporality() == AggregationTemporality.DELTA;
+          metricLines.addAll(serializer.createLongSumLines(metric, isDelta));
+          break;
+        case DOUBLE_GAUGE:
+          metricLines.addAll(serializer.createDoubleGaugeLines(metric));
+          break;
+        case DOUBLE_SUM:
+          isDelta =
+              metric.getDoubleSumData().getAggregationTemporality() == AggregationTemporality.DELTA;
+          metricLines.addAll(serializer.createDoubleSumLines(metric, isDelta));
+          break;
+        case SUMMARY:
+          metricLines.addAll(serializer.createDoubleSummaryLines(metric));
+          break;
+        case HISTOGRAM:
+          metricLines.addAll(serializer.createDoubleHistogramLines(metric));
+          break;
+        default:
+          logger.warning(
+              String.format(
+                  "Tried to serialize metric of type %s. The Dynatrace metrics exporter does not handle metrics of that type at the time.",
+                  metric.getType().toString()));
+          break;
+      }
+    }
+
+    return metricLines;
+  }
+
   @VisibleForTesting
   protected CompletableResultCode export(
       Collection<MetricData> metrics, HttpURLConnection connection) {
-    String mintMetricsMessage = MetricAdapter.toMint(metrics).serialize();
-    logger.log(Level.FINEST, "Exporting: {0}", mintMetricsMessage);
-    try {
-      connection.setRequestMethod("POST");
-      connection.setRequestProperty("Accept", "*/*; q=0");
-      connection.setRequestProperty("Authorization", "Api-Token " + apiToken);
-      connection.setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-      connection.setDoOutput(true);
-      try (final OutputStream outputStream = connection.getOutputStream()) {
-        outputStream.write(mintMetricsMessage.getBytes(StandardCharsets.UTF_8));
+
+    List<String> metricLines = serializeToMetricLines(metrics);
+    for (List<String> partition :
+        Lists.partition(metricLines, DynatraceMetricApiConstants.getPayloadLinesLimit())) {
+      CompletableResultCode resultCode;
+      String joinedMetricLines = Joiner.on('\n').join(partition);
+
+      if (logger.isLoggable(Level.FINER)) {
+        logger.finer(String.format("Exporting metrics:\n%s", joinedMetricLines));
       }
-      int code = connection.getResponseCode();
-      if (code != 202) {
-        logger.log(Level.WARNING, "Received error code {0} from server", code);
-        return CompletableResultCode.ofFailure();
+      try {
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Accept", "*/*; q=0");
+        if (this.apiToken != null) {
+          connection.setRequestProperty("Authorization", "Api-Token " + apiToken);
+        }
+        connection.setRequestProperty("Content-Type", "text/plain; charset=utf-8");
+        connection.setRequestProperty("User-Agent", "opentelemetry-metric-java");
+        connection.setDoOutput(true);
+        try (final OutputStream outputStream = connection.getOutputStream()) {
+          outputStream.write(joinedMetricLines.getBytes(StandardCharsets.UTF_8));
+        }
+        int code = connection.getResponseCode();
+        if (code < 400) {
+          String response =
+              CharStreams.toString(
+                  new InputStreamReader(connection.getInputStream(), Charsets.UTF_8));
+          resultCode = handleSuccess(code, metricLines.size(), response);
+        } else {
+          String response =
+              CharStreams.toString(
+                  new InputStreamReader(connection.getErrorStream(), Charsets.UTF_8));
+          logger.log(
+              Level.WARNING,
+              String.format(
+                  "Error while exporting. Status code: %d; Response: %s", code, response));
+          resultCode = CompletableResultCode.ofFailure();
+        }
+      } catch (Exception e) {
+        logger.log(Level.WARNING, "Error while exporting", e);
+        resultCode = CompletableResultCode.ofFailure();
       }
-    } catch (Exception e) {
-      logger.log(Level.WARNING, "Error while exporting", e);
-      return CompletableResultCode.ofFailure();
+      if (!resultCode.isSuccess()) {
+        return resultCode;
+      }
     }
     return CompletableResultCode.ofSuccess();
+  }
+
+  private CompletableResultCode handleSuccess(int code, int totalLines, String response) {
+    if (code == 202) {
+      if (RETURNED_ERROR_FIELD_IS_NULL.matcher(response).find()) {
+        Matcher linesOkMatchResult = EXTRACT_LINES_OK.matcher(response);
+        Matcher linesInvalidMatchResult = EXTRACT_LINES_INVALID.matcher(response);
+        if (linesOkMatchResult.find() && linesInvalidMatchResult.find()) {
+          if (logger.isLoggable(Level.FINE)) {
+            logger.fine(
+                String.format(
+                    "Sent %d metric lines, linesOk: %s linesInvalid: %s",
+                    totalLines, linesOkMatchResult.group(1), linesInvalidMatchResult.group(1)));
+          }
+          return CompletableResultCode.ofSuccess();
+        }
+      }
+      logger.warning(String.format("could not parse response: %s", response));
+    } else {
+      // common pitfall if URI is supplied in v1 format (without endpoint path)
+      logger.warning(
+          String.format(
+              "Expected status code 202, got %d. Did you specify the ingest path (e. g. /api/v2/metrics/ingest)?",
+              code));
+    }
+    return CompletableResultCode.ofFailure();
   }
 
   @Override
