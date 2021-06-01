@@ -168,18 +168,10 @@ final class Serializer {
   List<String> createDoubleHistogramLines(MetricData metric) {
     List<String> lines = new ArrayList<>();
     for (DoubleHistogramPointData point : metric.getDoubleHistogramData().getPoints()) {
-      double min = Double.NEGATIVE_INFINITY;
-      double max = Double.POSITIVE_INFINITY;
+      double min = getMinFromBoundaries(point);
+      double max = getMaxFromBoundaries(point);
       double sum = point.getSum();
       long count = point.getCount();
-
-      List<Double> boundaries = point.getBoundaries();
-      // the histogram constructor checks that the boundaries are sorted in ascending order and
-      // that -Inf and Inf are not included.
-      if (boundaries.size() > 0) {
-        min = boundaries.get(0);
-        max = boundaries.get(boundaries.size() - 1);
-      }
 
       try {
         lines.add(
@@ -191,5 +183,65 @@ final class Serializer {
       }
     }
     return lines;
+  }
+
+  @VisibleForTesting
+  static double getMinFromBoundaries(DoubleHistogramPointData pointData) {
+    if (pointData.getCounts().size() == 1) {
+      // In this case, only one bucket exists: (-Inf, Inf). If there were any boundaries, there
+      // would be more counts.
+      if (pointData.getCounts().get(0) > 0) {
+        // in case the single bucket contains something, use the mean as min.
+        return pointData.getSum() / pointData.getCount();
+      }
+      // otherwise the histogram has no data. Use the sum as the min and max, respectively.
+      return pointData.getSum();
+    }
+
+    for (int i = 0; i < pointData.getCounts().size(); i++) {
+      if (pointData.getCounts().get(i) > 0) {
+        // the current bucket contains something.
+        if (i == 0) {
+          // If we are in the first bucket, use the upper bound (which is the lowest specified bound
+          // overall) otherwise this would be -Inf, which is not allowed. This is not quite correct,
+          // but the best approximation we can get at this point. This might however lead to a min
+          // that is bigger than the sum, therefore we return the min of the sum and the lowest
+          // bound.
+          return Math.min(pointData.getBoundaries().get(i), pointData.getSum());
+        }
+        return pointData.getBoundaries().get(i - 1);
+      }
+    }
+
+    // there are no counts > 0, so calculating a mean would result in a division by 0. By returning
+    // the sum, we can let the backend decide what to do with the value (with a count of 0)
+    return pointData.getSum();
+  }
+
+  @VisibleForTesting
+  static double getMaxFromBoundaries(DoubleHistogramPointData pointData) {
+    // see getMinFromBoundaries for a very similar function that is annotated.
+    if (pointData.getCounts().size() == 1) {
+      if (pointData.getCounts().get(0) > 0) {
+        return pointData.getSum() / pointData.getCount();
+      }
+      return pointData.getSum();
+    }
+
+    int lastElemIdx = pointData.getCounts().size() - 1;
+    // loop over counts in reverse
+    for (int i = lastElemIdx; i >= 0; i--) {
+      if (pointData.getCounts().get(i) > 0) {
+        // i is an index into counts, counts.size() - boundaries.size() = 1, therefore we need to
+        // subtract 1 when indexing into boundaries.
+        int idxInBounds = i - 1;
+
+        // if looking at the last bucket, (X, Inf), use X instead of Inf. For the max case, we don't
+        // care if max < sum, since that is a very likely thing to happen (compared to the min case)
+        return pointData.getBoundaries().get(i == lastElemIdx ? idxInBounds : idxInBounds + 1);
+      }
+    }
+
+    return pointData.getSum();
   }
 }

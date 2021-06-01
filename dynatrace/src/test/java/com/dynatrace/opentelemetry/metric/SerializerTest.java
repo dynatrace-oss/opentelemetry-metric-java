@@ -24,6 +24,7 @@ import io.opentelemetry.sdk.common.InstrumentationLibraryInfo;
 import io.opentelemetry.sdk.metrics.data.*;
 import io.opentelemetry.sdk.resources.Resource;
 import java.util.*;
+import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.Test;
 
 class SerializerTest {
@@ -598,5 +599,173 @@ class SerializerTest {
                 10.234,
                 Arrays.asList(Double.NEGATIVE_INFINITY, 1.2d, 3.4d, 5.6d),
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
+  }
+
+  @Test
+  void TestGetMinFromBoundaries() {
+    // A value between the first two boundaries.
+    assertThat(
+            Serializer.getMinFromBoundaries(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    10.234,
+                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
+                    Arrays.asList(0L, 1L, 0L, 3L, 0L, 4L))))
+        .isCloseTo(1d, Offset.offset(0.001));
+
+    // lowest bucket has value, use the first boundary as estimation instead of -Inf
+    assertThat(
+            Serializer.getMinFromBoundaries(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    10.234,
+                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
+                    Arrays.asList(1L, 0L, 0L, 3L, 0L, 4L))))
+        .isCloseTo(1d, Offset.offset(0.001));
+
+    // lowest bucket (-Inf, 1) has values, sum is lower than the lowest bucket bound
+    assertThat(
+            Serializer.getMinFromBoundaries(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    0.234,
+                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
+                    Arrays.asList(3L, 0L, 0L, 0L, 0L, 0L))))
+        .isCloseTo(0.234, Offset.offset(0.001));
+
+    // no bucket has a value
+    assertThat(
+            Serializer.getMinFromBoundaries(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    10.234,
+                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
+                    Arrays.asList(0L, 0L, 0L, 0L, 0L, 0L))))
+        .isCloseTo(10.234, Offset.offset(0.001));
+
+    // just one bucket from -Inf to Inf, calc the mean as min value.
+    assertThat(
+            Serializer.getMinFromBoundaries(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    8.8,
+                    Collections.emptyList(),
+                    Collections.singletonList(4L))))
+        .isCloseTo(2.2, Offset.offset(0.1));
+
+    // just one bucket from -Inf to Inf, with a count of 1
+    assertThat(
+            Serializer.getMinFromBoundaries(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    1.2,
+                    Collections.emptyList(),
+                    Collections.singletonList(1L))))
+        .isCloseTo(1.2, Offset.offset(0.1));
+
+    // only the last bucket has a value (5, +Inf)
+    assertThat(
+            Serializer.getMinFromBoundaries(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    10.234,
+                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
+                    Arrays.asList(0L, 0L, 0L, 0L, 0L, 1L))))
+        .isCloseTo(5d, Offset.offset(0.001));
+
+    // skipping the test where both buckets and counts are empty, as that will throw an exception
+    // on creating the DoubleHistogramDataPoint.
+  }
+
+  @Test
+  void TestGetMaxFromBoundaries() {
+    // A value between the last two boundaries.
+    assertThat(
+            Serializer.getMaxFromBoundaries(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    10.234,
+                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
+                    Arrays.asList(0L, 1L, 0L, 3L, 2L, 0L))))
+        .isCloseTo(5d, Offset.offset(0.001));
+
+    // last bucket has value, use the last boundary as estimation instead of Inf
+    assertThat(
+            Serializer.getMaxFromBoundaries(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    10.234,
+                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
+                    Arrays.asList(1L, 0L, 0L, 3L, 0L, 4L))))
+        .isCloseTo(5d, Offset.offset(0.001));
+
+    // no bucket has a value
+    assertThat(
+            Serializer.getMaxFromBoundaries(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    10.234,
+                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
+                    Arrays.asList(0L, 0L, 0L, 0L, 0L, 0L))))
+        .isCloseTo(10.234, Offset.offset(0.001));
+
+    // just one bucket from -Inf to Inf, calc the mean as max value.
+    assertThat(
+            Serializer.getMaxFromBoundaries(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    8.8,
+                    Collections.emptyList(),
+                    Collections.singletonList(4L))))
+        .isCloseTo(2.2, Offset.offset(0.1));
+
+    // just one bucket from -Inf to Inf, with a count of 1
+    assertThat(
+            Serializer.getMaxFromBoundaries(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    1.2,
+                    Collections.emptyList(),
+                    Collections.singletonList(1L))))
+        .isCloseTo(1.2, Offset.offset(0.1));
+
+    // only the last bucket has a value (5, +Inf)
+    assertThat(
+            Serializer.getMaxFromBoundaries(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    10.234,
+                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
+                    Arrays.asList(0L, 0L, 0L, 0L, 0L, 1L))))
+        .isCloseTo(5d, Offset.offset(0.001));
+
+    // skipping the test where both buckets and counts are empty, as that will throw an exception
+    // on creating the DoubleHistogramDataPoint.
   }
 }
