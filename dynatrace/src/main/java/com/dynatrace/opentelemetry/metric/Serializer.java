@@ -232,13 +232,12 @@ final class Serializer {
     // loop over counts in reverse
     for (int i = lastElemIdx; i >= 0; i--) {
       if (pointData.getCounts().get(i) > 0) {
-        // i is an index into counts, counts.size() - boundaries.size() = 1, therefore we need to
-        // subtract 1 when indexing into boundaries.
-        int idxInBounds = i - 1;
-
-        // if looking at the last bucket, (X, Inf), use X instead of Inf. For the max case, we don't
-        // care if max < sum, since that is a very likely thing to happen (compared to the min case)
-        return pointData.getBoundaries().get(i == lastElemIdx ? idxInBounds : idxInBounds + 1);
+        if (i == lastElemIdx) {
+          // use the last bound in the bounds array.
+          return pointData.getBoundaries().get(i - 1);
+        }
+        // in any bucket except the last, make sure the sum than the max, otherwise report the sum.
+        return Math.min(pointData.getBoundaries().get(i), pointData.getSum());
       }
     }
 
