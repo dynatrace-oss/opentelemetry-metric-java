@@ -768,14 +768,14 @@ class SerializerTest {
     // the max is greater than the sum
     assertThat(
             Serializer.getMaxFromBoundaries(
-                    DoubleHistogramPointData.create(
-                            1619687639000000000L,
-                            1619687659000000000L,
-                            Labels.empty(),
-                            2.3,
-                            Arrays.asList(-5d, 0d, 5d),
-                            Arrays.asList(0L, 0L, 2L, 0L))))
-            .isCloseTo(2.3, Offset.offset(0.001));
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    2.3,
+                    Arrays.asList(-5d, 0d, 5d),
+                    Arrays.asList(0L, 0L, 2L, 0L))))
+        .isCloseTo(2.3, Offset.offset(0.001));
 
     // skipping the test where both buckets and counts are empty, as that will throw an exception
     // on creating the DoubleHistogramDataPoint.
