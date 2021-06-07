@@ -233,10 +233,14 @@ final class Serializer {
     for (int i = lastElemIdx; i >= 0; i--) {
       if (pointData.getCounts().get(i) > 0) {
         if (i == lastElemIdx) {
-          // use the last bound in the bounds array.
+          // use the last bound in the bounds array. This can only be the case if there is a count >
+          // 0 in the last bucket (lastBound, Inf), therefore, the bound has to be smaller than the
+          // actual maximum value, which in turn ensures that the sum is larger than the bound we
+          // use as max here.
           return pointData.getBoundaries().get(i - 1);
         }
-        // in any bucket except the last, make sure the sum than the max, otherwise report the sum.
+        // in any bucket except the last, make sure the sum is greater than or equal to the max,
+        // otherwise report the sum.
         return Math.min(pointData.getBoundaries().get(i), pointData.getSum());
       }
     }
