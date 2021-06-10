@@ -627,7 +627,8 @@ class SerializerTest {
                     Arrays.asList(1L, 0L, 0L, 3L, 0L, 4L))))
         .isCloseTo(1d, Offset.offset(0.001));
 
-    // lowest bucket (-Inf, 1) has values, sum is lower than the lowest bucket bound
+    // lowest bucket (-Inf, 1) has values, mean is lower than the lowest bucket bound and smaller
+    // than the sum
     assertThat(
             Serializer.getMinFromBoundaries(
                 DoubleHistogramPointData.create(
@@ -637,7 +638,19 @@ class SerializerTest {
                     0.234,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(3L, 0L, 0L, 0L, 0L, 0L))))
-        .isCloseTo(0.234, Offset.offset(0.001));
+        .isCloseTo(0.234 / 3, Offset.offset(0.001));
+
+    // lowest bucket (-Inf, 0) has values, sum is lower than the lowest bucket bound
+    assertThat(
+            Serializer.getMinFromBoundaries(
+                DoubleHistogramPointData.create(
+                    1619687639000000000L,
+                    1619687659000000000L,
+                    Labels.empty(),
+                    -25.3,
+                    Arrays.asList(0d, 5d),
+                    Arrays.asList(3L, 0L, 0L))))
+        .isCloseTo(-25.3, Offset.offset(0.001));
 
     // no bucket has a value
     assertThat(
