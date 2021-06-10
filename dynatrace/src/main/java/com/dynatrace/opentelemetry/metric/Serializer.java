@@ -220,7 +220,7 @@ final class Serializer {
 
   @VisibleForTesting
   static double getMaxFromBoundaries(DoubleHistogramPointData pointData) {
-    // see getMinFromBoundaries for a very similar function that is annotated.
+    // see getMinFromBoundaries for a very similar method that is annotated.
     if (pointData.getCounts().size() == 1) {
       if (pointData.getCounts().get(0) > 0) {
         return pointData.getSum() / pointData.getCount();
