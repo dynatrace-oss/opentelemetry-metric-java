@@ -207,7 +207,15 @@ final class Serializer {
           // but the best approximation we can get at this point. This might however lead to a min
           // that is bigger than the sum, therefore we return the min of the sum and the lowest
           // bound.
-          return Math.min(pointData.getBoundaries().get(i), pointData.getSum());
+          // Choose the minimum of the following three:
+          // - The lowest boundary
+          // - The sum (smallest if there are multiple negative measurements smaller than the lowest
+          // boundary)
+          // - The average in the bucket (smallest if there are multiple positive measurements
+          // smaller than the lowest boundary)
+          return Math.min(
+              Math.min(pointData.getBoundaries().get(i), pointData.getSum()),
+              pointData.getSum() / pointData.getCount());
         }
         return pointData.getBoundaries().get(i - 1);
       }
