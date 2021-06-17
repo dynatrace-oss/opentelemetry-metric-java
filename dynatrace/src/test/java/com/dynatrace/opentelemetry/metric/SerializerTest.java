@@ -56,11 +56,14 @@ class SerializerTest {
   @Test
   void fromLabelsNormalize() {
     Labels labels = Labels.of("~~!123", "test", "!!test2", "test2");
-    DimensionList expected = DimensionList.create(Dimension.create("test2", "test2"));
     DimensionList actual = Serializer.fromLabels(labels);
 
-    assertEquals(expected.getDimensions(), actual.getDimensions());
-    assertNotSame(expected, actual);
+    Dimension expected1 = Dimension.create("_", "test");
+    Dimension expected2 = Dimension.create("_test2", "test2");
+
+    assertEquals(2, actual.getDimensions().size());
+    assertTrue(actual.getDimensions().contains(expected1));
+    assertTrue(actual.getDimensions().contains(expected2));
   }
 
   @Test
