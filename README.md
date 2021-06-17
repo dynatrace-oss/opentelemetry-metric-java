@@ -1,12 +1,8 @@
 # Dynatrace OpenTelemetry Metrics Exporter for Java
 
-> This project is developed and maintained by Dynatrace R&D.
-Currently, this is a prototype and not intended for production use.
-It is not covered by Dynatrace support.
-
-This exporter plugs into the OpenTelemetry Metrics SDK for Java, which is in alpha/preview state and neither considered stable nor complete as of this writing.
-
-See [open-telemetry/opentelemetry-java](https://github.com/open-telemetry/opentelemetry-java) for the current state of the OpenTelemetry SDK for Java.
+> This exporter is based on the OpenTelemetry Metrics SDK for Java, which is currently in an alpha state and neither considered stable nor complete as of this writing.
+> As such, this exporter is not intended for production use until the underlying OpenTelemetry Metrics API and SDK are stable.
+> See [open-telemetry/opentelemetry-java](https://github.com/open-telemetry/opentelemetry-java) for the current state of the OpenTelemetry SDK for Java.
 
 ## Getting started
 
@@ -140,6 +136,8 @@ The `setEnrichWithOneAgentMetaData` method on the builder can be used to enable 
 If running on a host with a OneAgent, setting this option will export metadata collected by the OneAgent to the Dynatrace endpoint.
 When calling the `DynatraceMetricExporter.getDefault()` method, the OneAgent will be assumed as the ingest endpoint, and this option will be set automatically.
 If the OneAgent is running and metrics are exported to an explicitly specified endpoint but this method is not called, no OneAgent metadata will be exported.
+More information on the underlying OneAgent feature that is used by the exporter can be found in the
+[Dynatrace documentation](https://www.dynatrace.com/support/help/how-to-use-dynatrace/metrics/metric-ingestion/ingestion-methods/enrich-metrics/).
 
 ### Logging
 
