@@ -2,9 +2,8 @@ package com.dynatrace.opentelemetry.metric;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.time.Duration;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The CumulativeToDeltaConverter provides a way to transform cumulative (total) values to delta
@@ -31,13 +30,16 @@ class CumulativeToDeltaConverter {
    *     com.dynatrace.metric.util.MetricBuilderIdentifierCreator the
    *     MetricBuilderIdentifierCreator} to create the identifier from a metric builder.
    * @param newValue The new (cumulative) value which should be stored in the cache, and from which
-   *                 the delta version is calculated.
-   * @return The difference to the previous version, if there was already a value for the 
-   * identifier, or the newValue parameter otherwise.
+   *     the delta version is calculated.
+   * @return The difference to the previous version, if there was already a value for the
+   *     identifier, or the newValue parameter otherwise.
    */
-  public Double convertTotalCounterToDeltaAndUpdateCache(String identifier, Double newValue) {
+  public Double convertTotalCounterToDeltaAndUpdateCacheDouble(String identifier, double newValue) {
+    if (Double.isNaN(newValue) || Double.isInfinite(newValue)) {
+      return newValue;
+    }
     @Nullable Number oldValue = this.cache.getIfPresent(identifier);
-    Double deltaValue;
+    double deltaValue;
     if (null == oldValue) {
       deltaValue = newValue;
     } else {
@@ -55,13 +57,13 @@ class CumulativeToDeltaConverter {
    *     com.dynatrace.metric.util.MetricBuilderIdentifierCreator the
    *     MetricBuilderIdentifierCreator} to create the identifier from a metric builder.
    * @param newValue The new (cumulative) value which should be stored in the cache, and from which
-   *                 the delta version is calculated.
+   *     the delta version is calculated.
    * @return The difference to the previous version, if there was already a value for the
-   * identifier, or the newValue parameter otherwise.
+   *     identifier, or the newValue parameter otherwise.
    */
-  public Long convertTotalCounterToDeltaAndUpdateCache(String identifier, Long newValue) {
+  public Long convertTotalCounterToDeltaAndUpdateCacheLong(String identifier, long newValue) {
     @Nullable Number oldValue = this.cache.getIfPresent(identifier);
-    Long deltaValue;
+    long deltaValue;
     if (null == oldValue) {
       deltaValue = newValue;
     } else {
@@ -69,5 +71,9 @@ class CumulativeToDeltaConverter {
     }
     this.cache.put(identifier, newValue);
     return deltaValue;
+  }
+
+  void reset() {
+    this.cache.invalidateAll();
   }
 }

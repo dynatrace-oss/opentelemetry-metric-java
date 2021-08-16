@@ -17,7 +17,6 @@ import com.dynatrace.metric.util.*;
 import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.metrics.data.*;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -78,7 +77,8 @@ final class Serializer {
               MetricBuilderIdentifierCreator.getIdentifier(
                   builder, MetricBuilderIdentifierCreator.MetricDataType.LONG);
           final Long delta =
-              this.converter.convertTotalCounterToDeltaAndUpdateCache(identifier, point.getValue());
+              this.converter.convertTotalCounterToDeltaAndUpdateCacheLong(
+                  identifier, point.getValue());
           builder.setLongCounterValueDelta(delta);
         }
 
@@ -132,7 +132,8 @@ final class Serializer {
                   builder, MetricBuilderIdentifierCreator.MetricDataType.DOUBLE);
 
           final Double delta =
-              this.converter.convertTotalCounterToDeltaAndUpdateCache(identifier, point.getValue());
+              this.converter.convertTotalCounterToDeltaAndUpdateCacheDouble(
+                  identifier, point.getValue());
           builder.setDoubleCounterValueDelta(delta);
         }
 
