@@ -17,6 +17,8 @@ import com.dynatrace.metric.util.*;
 import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.metrics.data.*;
+
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,9 +33,11 @@ final class Serializer {
       "Could not create metric line for data point with name %s (%s).";
 
   private final MetricBuilderFactory builderFactory;
+  private final CumulativeToDeltaConverter converter;
 
   Serializer(MetricBuilderFactory builderFactory) {
     this.builderFactory = builderFactory;
+    this.converter = new CumulativeToDeltaConverter(Duration.ofMinutes(15));
   }
 
   private Metric.Builder createMetricBuilder(MetricData metric, PointData point) {
@@ -70,7 +74,12 @@ final class Serializer {
         if (isDelta) {
           builder.setLongCounterValueDelta(point.getValue());
         } else {
-          builder.setLongCounterValueTotal(point.getValue());
+          String identifier =
+              MetricBuilderIdentifierCreator.getIdentifier(
+                  builder, MetricBuilderIdentifierCreator.MetricDataType.LONG);
+          final Long delta =
+              this.converter.convertTotalCounterToDeltaAndUpdateCache(identifier, point.getValue());
+          builder.setLongCounterValueDelta(delta);
         }
 
         lines.add(builder.serialize());
@@ -115,11 +124,16 @@ final class Serializer {
     for (DoublePointData point : metric.getDoubleSumData().getPoints()) {
       try {
         Metric.Builder builder = createMetricBuilder(metric, point);
-
         if (isDelta) {
           builder.setDoubleCounterValueDelta(point.getValue());
         } else {
-          builder.setDoubleCounterValueTotal(point.getValue());
+          final String identifier =
+              MetricBuilderIdentifierCreator.getIdentifier(
+                  builder, MetricBuilderIdentifierCreator.MetricDataType.DOUBLE);
+
+          final Double delta =
+              this.converter.convertTotalCounterToDeltaAndUpdateCache(identifier, point.getValue());
+          builder.setDoubleCounterValueDelta(delta);
         }
 
         lines.add(builder.serialize());

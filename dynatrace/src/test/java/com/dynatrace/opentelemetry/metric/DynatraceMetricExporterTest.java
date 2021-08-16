@@ -78,7 +78,7 @@ class DynatraceMetricExporterTest {
     verify(connection).setRequestMethod("POST");
     verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
     verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals("name,dt.metrics.source=opentelemetry count,194.0 1619687659000", bos.toString());
+    assertEquals("name,dt.metrics.source=opentelemetry count,delta=194.0 1619687659000", bos.toString());
     assertEquals(CompletableResultCode.ofSuccess(), result);
   }
 
@@ -127,7 +127,7 @@ class DynatraceMetricExporterTest {
     verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
     verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
     assertEquals(
-        "prefix.name,dt.metrics.source=opentelemetry count,194.0 1619687659000", bos.toString());
+        "prefix.name,dt.metrics.source=opentelemetry count,delta=194.0 1619687659000", bos.toString());
     assertEquals(CompletableResultCode.ofSuccess(), result);
   }
 
@@ -157,7 +157,7 @@ class DynatraceMetricExporterTest {
     verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
     verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
     assertEquals(
-        "name,default=value,dt.metrics.source=opentelemetry count,194.0 1619687659000",
+        "name,default=value,dt.metrics.source=opentelemetry count,delta=194.0 1619687659000",
         bos.toString());
     assertEquals(CompletableResultCode.ofSuccess(), result);
   }
@@ -187,7 +187,7 @@ class DynatraceMetricExporterTest {
     verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
     verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
     assertEquals(
-        "name,dt.metrics.source=opentelemetry,label1=val1,label2=val2 count,194.0 1619687659000",
+        "name,dt.metrics.source=opentelemetry,label1=val1,label2=val2 count,delta=194.0 1619687659000",
         bos.toString());
     assertEquals(CompletableResultCode.ofSuccess(), result);
   }
