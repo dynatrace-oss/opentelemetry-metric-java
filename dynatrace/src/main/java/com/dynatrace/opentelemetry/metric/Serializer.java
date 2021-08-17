@@ -73,13 +73,8 @@ final class Serializer {
         if (isDelta) {
           builder.setLongCounterValueDelta(point.getValue());
         } else {
-          String identifier =
-              MetricBuilderIdentifierCreator.getIdentifier(
-                  builder, MetricBuilderIdentifierCreator.MetricDataType.LONG);
-          final Long delta =
-              this.converter.convertTotalCounterToDeltaAndUpdateCacheLong(
-                  identifier, point.getValue());
-          builder.setLongCounterValueDelta(delta);
+          builder.setLongCounterValueDelta(
+              converter.convertLongTotalToDelta(metric.getName(), point));
         }
 
         lines.add(builder.serialize());
@@ -127,14 +122,8 @@ final class Serializer {
         if (isDelta) {
           builder.setDoubleCounterValueDelta(point.getValue());
         } else {
-          final String identifier =
-              MetricBuilderIdentifierCreator.getIdentifier(
-                  builder, MetricBuilderIdentifierCreator.MetricDataType.DOUBLE);
-
-          final Double delta =
-              this.converter.convertTotalCounterToDeltaAndUpdateCacheDouble(
-                  identifier, point.getValue());
-          builder.setDoubleCounterValueDelta(delta);
+          builder.setDoubleCounterValueDelta(
+              converter.convertDoubleTotalToDelta(metric.getName(), point));
         }
 
         lines.add(builder.serialize());
