@@ -92,10 +92,9 @@ class SerializerTest {
             longSumData);
 
     List<String> longSumLines = serializer.createLongSumLines(metricData, false);
-    assertThat(longSumLines).hasSize(3);
-    assertThat(longSumLines.get(0)).isEqualTo("longSumData count,delta=123 1619687659000");
-    assertThat(longSumLines.get(1)).isEqualTo("longSumData count,delta=198 1619687659000");
-    assertThat(longSumLines.get(2)).isEqualTo("longSumData count,delta=135");
+    assertThat(longSumLines).hasSize(2);
+    assertThat(longSumLines.get(0)).isEqualTo("longSumData count,delta=198 1619687659000");
+    assertThat(longSumLines.get(1)).isEqualTo("longSumData count,delta=135");
   }
 
   @Test
@@ -254,12 +253,11 @@ class SerializerTest {
             doubleSumData);
 
     List<String> doubleSumLines = serializer.createDoubleSumLines(metricData, false);
-    assertThat(doubleSumLines).hasSize(3);
-    assertThat(doubleSumLines.get(0)).isEqualTo("doubleSumData count,delta=100.3 1619687659000");
+    assertThat(doubleSumLines).hasSize(2);
     // 300.6 - 100.3 = 200.3
-    assertThat(doubleSumLines.get(1)).isEqualTo("doubleSumData count,delta=200.3 1619687659000");
+    assertThat(doubleSumLines.get(0)).isEqualTo("doubleSumData count,delta=200.3 1619687659000");
     // 500.8 - 300.6 = 200.2
-    assertThat(doubleSumLines.get(2)).isEqualTo("doubleSumData count,delta=200.2");
+    assertThat(doubleSumLines.get(1)).isEqualTo("doubleSumData count,delta=200.2");
   }
 
   @Test

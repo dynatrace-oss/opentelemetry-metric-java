@@ -32,11 +32,11 @@ final class Serializer {
       "Could not create metric line for data point with name %s (%s).";
 
   private final MetricBuilderFactory builderFactory;
-  private final CumulativeToDeltaConverter converter;
+  private final CumulativeToDeltaConverter deltaConverter;
 
   Serializer(MetricBuilderFactory builderFactory) {
     this.builderFactory = builderFactory;
-    this.converter = new CumulativeToDeltaConverter(Duration.ofMinutes(15));
+    this.deltaConverter = new CumulativeToDeltaConverter(Duration.ofMinutes(15));
   }
 
   private Metric.Builder createMetricBuilder(MetricData metric, PointData point) {
@@ -72,12 +72,17 @@ final class Serializer {
 
         if (isDelta) {
           builder.setLongCounterValueDelta(point.getValue());
+          lines.add(builder.serialize());
         } else {
-          builder.setLongCounterValueDelta(
-              converter.convertLongTotalToDelta(metric.getName(), point));
+          Long delta = deltaConverter.convertLongTotalToDelta(metric.getName(), point);
+          if (delta != null) {
+            builder.setLongCounterValueDelta(delta);
+            lines.add(builder.serialize());
+          } else {
+            logger.finest(
+                "Skipping delta line creation, since the value was not present in the cache before this value.");
+          }
         }
-
-        lines.add(builder.serialize());
       } catch (MetricException me) {
         logger.warning(String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
       }
@@ -121,12 +126,18 @@ final class Serializer {
         Metric.Builder builder = createMetricBuilder(metric, point);
         if (isDelta) {
           builder.setDoubleCounterValueDelta(point.getValue());
+          lines.add(builder.serialize());
         } else {
-          builder.setDoubleCounterValueDelta(
-              converter.convertDoubleTotalToDelta(metric.getName(), point));
+          Double delta = deltaConverter.convertDoubleTotalToDelta(metric.getName(), point);
+          if (delta != null) {
+            builder.setDoubleCounterValueDelta(delta);
+            lines.add(builder.serialize());
+          } else {
+            logger.finest(
+                "Skipping delta line creation, since the value was not present in the cache before this value.");
+          }
         }
 
-        lines.add(builder.serialize());
       } catch (MetricException me) {
         logger.warning(String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
       }

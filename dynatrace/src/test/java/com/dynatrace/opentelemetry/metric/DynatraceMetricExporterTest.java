@@ -48,7 +48,7 @@ class DynatraceMetricExporterTest {
         "",
         DoubleSumData.create(
             true,
-            AggregationTemporality.CUMULATIVE,
+            AggregationTemporality.DELTA,
             Collections.singleton(
                 DoublePointData.create(
                     1619687639000000000L, 1619687659000000000L, labels, 194.0))));

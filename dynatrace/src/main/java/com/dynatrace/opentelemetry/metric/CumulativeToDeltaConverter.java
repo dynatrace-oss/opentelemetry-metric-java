@@ -57,7 +57,7 @@ class CumulativeToDeltaConverter {
    * @return The delta to the previous value if there is one with the same identifier in the cache
    *     or the value itself if there is not.
    */
-  public double convertDoubleTotalToDelta(String metricName, DoublePointData point) {
+  public Double convertDoubleTotalToDelta(String metricName, DoublePointData point) {
     String identifier = createIdentifier(metricName, point.getLabels(), "DOUBLE");
 
     double newValue = point.getValue();
@@ -68,19 +68,19 @@ class CumulativeToDeltaConverter {
     }
     final CacheValue cacheValue = this.cache.getIfPresent(identifier);
 
-    double deltaValue;
+    Double deltaValue;
     final long pointTimestamp =
         (point.getEpochNanos() > 0)
             ? TimeUnit.NANOSECONDS.toMillis(point.getEpochNanos())
             : System.currentTimeMillis();
     if (cacheValue == null) {
       // no value in the cache yet or already expired
-      deltaValue = newValue;
+      deltaValue = null;
     } else {
       if (cacheValue.getTimeMillis() > pointTimestamp) {
         // the current point is older than the one in the cache, so leave the previous value.
         // the delta between a value and itself is 0.
-        return 0;
+        return 0d;
       } else {
         // point is newer than the stored data, so calculate delta.
         deltaValue = newValue - cacheValue.getNumber().doubleValue();
@@ -101,25 +101,25 @@ class CumulativeToDeltaConverter {
    * @return The delta to the previous value if there is one with the same identifier in the cache
    *     or the value itself if there is not.
    */
-  public long convertLongTotalToDelta(String metricName, LongPointData point) {
+  public Long convertLongTotalToDelta(String metricName, LongPointData point) {
     String identifier = createIdentifier(metricName, point.getLabels(), "LONG");
 
     long newValue = point.getValue();
     final CacheValue cacheValue = this.cache.getIfPresent(identifier);
 
-    long deltaValue;
+    Long deltaValue;
     final long pointTimestamp =
         (point.getEpochNanos() > 0)
             ? TimeUnit.NANOSECONDS.toMillis(point.getEpochNanos())
             : System.currentTimeMillis();
     if (cacheValue == null) {
       // no value in the cache yet or already expired
-      deltaValue = newValue;
+      deltaValue = null;
     } else {
       if (cacheValue.getTimeMillis() > pointTimestamp) {
         // the current point is older than the one in the cache, so leave the previous value.
         // the delta between a value and itself is 0.
-        return 0;
+        return 0L;
       } else {
         // point is newer than the stored data, so calculate delta.
         deltaValue = newValue - cacheValue.getNumber().longValue();

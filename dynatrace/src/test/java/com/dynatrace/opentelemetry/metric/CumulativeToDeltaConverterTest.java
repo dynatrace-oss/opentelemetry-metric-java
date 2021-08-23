@@ -6,12 +6,14 @@ import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.metrics.data.DoublePointData;
 import io.opentelemetry.sdk.metrics.data.LongPointData;
 import java.time.Duration;
+import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class CumulativeToDeltaConverterTest {
   private final CumulativeToDeltaConverter converter =
       new CumulativeToDeltaConverter(Duration.ofMillis(100));
+  private final Offset<Double> offset = Offset.offset(0.05);
 
   @BeforeEach
   void setUp() {
@@ -54,15 +56,12 @@ class CumulativeToDeltaConverterTest {
   void testConvertTotalCounterToDeltaAndUpdateCacheDouble() {
     // Note that the time is only used to make sure that the data points are in order, but not
     // to expel data from the Cache.
-
-    // Weird increments, as others lead to doubles with many decimal places due to double
-    // imprecision in the subtractions.
     assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(100.2, 0)))
-        .isEqualTo(100.2);
-    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(200.5, 1)))
-        .isEqualTo(100.3);
-    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(300.87, 2)))
-        .isEqualTo(100.37);
+        .isNull();
+    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(200.4, 1)))
+        .isCloseTo(100.2, offset);
+    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(300.7, 2)))
+        .isCloseTo(100.3, offset);
 
     try {
       Thread.sleep(100);
@@ -70,8 +69,10 @@ class CumulativeToDeltaConverterTest {
     }
 
     // after the timeout the map is reset.
-    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(400.4, 3)))
-        .isEqualTo(400.4);
+    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(100.3, 3)))
+        .isNull();
+    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(300.4, 4)))
+        .isCloseTo(200.1, offset);
   }
 
   @Test
@@ -90,30 +91,53 @@ class CumulativeToDeltaConverterTest {
 
   @Test
   void testDoubleInvalidNumbersResetMap() {
-    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(100.2, 0)))
-        .isEqualTo(100.2);
+    // a different counter which should not be affected by the resets
+    assertThat(
+            converter.convertDoubleTotalToDelta("test_not_reset", createDoublePointData(200.5, 4)))
+        .isNull();
+
+    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(200.5, 4)))
+        .isNull();
+    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(300.5, 5)))
+        .isCloseTo(100., offset);
+
+    // reset
     assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(Double.NaN, 1)))
         .isNaN();
-    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(200.5, 2)))
-        .isEqualTo(200.5);
+    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(200.5, 4)))
+        .isNull();
+    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(300.5, 5)))
+        .isCloseTo(100., offset);
+
+    // reset
     assertThat(
             converter.convertDoubleTotalToDelta(
                 "test", createDoublePointData(Double.POSITIVE_INFINITY, 3)))
         .isEqualTo(Double.POSITIVE_INFINITY);
-    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(300.5, 4)))
-        .isEqualTo(300.5);
+    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(200.5, 4)))
+        .isNull();
+    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(300.5, 5)))
+        .isCloseTo(100., offset);
+
+    // reset
     assertThat(
             converter.convertDoubleTotalToDelta(
                 "test", createDoublePointData(Double.NEGATIVE_INFINITY, 5)))
         .isEqualTo(Double.NEGATIVE_INFINITY);
-    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(400.5, 6)))
-        .isEqualTo(400.5);
+    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(200.5, 4)))
+        .isNull();
+    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(300.5, 5)))
+        .isCloseTo(100., offset);
+
+    // check unaffected counter
+    assertThat(
+            converter.convertDoubleTotalToDelta("test_not_reset", createDoublePointData(300.7, 5)))
+        .isCloseTo(100.2, offset);
   }
 
   @Test
   void testConvertTotalCounterToDeltaAndUpdateCacheLong() {
-    assertThat(converter.convertLongTotalToDelta("test", createLongPointData(100L, 0)))
-        .isEqualTo(100L);
+    assertThat(converter.convertLongTotalToDelta("test", createLongPointData(100L, 0))).isNull();
     assertThat(converter.convertLongTotalToDelta("test", createLongPointData(200L, 1)))
         .isEqualTo(100L);
     assertThat(converter.convertLongTotalToDelta("test", createLongPointData(300L, 2)))
@@ -124,8 +148,7 @@ class CumulativeToDeltaConverterTest {
     } catch (InterruptedException ignored) {
     }
 
-    assertThat(converter.convertLongTotalToDelta("test", createLongPointData(400L, 3)))
-        .isEqualTo(400L);
+    assertThat(converter.convertLongTotalToDelta("test", createLongPointData(400L, 3))).isNull();
   }
 
   @Test
@@ -135,7 +158,7 @@ class CumulativeToDeltaConverterTest {
     assertThat(
             converter.convertLongTotalToDelta(
                 "test", createLongPointData(100L, 0, Labels.of("l1", "v1", "l2", "v2"))))
-        .isEqualTo(100L);
+        .isNull();
     assertThat(
             converter.convertLongTotalToDelta(
                 "test", createLongPointData(200L, 1, Labels.of("l2", "v2", "l1", "v1"))))
@@ -149,7 +172,7 @@ class CumulativeToDeltaConverterTest {
     assertThat(
             converter.convertDoubleTotalToDelta(
                 "test", createDoublePointData(100.2, 0, Labels.of("l1", "v1", "l2", "v2"))))
-        .isEqualTo(100.2);
+        .isNull();
     assertThat(
             converter.convertDoubleTotalToDelta(
                 "test", createDoublePointData(200.5, 1, Labels.of("l2", "v2", "l1", "v1"))))
@@ -159,14 +182,12 @@ class CumulativeToDeltaConverterTest {
   @Test
   public void testDoubleAndLongDoNotInterfere() {
     // both counters are called test but do not interfere due to the different data types.
-    assertThat(converter.convertLongTotalToDelta("test", createLongPointData(100L)))
-        .isEqualTo(100L);
+    assertThat(converter.convertLongTotalToDelta("test", createLongPointData(100L))).isNull();
     assertThat(converter.convertLongTotalToDelta("test", createLongPointData(200L)))
         .isEqualTo(100L);
 
-    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(100.2)))
-        .isEqualTo(100.2);
+    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(100.2))).isNull();
     assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(200.5)))
-        .isEqualTo(100.3);
+        .isCloseTo(100.3, offset);
   }
 }
