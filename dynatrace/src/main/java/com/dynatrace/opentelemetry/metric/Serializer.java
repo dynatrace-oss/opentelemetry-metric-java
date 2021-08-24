@@ -30,6 +30,8 @@ final class Serializer {
   private static final double PERCENTILE_PRECISION = 0.0001;
   private static final String TEMPLATE_ERR_METRIC_LINE =
       "Could not create metric line for data point with name %s (%s).";
+  private static final String TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE =
+      "Skipping delta conversion for metric '%s' since no previous value was present in the cache.";
 
   private final MetricBuilderFactory builderFactory;
   private final CumulativeToDeltaConverter deltaConverter;
@@ -79,8 +81,7 @@ final class Serializer {
             builder.setLongCounterValueDelta(delta);
             lines.add(builder.serialize());
           } else {
-            logger.finest(
-                "Skipping delta line creation, since the value was not present in the cache before this value.");
+            logger.finest(String.format(TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE, metric.getName()));
           }
         }
       } catch (MetricException me) {
@@ -133,8 +134,7 @@ final class Serializer {
             builder.setDoubleCounterValueDelta(delta);
             lines.add(builder.serialize());
           } else {
-            logger.finest(
-                "Skipping delta line creation, since the value was not present in the cache before this value.");
+            logger.finest(String.format(TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE, metric.getName()));
           }
         }
 
