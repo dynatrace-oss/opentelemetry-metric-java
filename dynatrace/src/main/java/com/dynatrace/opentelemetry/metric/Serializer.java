@@ -17,6 +17,7 @@ import com.dynatrace.metric.util.*;
 import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.metrics.data.*;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,11 +30,15 @@ final class Serializer {
   private static final double PERCENTILE_PRECISION = 0.0001;
   private static final String TEMPLATE_ERR_METRIC_LINE =
       "Could not create metric line for data point with name %s (%s).";
+  private static final String TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE =
+      "Skipping delta conversion for metric '%s' since no previous value was present in the cache.";
 
   private final MetricBuilderFactory builderFactory;
+  private final CumulativeToDeltaConverter deltaConverter;
 
   Serializer(MetricBuilderFactory builderFactory) {
     this.builderFactory = builderFactory;
+    this.deltaConverter = new CumulativeToDeltaConverter(Duration.ofMinutes(15));
   }
 
   private Metric.Builder createMetricBuilder(MetricData metric, PointData point) {
@@ -69,11 +74,16 @@ final class Serializer {
 
         if (isDelta) {
           builder.setLongCounterValueDelta(point.getValue());
+          lines.add(builder.serialize());
         } else {
-          builder.setLongCounterValueTotal(point.getValue());
+          Long delta = deltaConverter.convertLongTotalToDelta(metric.getName(), point);
+          if (delta != null) {
+            builder.setLongCounterValueDelta(delta);
+            lines.add(builder.serialize());
+          } else {
+            logger.finest(String.format(TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE, metric.getName()));
+          }
         }
-
-        lines.add(builder.serialize());
       } catch (MetricException me) {
         logger.warning(String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
       }
@@ -115,14 +125,19 @@ final class Serializer {
     for (DoublePointData point : metric.getDoubleSumData().getPoints()) {
       try {
         Metric.Builder builder = createMetricBuilder(metric, point);
-
         if (isDelta) {
           builder.setDoubleCounterValueDelta(point.getValue());
+          lines.add(builder.serialize());
         } else {
-          builder.setDoubleCounterValueTotal(point.getValue());
+          Double delta = deltaConverter.convertDoubleTotalToDelta(metric.getName(), point);
+          if (delta != null) {
+            builder.setDoubleCounterValueDelta(delta);
+            lines.add(builder.serialize());
+          } else {
+            logger.finest(String.format(TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE, metric.getName()));
+          }
         }
 
-        lines.add(builder.serialize());
       } catch (MetricException me) {
         logger.warning(String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
       }

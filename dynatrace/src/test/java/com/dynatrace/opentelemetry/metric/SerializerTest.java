@@ -92,10 +92,9 @@ class SerializerTest {
             longSumData);
 
     List<String> longSumLines = serializer.createLongSumLines(metricData, false);
-    assertThat(longSumLines).hasSize(3);
-    assertThat(longSumLines.get(0)).isEqualTo("longSumData count,123 1619687659000");
-    assertThat(longSumLines.get(1)).isEqualTo("longSumData count,321 1619687659000");
-    assertThat(longSumLines.get(2)).isEqualTo("longSumData count,456");
+    assertThat(longSumLines).hasSize(2);
+    assertThat(longSumLines.get(0)).isEqualTo("longSumData count,delta=198 1619687659000");
+    assertThat(longSumLines.get(1)).isEqualTo("longSumData count,delta=135");
   }
 
   @Test
@@ -235,11 +234,11 @@ class SerializerTest {
           {
             add(
                 DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Labels.empty(), 123.456d));
+                    1619687639000000000L, 1619687659000000000L, Labels.empty(), 100.3));
             add(
                 DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Labels.empty(), 321.456d));
-            add(DoublePointData.create(0L, 0L, Labels.empty(), 654.321d));
+                    1619687639000000000L, 1619687659000000000L, Labels.empty(), 300.6));
+            add(DoublePointData.create(0L, 0L, Labels.empty(), 500.8));
           }
         };
     DoubleSumData doubleSumData =
@@ -254,10 +253,11 @@ class SerializerTest {
             doubleSumData);
 
     List<String> doubleSumLines = serializer.createDoubleSumLines(metricData, false);
-    assertThat(doubleSumLines).hasSize(3);
-    assertThat(doubleSumLines.get(0)).isEqualTo("doubleSumData count,123.456 1619687659000");
-    assertThat(doubleSumLines.get(1)).isEqualTo("doubleSumData count,321.456 1619687659000");
-    assertThat(doubleSumLines.get(2)).isEqualTo("doubleSumData count,654.321");
+    assertThat(doubleSumLines).hasSize(2);
+    // 300.6 - 100.3 = 200.3
+    assertThat(doubleSumLines.get(0)).isEqualTo("doubleSumData count,delta=200.3 1619687659000");
+    // 500.8 - 300.6 = 200.2
+    assertThat(doubleSumLines.get(1)).isEqualTo("doubleSumData count,delta=200.2");
   }
 
   @Test
