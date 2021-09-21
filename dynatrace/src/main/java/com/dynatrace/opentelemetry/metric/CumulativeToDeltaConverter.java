@@ -45,6 +45,7 @@ class CumulativeToDeltaConverter {
   }
 
   private static String createIdentifier(String name, Labels labels, String type) {
+    // (\u001d = ASCII group separator)
     return String.format("%s\u001d%s\u001d%s", name, getSortedLabelsString(labels), type);
   }
 
@@ -78,8 +79,8 @@ class CumulativeToDeltaConverter {
       deltaValue = null;
     } else {
       if (cacheValue.getTimeMillis() > pointTimestamp) {
-        // the current point is older than the one in the cache, so leave the previous value.
-        // the delta between a value and itself is 0.
+        // The current point is older than the one in the cache, so leave the previous value
+        // and don't report the current one.
         return null;
       } else {
         // point is newer than the stored data, so calculate delta.
@@ -117,8 +118,8 @@ class CumulativeToDeltaConverter {
       deltaValue = null;
     } else {
       if (cacheValue.getTimeMillis() > pointTimestamp) {
-        // the current point is older than the one in the cache, so leave the previous value.
-        // the delta between a value and itself is 0.
+        // The current point is older than the one in the cache, so leave the previous value
+        // and don't report the current one.
         return null;
       } else {
         // point is newer than the stored data, so calculate delta.
