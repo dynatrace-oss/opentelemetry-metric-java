@@ -12,8 +12,10 @@
  * limitations under the License.
  */
 package com.dynatrace.opentelemetry.metric.example;
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import com.dynatrace.opentelemetry.metric.DynatraceMetricExporter;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BoundLongCounter;
 import io.opentelemetry.api.metrics.GlobalMeterProvider;
 import io.opentelemetry.api.metrics.LongCounter;
@@ -151,7 +153,7 @@ public class DynatraceExporterExample {
 
   private static DynatraceMetricExporter makeExampleExporter(String endpoint, String token) {
     try {
-      Labels exampleDimensions = Labels.of("environment", "example");
+      Attributes exampleDimensions = Attributes.of(stringKey("environment"), "example");
       return DynatraceMetricExporter.builder()
           .setPrefix("otel.java")
           .setDefaultDimensions(exampleDimensions)

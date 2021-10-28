@@ -15,7 +15,7 @@ package com.dynatrace.opentelemetry.metric;
 
 import com.dynatrace.metric.util.*;
 import com.google.common.annotations.VisibleForTesting;
-import io.opentelemetry.api.metrics.common.Labels;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.*;
 import java.time.Duration;
 import java.time.Instant;
@@ -26,10 +26,13 @@ import java.util.logging.Logger;
 
 final class Serializer {
   private static final Logger logger = Logger.getLogger(Serializer.class.getName());
+
   // the precision used to identify whether a percentile is the 0% (min) or 100% (max) percentile.
   private static final double PERCENTILE_PRECISION = 0.0001;
+
   private static final String TEMPLATE_ERR_METRIC_LINE =
       "Could not create metric line for data point with name %s (%s).";
+
   private static final String TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE =
       "Skipping delta conversion for metric '%s' since no previous value was present in the cache.";
 
@@ -45,7 +48,7 @@ final class Serializer {
     Metric.Builder builder =
         builderFactory
             .newMetricBuilder(metric.getName())
-            .setDimensions(fromLabels(point.getLabels()));
+            .setDimensions(fromLabels(point.getAttributes()));
     long epochNanos = point.getEpochNanos();
     // Only set a timestamp if it is available for the PointData.
     // If it is missing, the server will use the current time at ingest.
@@ -55,14 +58,16 @@ final class Serializer {
     return builder;
   }
 
-  static List<Dimension> toListOfDimensions(Labels labels) {
-    ArrayList<Dimension> dimensions = new ArrayList<>(labels.size());
-    labels.forEach((k, v) -> dimensions.add(Dimension.create(k, v)));
+  static List<Dimension> toListOfDimensions(Attributes attributes) {
+    ArrayList<Dimension> dimensions = new ArrayList<>(attributes.size());
+
+    // TODO: Should we do toString() on value? Now attributes are strongly typed
+    attributes.forEach((k, v) -> dimensions.add(Dimension.create(k.getKey(), v.toString())));
     return dimensions;
   }
 
-  static DimensionList fromLabels(Labels labels) {
-    return DimensionList.fromCollection(toListOfDimensions(labels));
+  static DimensionList fromLabels(Attributes attributes) {
+    return DimensionList.fromCollection(toListOfDimensions(attributes));
   }
 
   @VisibleForTesting

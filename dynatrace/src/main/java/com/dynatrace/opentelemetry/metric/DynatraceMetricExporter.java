@@ -23,11 +23,13 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
-import io.opentelemetry.api.metrics.common.Labels;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
+import org.w3c.dom.Attr;
+
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -66,7 +68,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
       URL url,
       String apiToken,
       String prefix,
-      Labels defaultDimensions,
+      Attributes defaultDimensions,
       Boolean enrichWithOneAgentMetaData) {
     this.url = url;
     this.apiToken = apiToken;
@@ -262,7 +264,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
     private String apiToken = null;
     private Boolean enrichWithOneAgentMetaData = false;
     private String prefix;
-    private Labels defaultDimensions;
+    private Attributes defaultDimensions;
 
     public Builder setUrl(String url) throws MalformedURLException {
       this.url = new URL(url);
@@ -289,7 +291,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
       return this;
     }
 
-    public Builder setDefaultDimensions(Labels defaultDimensions) {
+    public Builder setDefaultDimensions(Attributes defaultDimensions) {
       this.defaultDimensions = defaultDimensions;
       return this;
     }

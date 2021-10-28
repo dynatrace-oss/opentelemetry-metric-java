@@ -2,7 +2,7 @@ package com.dynatrace.opentelemetry.metric;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import io.opentelemetry.api.metrics.common.Labels;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.DoublePointData;
 import io.opentelemetry.sdk.metrics.data.LongPointData;
 import java.time.Duration;
@@ -44,9 +44,9 @@ class CumulativeToDeltaConverter {
     this.cache = CacheBuilder.newBuilder().expireAfterWrite(expireAfter).build();
   }
 
-  private static String createIdentifier(String name, Labels labels, String type) {
+  private static String createIdentifier(String name, Attributes attributes, String type) {
     // (\u001d = ASCII group separator)
-    return String.format("%s\u001d%s\u001d%s", name, getSortedLabelsString(labels), type);
+    return String.format("%s\u001d%s\u001d%s", name, getSortedAttributesString(attributes), type);
   }
 
   /**
@@ -59,7 +59,7 @@ class CumulativeToDeltaConverter {
    *     or the value itself if there is not.
    */
   public Double convertDoubleTotalToDelta(String metricName, DoublePointData point) {
-    String identifier = createIdentifier(metricName, point.getLabels(), "DOUBLE");
+    String identifier = createIdentifier(metricName, point.getAttributes(), "DOUBLE");
 
     double newValue = point.getValue();
     // reset the map on nan or inf
@@ -103,7 +103,7 @@ class CumulativeToDeltaConverter {
    *     or the value itself if there is not.
    */
   public Long convertLongTotalToDelta(String metricName, LongPointData point) {
-    String identifier = createIdentifier(metricName, point.getLabels(), "LONG");
+    String identifier = createIdentifier(metricName, point.getAttributes(), "LONG");
 
     long newValue = point.getValue();
     final CacheValue cacheValue = this.cache.getIfPresent(identifier);
@@ -137,12 +137,14 @@ class CumulativeToDeltaConverter {
     this.cache.invalidateAll();
   }
 
-  private static String getSortedLabelsString(Labels labels) {
-    if (labels.isEmpty()) {
+  private static String getSortedAttributesString(Attributes attributes) {
+    if (attributes.isEmpty()) {
       return "";
     }
-    List<AbstractMap.SimpleEntry<String, String>> keyValuePairs = new ArrayList<>(labels.size());
-    labels.forEach((k, v) -> keyValuePairs.add(new AbstractMap.SimpleEntry<>(k, v)));
+    List<AbstractMap.SimpleEntry<String, String>> keyValuePairs = new ArrayList<>(attributes.size());
+
+    // TODO: Should we do toString() on value? Now attributes are strongly typed
+    attributes.forEach((k, v) -> keyValuePairs.add(new AbstractMap.SimpleEntry<>(k.getKey(), v.toString())));
     keyValuePairs.sort(Map.Entry.comparingByKey());
 
     StringJoiner joiner = new StringJoiner(",");
