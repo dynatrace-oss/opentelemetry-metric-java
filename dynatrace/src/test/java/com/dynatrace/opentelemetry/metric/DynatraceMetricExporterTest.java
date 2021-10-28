@@ -1,5 +1,5 @@
 /**
- * Copyright 2020 Dynatrace LLC
+ * Copyright 2021 Dynatrace LLC
  *
  * <p>Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of the License at
@@ -16,8 +16,8 @@ package com.dynatrace.opentelemetry.metric;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
+import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.common.InstrumentationLibraryInfo;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
@@ -36,10 +36,10 @@ import org.junit.jupiter.api.Test;
 class DynatraceMetricExporterTest {
 
   public static MetricData generateMetricData() {
-    return generateMetricDataWithLabels(Labels.empty());
+    return generateMetricDataWithLabels(Attributes.empty());
   }
 
-  public static MetricData generateMetricDataWithLabels(Labels labels) {
+  public static MetricData generateMetricDataWithLabels(Attributes attributes) {
     return MetricData.createDoubleSum(
         Resource.create(Attributes.builder().build()),
         InstrumentationLibraryInfo.empty(),
@@ -51,7 +51,7 @@ class DynatraceMetricExporterTest {
             AggregationTemporality.DELTA,
             Collections.singleton(
                 DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, labels, 194.0))));
+                    1619687639000000000L, 1619687659000000000L, attributes, 194.0))));
   }
 
   @Test
@@ -150,7 +150,7 @@ class DynatraceMetricExporterTest {
         DynatraceMetricExporter.builder()
             .setApiToken("mytoken")
             .setUrl(connection.getURL())
-            .setDefaultDimensions(Labels.of("default", "value"))
+            .setDefaultDimensions(Attributes.of(AttributeKey.stringKey("default"), "value"))
             .build();
 
     CompletableResultCode result = metricExporter.export(Collections.singleton(md), connection);
@@ -166,7 +166,9 @@ class DynatraceMetricExporterTest {
 
   @Test
   public void testWithLabels() throws IOException {
-    MetricData md = generateMetricDataWithLabels(Labels.of("label1", "val1", "label2", "val2"));
+    Attributes attributes =
+        Attributes.builder().put("label1", "val1").put("label2", "val2").build();
+    MetricData md = generateMetricDataWithLabels(attributes);
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     HttpURLConnection connection = mock(HttpURLConnection.class);
     when(connection.getURL()).thenReturn(new URL("http://localhost"));

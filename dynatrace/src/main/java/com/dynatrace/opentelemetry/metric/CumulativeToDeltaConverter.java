@@ -141,10 +141,12 @@ class CumulativeToDeltaConverter {
     if (attributes.isEmpty()) {
       return "";
     }
-    List<AbstractMap.SimpleEntry<String, String>> keyValuePairs = new ArrayList<>(attributes.size());
+    List<AbstractMap.SimpleEntry<String, String>> keyValuePairs =
+        new ArrayList<>(attributes.size());
 
     // TODO: Should we do toString() on value? Now attributes are strongly typed
-    attributes.forEach((k, v) -> keyValuePairs.add(new AbstractMap.SimpleEntry<>(k.getKey(), v.toString())));
+    attributes.forEach(
+        (k, v) -> keyValuePairs.add(new AbstractMap.SimpleEntry<>(k.getKey(), v.toString())));
     keyValuePairs.sort(Map.Entry.comparingByKey());
 
     StringJoiner joiner = new StringJoiner(",");

@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.dynatrace.metric.util.Dimension;
 import com.dynatrace.metric.util.DimensionList;
 import com.dynatrace.metric.util.MetricBuilderFactory;
-import io.opentelemetry.api.metrics.common.Labels;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.common.InstrumentationLibraryInfo;
 import io.opentelemetry.sdk.metrics.data.*;
 import io.opentelemetry.sdk.resources.Resource;
@@ -32,31 +32,37 @@ class SerializerTest {
       new Serializer(MetricBuilderFactory.builder().build());
 
   @Test
-  void fromLabels() {
-    Labels labels = Labels.of("label1", "value1", "label2", "value2");
+  void fromAttributes() {
+    Attributes attributes =
+        Attributes.builder().put("label1", "value1").put("label2", "value2").build();
+
     DimensionList expected =
         DimensionList.create(
             Dimension.create("label1", "value1"), Dimension.create("label2", "value2"));
-    DimensionList actual = Serializer.fromLabels(labels);
+
+    DimensionList actual = Serializer.fromAttributes(attributes);
 
     assertEquals(expected.getDimensions(), actual.getDimensions());
     assertNotSame(expected, actual);
   }
 
   @Test
-  void fromLabelsEmpty() {
-    Labels labels = Labels.empty();
+  void fromAttributesEmpty() {
+    Attributes attributes = Attributes.empty();
     DimensionList expected = DimensionList.create();
-    DimensionList actual = Serializer.fromLabels(labels);
+
+    DimensionList actual = Serializer.fromAttributes(attributes);
 
     assertEquals(expected.getDimensions(), actual.getDimensions());
     assertNotSame(expected, actual);
   }
 
   @Test
-  void fromLabelsNormalize() {
-    Labels labels = Labels.of("~~!123", "test", "!!test2", "test2");
-    DimensionList actual = Serializer.fromLabels(labels);
+  void fromAttributesNormalize() {
+    Attributes attributes =
+        Attributes.builder().put("~~!123", "test").put("!!test2", "test2").build();
+
+    DimensionList actual = Serializer.fromAttributes(attributes);
 
     Dimension expected1 = Dimension.create("_", "test");
     Dimension expected2 = Dimension.create("_test2", "test2");
@@ -69,15 +75,15 @@ class SerializerTest {
   @Test
   void createLongSumLinesCumulative() {
     Collection<LongPointData> longPointDataCollection =
-        new ArrayList<LongPointData>() {
+        new ArrayList<>() {
           {
             add(
                 LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Labels.empty(), 123L));
+                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 123L));
             add(
                 LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Labels.empty(), 321L));
-            add(LongPointData.create(0L, 0L, Labels.empty(), 456L));
+                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 321L));
+            add(LongPointData.create(0L, 0L, Attributes.empty(), 456L));
           }
         };
     LongSumData longSumData =
@@ -100,15 +106,15 @@ class SerializerTest {
   @Test
   void createLongSumLinesDelta() {
     Collection<LongPointData> longPointDataCollection =
-        new ArrayList<LongPointData>() {
+        new ArrayList<>() {
           {
             add(
                 LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Labels.empty(), 123L));
+                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 123L));
             add(
                 LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Labels.empty(), 321L));
-            add(LongPointData.create(0L, 0L, Labels.empty(), 456L));
+                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 321L));
+            add(LongPointData.create(0L, 0L, Attributes.empty(), 456L));
           }
         };
     LongSumData longSumData =
@@ -132,15 +138,15 @@ class SerializerTest {
   @Test
   void createLongGaugeLines() {
     Collection<LongPointData> longPointDataCollection =
-        new ArrayList<LongPointData>() {
+        new ArrayList<>() {
           {
             add(
                 LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Labels.empty(), 123L));
+                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 123L));
             add(
                 LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Labels.empty(), 321L));
-            add(LongPointData.create(0L, 0L, Labels.empty(), 456L));
+                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 321L));
+            add(LongPointData.create(0L, 0L, Attributes.empty(), 456L));
           }
         };
     LongGaugeData longGaugeData = LongGaugeData.create(longPointDataCollection);
@@ -163,15 +169,15 @@ class SerializerTest {
   @Test
   void createDoubleGaugeLines() {
     Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<DoublePointData>() {
+        new ArrayList<>() {
           {
             add(
                 DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Labels.empty(), 123.456d));
+                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 123.456d));
             add(
                 DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Labels.empty(), 321.456d));
-            add(DoublePointData.create(0L, 0L, Labels.empty(), 654.321d));
+                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 321.456d));
+            add(DoublePointData.create(0L, 0L, Attributes.empty(), 654.321d));
           }
         };
     DoubleGaugeData doubleGaugeData = DoubleGaugeData.create(doublePointDataCollection);
@@ -194,22 +200,22 @@ class SerializerTest {
   @Test
   void createInvalidDoubleGaugeLines() {
     Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<DoublePointData>() {
+        new ArrayList<>() {
           {
             add(
                 DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Labels.empty(), Double.NaN));
+                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), Double.NaN));
             add(
                 DoublePointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     Double.POSITIVE_INFINITY));
             add(
                 DoublePointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     Double.NEGATIVE_INFINITY));
           }
         };
@@ -230,15 +236,15 @@ class SerializerTest {
   @Test
   void createDoubleSumLinesCumulative() {
     Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<DoublePointData>() {
+        new ArrayList<>() {
           {
             add(
                 DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Labels.empty(), 100.3));
+                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 100.3));
             add(
                 DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Labels.empty(), 300.6));
-            add(DoublePointData.create(0L, 0L, Labels.empty(), 500.8));
+                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 300.6));
+            add(DoublePointData.create(0L, 0L, Attributes.empty(), 500.8));
           }
         };
     DoubleSumData doubleSumData =
@@ -263,22 +269,22 @@ class SerializerTest {
   @Test
   void createInvalidDoubleSumLinesCumulative() {
     Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<DoublePointData>() {
+        new ArrayList<>() {
           {
             add(
                 DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Labels.empty(), Double.NaN));
+                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), Double.NaN));
             add(
                 DoublePointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     Double.POSITIVE_INFINITY));
             add(
                 DoublePointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     Double.NEGATIVE_INFINITY));
           }
         };
@@ -300,15 +306,15 @@ class SerializerTest {
   @Test
   void createDoubleSumLinesDelta() {
     Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<DoublePointData>() {
+        new ArrayList<>() {
           {
             add(
                 DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Labels.empty(), 123.456d));
+                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 123.456d));
             add(
                 DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Labels.empty(), 321.456d));
-            add(DoublePointData.create(0L, 0L, Labels.empty(), 654.321d));
+                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 321.456d));
+            add(DoublePointData.create(0L, 0L, Attributes.empty(), 654.321d));
           }
         };
     DoubleSumData doubleSumData =
@@ -332,13 +338,13 @@ class SerializerTest {
   @Test
   void createDoubleSummaryLines() {
     Collection<DoubleSummaryPointData> doubleSummaryPointDataCollection =
-        new ArrayList<DoubleSummaryPointData>() {
+        new ArrayList<>() {
           {
             add(
                 DoubleSummaryPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     7,
                     500.70d,
                     Arrays.asList(
@@ -348,7 +354,7 @@ class SerializerTest {
                 DoubleSummaryPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     3,
                     202.66d,
                     Arrays.asList(
@@ -358,7 +364,7 @@ class SerializerTest {
                 DoubleSummaryPointData.create(
                     0L,
                     0L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     10,
                     300.70d,
                     Arrays.asList(
@@ -391,14 +397,14 @@ class SerializerTest {
   @Test
   void createInvalidDoubleSummaryLines() {
     Collection<DoubleSummaryPointData> doubleSummaryPointDataCollection =
-        new ArrayList<DoubleSummaryPointData>() {
+        new ArrayList<>() {
           {
             // NaN
             add(
                 DoubleSummaryPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     3,
                     Double.NaN,
                     Arrays.asList(
@@ -409,7 +415,7 @@ class SerializerTest {
                 DoubleSummaryPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     3,
                     Double.POSITIVE_INFINITY,
                     Arrays.asList(
@@ -420,7 +426,7 @@ class SerializerTest {
                 DoubleSummaryPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     3,
                     Double.NEGATIVE_INFINITY,
                     Arrays.asList(
@@ -431,7 +437,7 @@ class SerializerTest {
                 DoubleSummaryPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     0,
                     660.66d,
                     Collections.emptyList()));
@@ -456,13 +462,13 @@ class SerializerTest {
   @Test
   void createDoubleHistogramLines() {
     Collection<DoubleHistogramPointData> doubleHistogramPointDataCollection =
-        new ArrayList<DoubleHistogramPointData>() {
+        new ArrayList<>() {
           {
             add(
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     10.123d,
                     Arrays.asList(0.1d, 1.2d, 3.4d, 5.6d),
                     Arrays.asList(0L, 2L, 1L, 3L, 0L)));
@@ -470,7 +476,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     0L,
                     0L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     23.45d,
                     Arrays.asList(0.2d, 1.2d, 3.4d, 5.9d),
                     Arrays.asList(0L, 2L, 1L, 3L, 5L)));
@@ -500,13 +506,13 @@ class SerializerTest {
   @Test
   void createInvalidDoubleHistogramLines() {
     Collection<DoubleHistogramPointData> doubleHistogramPointDataCollection =
-        new ArrayList<DoubleHistogramPointData>() {
+        new ArrayList<>() {
           {
             add(
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     Double.NaN,
                     Arrays.asList(0.1d, 1.2d, 3.4d, 5.6d),
                     Arrays.asList(0L, 2L, 1L, 3L, 0L)));
@@ -514,7 +520,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     Double.NEGATIVE_INFINITY,
                     Arrays.asList(0.1d, 1.2d, 3.4d, 5.6d),
                     Arrays.asList(0L, 2L, 1L, 3L, 0L)));
@@ -522,7 +528,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     Double.POSITIVE_INFINITY,
                     Arrays.asList(0.1d, 1.2d, 3.4d, 5.6d),
                     Arrays.asList(0L, 2L, 1L, 3L, 0L)));
@@ -530,7 +536,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     10.234,
                     Arrays.asList(0.1d, 1.2d, 3.4d, Double.NaN),
                     Arrays.asList(0L, 2L, 1L, 3L, 0L)));
@@ -558,7 +564,7 @@ class SerializerTest {
             DoubleHistogramPointData.create(
                 1619687639000000000L,
                 1619687659000000000L,
-                Labels.empty(),
+                Attributes.empty(),
                 10.234,
                 Arrays.asList(Double.NaN, 1.2d, 3.4d, 5.6d),
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
@@ -568,7 +574,7 @@ class SerializerTest {
             DoubleHistogramPointData.create(
                 1619687639000000000L,
                 1619687659000000000L,
-                Labels.empty(),
+                Attributes.empty(),
                 10.234,
                 Arrays.asList(0.1d, 1.2d, 3.4d, Double.POSITIVE_INFINITY),
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
@@ -578,7 +584,7 @@ class SerializerTest {
             DoubleHistogramPointData.create(
                 1619687639000000000L,
                 1619687659000000000L,
-                Labels.empty(),
+                Attributes.empty(),
                 10.234,
                 Arrays.asList(Double.POSITIVE_INFINITY, 1.2d, 3.4d, 5.6d),
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
@@ -588,7 +594,7 @@ class SerializerTest {
             DoubleHistogramPointData.create(
                 1619687639000000000L,
                 1619687659000000000L,
-                Labels.empty(),
+                Attributes.empty(),
                 10.234,
                 Arrays.asList(0.1d, 1.2d, 3.4d, Double.NEGATIVE_INFINITY),
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
@@ -598,7 +604,7 @@ class SerializerTest {
             DoubleHistogramPointData.create(
                 1619687639000000000L,
                 1619687659000000000L,
-                Labels.empty(),
+                Attributes.empty(),
                 10.234,
                 Arrays.asList(Double.NEGATIVE_INFINITY, 1.2d, 3.4d, 5.6d),
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
@@ -612,7 +618,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     10.234,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(0L, 1L, 0L, 3L, 0L, 4L))))
@@ -624,7 +630,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     10.234,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(1L, 0L, 0L, 3L, 0L, 4L))))
@@ -637,7 +643,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     0.234,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(3L, 0L, 0L, 0L, 0L, 0L))))
@@ -649,7 +655,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     -25.3,
                     Arrays.asList(0d, 5d),
                     Arrays.asList(3L, 0L, 0L))))
@@ -661,7 +667,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     10.234,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(0L, 0L, 0L, 0L, 0L, 0L))))
@@ -673,7 +679,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     8.8,
                     Collections.emptyList(),
                     Collections.singletonList(4L))))
@@ -685,7 +691,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     1.2,
                     Collections.emptyList(),
                     Collections.singletonList(1L))))
@@ -697,7 +703,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     10.234,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(0L, 0L, 0L, 0L, 0L, 1L))))
@@ -715,7 +721,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     10.234,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(0L, 1L, 0L, 3L, 2L, 0L))))
@@ -727,7 +733,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     10.234,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(1L, 0L, 0L, 3L, 0L, 4L))))
@@ -739,7 +745,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     10.234,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(0L, 0L, 0L, 0L, 0L, 0L))))
@@ -751,7 +757,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     8.8,
                     Collections.emptyList(),
                     Collections.singletonList(4L))))
@@ -763,7 +769,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     1.2,
                     Collections.emptyList(),
                     Collections.singletonList(1L))))
@@ -775,7 +781,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     10.234,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(0L, 0L, 0L, 0L, 0L, 1L))))
@@ -787,7 +793,7 @@ class SerializerTest {
                 DoubleHistogramPointData.create(
                     1619687639000000000L,
                     1619687659000000000L,
-                    Labels.empty(),
+                    Attributes.empty(),
                     2.3,
                     Arrays.asList(-5d, 0d, 5d),
                     Arrays.asList(0L, 0L, 2L, 0L))))

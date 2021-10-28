@@ -12,6 +12,7 @@
  * limitations under the License.
  */
 package com.dynatrace.opentelemetry.metric.example;
+
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import com.dynatrace.opentelemetry.metric.DynatraceMetricExporter;

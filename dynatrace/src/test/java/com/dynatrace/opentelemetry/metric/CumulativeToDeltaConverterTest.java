@@ -1,8 +1,22 @@
+/**
+ * Copyright 2021 Dynatrace LLC
+ *
+ * <p>Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
+ * except in compliance with the License. You may obtain a copy of the License at
+ *
+ * <p>http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * <p>Unless required by applicable law or agreed to in writing, software distributed under the
+ * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.dynatrace.opentelemetry.metric;
 
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-import io.opentelemetry.api.metrics.common.Labels;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.DoublePointData;
 import io.opentelemetry.sdk.metrics.data.LongPointData;
 import java.time.Duration;
@@ -20,36 +34,36 @@ class CumulativeToDeltaConverterTest {
     converter.reset();
   }
 
-  private DoublePointData createDoublePointData(Double value, int offset, Labels labels) {
+  private DoublePointData createDoublePointData(Double value, int offset, Attributes attributes) {
     return DoublePointData.create(
         1619687659000000000L,
         1619687659000000000L + Duration.ofSeconds(offset).toNanos(),
-        labels,
+        attributes,
         value);
   }
 
   private DoublePointData createDoublePointData(Double value, int offset) {
-    return createDoublePointData(value, offset, Labels.empty());
+    return createDoublePointData(value, offset, Attributes.empty());
   }
 
   private DoublePointData createDoublePointData(Double value) {
-    return createDoublePointData(value, 0, Labels.empty());
+    return createDoublePointData(value, 0, Attributes.empty());
   }
 
-  private LongPointData createLongPointData(Long value, int offset, Labels labels) {
+  private LongPointData createLongPointData(Long value, int offset, Attributes attributes) {
     return LongPointData.create(
         1619687659000000000L,
         1619687659000000000L + Duration.ofSeconds(offset).toNanos(),
-        labels,
+        attributes,
         value);
   }
 
   private LongPointData createLongPointData(Long value, int offset) {
-    return createLongPointData(value, offset, Labels.empty());
+    return createLongPointData(value, offset, Attributes.empty());
   }
 
   private LongPointData createLongPointData(Long value) {
-    return createLongPointData(value, 0, Labels.empty());
+    return createLongPointData(value, 0, Attributes.empty());
   }
 
   @Test
@@ -157,11 +171,15 @@ class CumulativeToDeltaConverterTest {
     // considered equal by the delta calculation
     assertThat(
             converter.convertLongTotalToDelta(
-                "test", createLongPointData(100L, 0, Labels.of("l1", "v1", "l2", "v2"))))
+                "test",
+                createLongPointData(
+                    100L, 0, Attributes.of(stringKey("l1"), "v1", stringKey("l2"), "v2"))))
         .isNull();
     assertThat(
             converter.convertLongTotalToDelta(
-                "test", createLongPointData(200L, 1, Labels.of("l2", "v2", "l1", "v1"))))
+                "test",
+                createLongPointData(
+                    200L, 1, Attributes.of(stringKey("l2"), "v2", stringKey("l1"), "v1"))))
         .isEqualTo(100L);
   }
 
@@ -171,11 +189,15 @@ class CumulativeToDeltaConverterTest {
     // considered equal by the delta calculation
     assertThat(
             converter.convertDoubleTotalToDelta(
-                "test", createDoublePointData(100.2, 0, Labels.of("l1", "v1", "l2", "v2"))))
+                "test",
+                createDoublePointData(
+                    100.2, 0, Attributes.of(stringKey("l1"), "v1", stringKey("l2"), "v2"))))
         .isNull();
     assertThat(
             converter.convertDoubleTotalToDelta(
-                "test", createDoublePointData(200.5, 1, Labels.of("l2", "v2", "l1", "v1"))))
+                "test",
+                createDoublePointData(
+                    200.5, 1, Attributes.of(stringKey("l2"), "v2", stringKey("l1"), "v1"))))
         .isEqualTo(100.3);
   }
 

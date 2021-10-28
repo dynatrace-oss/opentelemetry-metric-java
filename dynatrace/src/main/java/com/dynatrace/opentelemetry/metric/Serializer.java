@@ -48,7 +48,7 @@ final class Serializer {
     Metric.Builder builder =
         builderFactory
             .newMetricBuilder(metric.getName())
-            .setDimensions(fromLabels(point.getAttributes()));
+            .setDimensions(fromAttributes(point.getAttributes()));
     long epochNanos = point.getEpochNanos();
     // Only set a timestamp if it is available for the PointData.
     // If it is missing, the server will use the current time at ingest.
@@ -66,7 +66,7 @@ final class Serializer {
     return dimensions;
   }
 
-  static DimensionList fromLabels(Attributes attributes) {
+  static DimensionList fromAttributes(Attributes attributes) {
     return DimensionList.fromCollection(toListOfDimensions(attributes));
   }
 
