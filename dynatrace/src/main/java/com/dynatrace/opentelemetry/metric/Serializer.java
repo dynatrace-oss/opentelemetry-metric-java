@@ -15,6 +15,7 @@ package com.dynatrace.opentelemetry.metric;
 
 import com.dynatrace.metric.util.*;
 import com.google.common.annotations.VisibleForTesting;
+import io.opentelemetry.api.common.AttributeType;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.*;
 import java.time.Duration;
@@ -36,6 +37,9 @@ final class Serializer {
   private static final String TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE =
       "Skipping delta conversion for metric '%s' since no previous value was present in the cache.";
 
+  private static final String TEMPLATE_MSG_NON_SUPPORTED_ATTRIBUTE_TYPE =
+      "Skipping non-supported dimension with type '%s'";
+
   private final MetricBuilderFactory builderFactory;
   private final CumulativeToDeltaConverter deltaConverter;
 
@@ -49,6 +53,7 @@ final class Serializer {
         builderFactory
             .newMetricBuilder(metric.getName())
             .setDimensions(fromAttributes(point.getAttributes()));
+
     long epochNanos = point.getEpochNanos();
     // Only set a timestamp if it is available for the PointData.
     // If it is missing, the server will use the current time at ingest.
@@ -61,8 +66,15 @@ final class Serializer {
   static List<Dimension> toListOfDimensions(Attributes attributes) {
     ArrayList<Dimension> dimensions = new ArrayList<>(attributes.size());
 
-    // TODO: Should we do toString() on value? Now attributes are strongly typed
-    attributes.forEach((k, v) -> dimensions.add(Dimension.create(k.getKey(), v.toString())));
+    attributes.forEach(
+        (k, v) -> {
+          if (k.getType() == AttributeType.STRING) {
+            dimensions.add(Dimension.create(k.getKey(), String.valueOf(v)));
+          } else {
+            logger.warning(String.format(TEMPLATE_MSG_NON_SUPPORTED_ATTRIBUTE_TYPE, k.getType()));
+          }
+        });
+
     return dimensions;
   }
 

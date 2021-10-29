@@ -47,6 +47,31 @@ class SerializerTest {
   }
 
   @Test
+  void fromTypedAttributes() {
+    Attributes attributes =
+        Attributes.builder().put("l1", 1).put("l2", 1.5).put("l3", true).build();
+
+    DimensionList expected = DimensionList.create();
+
+    DimensionList actual = Serializer.fromAttributes(attributes);
+
+    assertEquals(expected.getDimensions(), actual.getDimensions());
+    assertNotSame(expected, actual);
+  }
+
+  @Test
+  void fromTypedAttributesArrayValues() {
+    Attributes attributes = Attributes.builder().put("l1", "l1v1", "l1v2").put("l2", 1, 2).build();
+
+    DimensionList expected = DimensionList.create();
+
+    DimensionList actual = Serializer.fromAttributes(attributes);
+
+    assertEquals(expected.getDimensions(), actual.getDimensions());
+    assertNotSame(expected, actual);
+  }
+
+  @Test
   void fromAttributesEmpty() {
     Attributes attributes = Attributes.empty();
     DimensionList expected = DimensionList.create();

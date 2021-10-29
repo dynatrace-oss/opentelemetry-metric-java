@@ -2,6 +2,7 @@ package com.dynatrace.opentelemetry.metric;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import io.opentelemetry.api.common.AttributeType;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.DoublePointData;
 import io.opentelemetry.sdk.metrics.data.LongPointData;
@@ -42,11 +43,6 @@ class CumulativeToDeltaConverter {
    */
   CumulativeToDeltaConverter(Duration expireAfter) {
     this.cache = CacheBuilder.newBuilder().expireAfterWrite(expireAfter).build();
-  }
-
-  private static String createIdentifier(String name, Attributes attributes, String type) {
-    // (\u001d = ASCII group separator)
-    return String.format("%s\u001d%s\u001d%s", name, getSortedAttributesString(attributes), type);
   }
 
   /**
@@ -137,22 +133,33 @@ class CumulativeToDeltaConverter {
     this.cache.invalidateAll();
   }
 
+  private static String createIdentifier(String name, Attributes attributes, String type) {
+    // (\u001d = ASCII group separator)
+    return String.format("%s\u001d%s\u001d%s", name, getSortedAttributesString(attributes), type);
+  }
+
+  /**
+   * The implementation of the {@link Attributes} interface shipped with OpenTelemetry
+   * (ArrayBackedAttributes) guarantees that the elements are sorted by their key. If a new
+   * implementation is used instead, it *must* ensure the same behavior, otherwise the behavior of
+   * this exporter cannot be guaranteed.
+   *
+   * @param attributes The attributes of a point.
+   * @return A string representation of all attributes.
+   */
   private static String getSortedAttributesString(Attributes attributes) {
     if (attributes.isEmpty()) {
       return "";
     }
-    List<AbstractMap.SimpleEntry<String, String>> keyValuePairs =
-        new ArrayList<>(attributes.size());
-
-    // TODO: Should we do toString() on value? Now attributes are strongly typed
-    attributes.forEach(
-        (k, v) -> keyValuePairs.add(new AbstractMap.SimpleEntry<>(k.getKey(), v.toString())));
-    keyValuePairs.sort(Map.Entry.comparingByKey());
-
     StringJoiner joiner = new StringJoiner(",");
-    for (AbstractMap.SimpleEntry<String, String> kv : keyValuePairs) {
-      joiner.add(String.format("%s=%s", kv.getKey(), kv.getValue()));
-    }
+
+    // Attributes are sorted by key once they are "built"
+    attributes.forEach(
+        (k, v) -> {
+          if (k.getType() == AttributeType.STRING) {
+            joiner.add(String.format("%s=%s", k.getKey(), v));
+          }
+        });
     return joiner.toString();
   }
 }
