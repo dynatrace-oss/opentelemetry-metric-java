@@ -18,18 +18,28 @@ import static org.mockito.Mockito.*;
 
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.DoubleUpDownCounter;
+import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.common.InstrumentationLibraryInfo;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.common.InstrumentType;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.DoublePointData;
 import io.opentelemetry.sdk.metrics.data.DoubleSumData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
+import io.opentelemetry.sdk.metrics.view.Aggregation;
+import io.opentelemetry.sdk.metrics.view.InstrumentSelector;
+import io.opentelemetry.sdk.metrics.view.View;
 import io.opentelemetry.sdk.resources.Resource;
+import io.opentelemetry.sdk.testing.time.TestClock;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.time.Duration;
 import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
@@ -38,6 +48,9 @@ class DynatraceMetricExporterTest {
   public static MetricData generateMetricData() {
     return generateMetricDataWithLabels(Attributes.empty());
   }
+
+  private final TestClock testClock = TestClock.create();
+  private static final long SECOND_NANOS = 1_000_000_000;
 
   public static MetricData generateMetricDataWithLabels(Attributes attributes) {
     return MetricData.createDoubleSum(
@@ -194,5 +207,52 @@ class DynatraceMetricExporterTest {
         "name,dt.metrics.source=opentelemetry,label1=val1,label2=val2 count,delta=194.0 1619687659000",
         bos.toString());
     assertEquals(CompletableResultCode.ofSuccess(), result);
+  }
+
+  @Test
+  public void testWithView() throws IOException {
+    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+
+    URL url = mock(URL.class);
+    HttpURLConnection connection = mock(HttpURLConnection.class);
+    when(url.openConnection()).thenReturn(connection);
+
+    when(connection.getURL()).thenReturn(url);
+    when(connection.getOutputStream()).thenReturn(bos);
+    when(connection.getResponseCode()).thenReturn(202);
+    when(connection.getInputStream())
+        .thenReturn(
+            new ByteArrayInputStream(
+                "{\n\"linesOk\": 1,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes()));
+
+    DynatraceMetricExporter metricExporter =
+        DynatraceMetricExporter.builder()
+            .setApiToken("mytoken")
+            .setUrl(connection.getURL())
+            .build();
+
+    SdkMeterProvider sdkMeterProvider =
+        SdkMeterProvider.builder()
+            .setClock(testClock)
+            .registerMetricReader(
+                PeriodicMetricReader.create(metricExporter, Duration.ofMillis(100)))
+            .registerView(
+                InstrumentSelector.builder()
+                    .setInstrumentType(InstrumentType.UP_DOWN_COUNTER)
+                    .setInstrumentName("testGauge")
+                    .build(),
+                View.builder().setAggregation(Aggregation.lastValue()).build())
+            .build();
+
+    Meter sdkMeter = sdkMeterProvider.get(getClass().getName());
+    DoubleUpDownCounter doubleCounter =
+        sdkMeter.upDownCounterBuilder("testGauge").ofDoubles().build();
+
+    doubleCounter.add(12d, Attributes.empty());
+
+    CompletableResultCode result = sdkMeterProvider.forceFlush();
+
+    assertEquals(
+        "testGauge,dt.metrics.source=opentelemetry gauge,12.0 1557212400000", bos.toString());
   }
 }
