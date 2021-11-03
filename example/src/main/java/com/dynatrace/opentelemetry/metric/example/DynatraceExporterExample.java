@@ -21,13 +21,12 @@ import io.opentelemetry.api.metrics.BoundLongCounter;
 import io.opentelemetry.api.metrics.GlobalMeterProvider;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
-import io.opentelemetry.api.metrics.common.Labels;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
-import io.opentelemetry.sdk.metrics.export.IntervalMetricReader;
+import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.util.Collections;
+import java.time.Duration;
 import java.util.Objects;
 import java.util.Random;
 import java.util.logging.LogManager;
@@ -61,44 +60,38 @@ public class DynatraceExporterExample {
 
     // Create a metrics producer and a meter provider (SdkMeterProvider is both). As noted in the
     // documentation (https://opentelemetry.io/docs/java/manual_instrumentation/, under the metrics
-    // section), the APIs for acquiring a MeterProvider are in flux and the example below is
-    // probably outdated. Please consult the OpenTelemetry documentation for more information on
+    // section), the APIs for acquiring a MeterProvider are in flux, and the example below
+    // might be outdated. Please consult the OpenTelemetry documentation for more information on
     // the preferred way to acquire a MeterProvider.
-    SdkMeterProvider provider = SdkMeterProvider.builder().buildAndRegisterGlobal();
+    SdkMeterProvider meterProvider =
+        SdkMeterProvider.builder()
+            .registerMetricReader(PeriodicMetricReader.create(exporter, Duration.ofMillis(60000)))
+            .buildAndRegisterGlobal();
 
-    // Set the Dynatrace exporter to read from the provider created above (in this case the global
-    // meter provider).
-    IntervalMetricReader.builder()
-        .setMetricProducers(Collections.singleton(provider))
-        .setExportIntervalMillis(60000)
-        .setMetricExporter(exporter)
-        .build()
-        .start();
-
-    // Get or create a named meter instance. If a reference to the Provider ist kept,
+    // Get or create a named meter instance. If a reference to the MeterProvider ist kept,
     // provider.get(...) would do the same.
     Meter meter =
-        GlobalMeterProvider.getMeter(DynatraceExporterExample.class.getName(), "0.1.0-beta");
+        GlobalMeterProvider.get().get(DynatraceExporterExample.class.getName(), "0.1.0-beta", "");
 
     // Create a counter
     LongCounter counter =
         meter
-            .longCounterBuilder("example_counter")
+            .counterBuilder("example_counter")
             .setDescription("Just some counter used as an example")
             .setUnit("1")
             .build();
 
-    // Use a bound counter with a pre-defined label set
+    // Use a bound counter with a pre-defined attribute set
     BoundLongCounter someWorkCounter =
-        counter.bind(Labels.of("bound_dimension", "dimension_value"));
+        counter.bind(Attributes.of(stringKey("bound_dimension"), "dimension_value"));
 
     while (true) {
       // Record data with bound labels
       someWorkCounter.add(random.nextInt(5));
 
       // Or record data on unbound counter and explicitly specify the label set at call-time
-      counter.add(random.nextInt(10), Labels.of("environment", "testing"));
-      counter.add(random.nextInt(20), Labels.of("environment", "staging"));
+      counter.add(random.nextInt(10), Attributes.of(stringKey("environment"), "testing"));
+      counter.add(random.nextInt(20), Attributes.of(stringKey("environment"), "staging"));
 
       Thread.sleep(1000);
     }
