@@ -100,7 +100,7 @@ class SerializerTest {
   @Test
   void createLongSumLinesCumulative() {
     Collection<LongPointData> longPointDataCollection =
-        new ArrayList<>() {
+        new ArrayList<LongPointData>() {
           {
             add(
                 LongPointData.create(
@@ -131,7 +131,7 @@ class SerializerTest {
   @Test
   void createLongSumLinesDelta() {
     Collection<LongPointData> longPointDataCollection =
-        new ArrayList<>() {
+        new ArrayList<LongPointData>() {
           {
             add(
                 LongPointData.create(
@@ -163,7 +163,7 @@ class SerializerTest {
   @Test
   void createLongGaugeLines() {
     Collection<LongPointData> longPointDataCollection =
-        new ArrayList<>() {
+        new ArrayList<LongPointData>() {
           {
             add(
                 LongPointData.create(
@@ -194,7 +194,7 @@ class SerializerTest {
   @Test
   void createDoubleGaugeLines() {
     Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<>() {
+        new ArrayList<DoublePointData>() {
           {
             add(
                 DoublePointData.create(
@@ -225,7 +225,7 @@ class SerializerTest {
   @Test
   void createInvalidDoubleGaugeLines() {
     Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<>() {
+        new ArrayList<DoublePointData>() {
           {
             add(
                 DoublePointData.create(
@@ -261,7 +261,7 @@ class SerializerTest {
   @Test
   void createDoubleSumLinesCumulative() {
     Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<>() {
+        new ArrayList<DoublePointData>() {
           {
             add(
                 DoublePointData.create(
@@ -294,7 +294,7 @@ class SerializerTest {
   @Test
   void createInvalidDoubleSumLinesCumulative() {
     Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<>() {
+        new ArrayList<DoublePointData>() {
           {
             add(
                 DoublePointData.create(
@@ -331,7 +331,7 @@ class SerializerTest {
   @Test
   void createDoubleSumLinesDelta() {
     Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<>() {
+        new ArrayList<DoublePointData>() {
           {
             add(
                 DoublePointData.create(
@@ -363,7 +363,7 @@ class SerializerTest {
   @Test
   void createDoubleSummaryLines() {
     Collection<DoubleSummaryPointData> doubleSummaryPointDataCollection =
-        new ArrayList<>() {
+        new ArrayList<DoubleSummaryPointData>() {
           {
             add(
                 DoubleSummaryPointData.create(
@@ -422,7 +422,7 @@ class SerializerTest {
   @Test
   void createInvalidDoubleSummaryLines() {
     Collection<DoubleSummaryPointData> doubleSummaryPointDataCollection =
-        new ArrayList<>() {
+        new ArrayList<DoubleSummaryPointData>() {
           {
             // NaN
             add(
@@ -487,7 +487,7 @@ class SerializerTest {
   @Test
   void createDoubleHistogramLines() {
     Collection<DoubleHistogramPointData> doubleHistogramPointDataCollection =
-        new ArrayList<>() {
+        new ArrayList<DoubleHistogramPointData>() {
           {
             add(
                 DoubleHistogramPointData.create(
@@ -531,7 +531,7 @@ class SerializerTest {
   @Test
   void createInvalidDoubleHistogramLines() {
     Collection<DoubleHistogramPointData> doubleHistogramPointDataCollection =
-        new ArrayList<>() {
+        new ArrayList<DoubleHistogramPointData>() {
           {
             add(
                 DoubleHistogramPointData.create(
