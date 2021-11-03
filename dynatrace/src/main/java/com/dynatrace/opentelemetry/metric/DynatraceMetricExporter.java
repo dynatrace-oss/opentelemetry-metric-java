@@ -159,9 +159,10 @@ public final class DynatraceMetricExporter implements MetricExporter {
           break;
         default:
           logger.warning(
-              String.format(
-                  "Tried to serialize metric of type %s. The Dynatrace metrics exporter does not handle metrics of that type at the time.",
-                  metric.getType().toString()));
+              () ->
+                  String.format(
+                      "Tried to serialize metric of type %s. The Dynatrace metrics exporter does not handle metrics of that type at the time.",
+                      metric.getType().toString()));
           break;
       }
     }
@@ -179,9 +180,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
       CompletableResultCode resultCode;
       String joinedMetricLines = Joiner.on('\n').join(partition);
 
-      if (logger.isLoggable(Level.FINER)) {
-        logger.finer(String.format("Exporting metrics:\n%s", joinedMetricLines));
-      }
+      logger.finer(() -> String.format("Exporting metrics:\n%s", joinedMetricLines));
       try {
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Accept", "*/*; q=0");
@@ -204,10 +203,10 @@ public final class DynatraceMetricExporter implements MetricExporter {
           String response =
               CharStreams.toString(
                   new InputStreamReader(connection.getErrorStream(), Charsets.UTF_8));
-          logger.log(
-              Level.WARNING,
-              String.format(
-                  "Error while exporting. Status code: %d; Response: %s", code, response));
+          logger.warning(
+              () ->
+                  String.format(
+                      "Error while exporting. Status code: %d; Response: %s", code, response));
           resultCode = CompletableResultCode.ofFailure();
         }
       } catch (Exception e) {
@@ -227,22 +226,22 @@ public final class DynatraceMetricExporter implements MetricExporter {
         Matcher linesOkMatchResult = EXTRACT_LINES_OK.matcher(response);
         Matcher linesInvalidMatchResult = EXTRACT_LINES_INVALID.matcher(response);
         if (linesOkMatchResult.find() && linesInvalidMatchResult.find()) {
-          if (logger.isLoggable(Level.FINE)) {
-            logger.fine(
-                String.format(
-                    "Sent %d metric lines, linesOk: %s linesInvalid: %s",
-                    totalLines, linesOkMatchResult.group(1), linesInvalidMatchResult.group(1)));
-          }
+          logger.fine(
+              () ->
+                  String.format(
+                      "Sent %d metric lines, linesOk: %s linesInvalid: %s",
+                      totalLines, linesOkMatchResult.group(1), linesInvalidMatchResult.group(1)));
           return CompletableResultCode.ofSuccess();
         }
       }
-      logger.warning(String.format("could not parse response: %s", response));
+      logger.warning(() -> String.format("could not parse response: %s", response));
     } else {
       // common pitfall if URI is supplied in v1 format (without endpoint path)
       logger.warning(
-          String.format(
-              "Expected status code 202, got %d. Did you specify the ingest path (e. g. /api/v2/metrics/ingest)?",
-              code));
+          () ->
+              String.format(
+                  "Expected status code 202, got %d. Did you specify the ingest path (e. g. /api/v2/metrics/ingest)?",
+                  code));
     }
     return CompletableResultCode.ofFailure();
   }
