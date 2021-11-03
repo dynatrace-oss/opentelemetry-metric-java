@@ -14,11 +14,12 @@
 package com.dynatrace.opentelemetry.metric;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.metrics.DoubleUpDownCounter;
+import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.common.InstrumentationLibraryInfo;
@@ -28,7 +29,6 @@ import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.DoublePointData;
 import io.opentelemetry.sdk.metrics.data.DoubleSumData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
-import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
 import io.opentelemetry.sdk.metrics.view.Aggregation;
 import io.opentelemetry.sdk.metrics.view.InstrumentSelector;
 import io.opentelemetry.sdk.metrics.view.View;
@@ -210,13 +210,11 @@ class DynatraceMetricExporterTest {
   }
 
   @Test
-  public void testWithView() throws IOException {
+  public void testCountertWithViewCumulativeTemporality() throws IOException {
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
-
     URL url = mock(URL.class);
     HttpURLConnection connection = mock(HttpURLConnection.class);
     when(url.openConnection()).thenReturn(connection);
-
     when(connection.getURL()).thenReturn(url);
     when(connection.getOutputStream()).thenReturn(bos);
     when(connection.getResponseCode()).thenReturn(202);
@@ -231,28 +229,91 @@ class DynatraceMetricExporterTest {
             .setUrl(connection.getURL())
             .build();
 
+    InMemoryDtMetricReader reader = new InMemoryDtMetricReader(metricExporter);
     SdkMeterProvider sdkMeterProvider =
         SdkMeterProvider.builder()
             .setClock(testClock)
-            .registerMetricReader(
-                PeriodicMetricReader.create(metricExporter, Duration.ofMillis(100)))
+            .registerMetricReader(reader)
             .registerView(
                 InstrumentSelector.builder()
-                    .setInstrumentType(InstrumentType.UP_DOWN_COUNTER)
-                    .setInstrumentName("testGauge")
+                    .setInstrumentType(InstrumentType.COUNTER)
+                    .setInstrumentName("testSum")
                     .build(),
-                View.builder().setAggregation(Aggregation.lastValue()).build())
+                View.builder()
+                    .setAggregation(Aggregation.sum(AggregationTemporality.CUMULATIVE))
+                    .build())
             .build();
 
     Meter sdkMeter = sdkMeterProvider.get(getClass().getName());
-    DoubleUpDownCounter doubleCounter =
-        sdkMeter.upDownCounterBuilder("testGauge").ofDoubles().build();
+    LongCounter counter = sdkMeter.counterBuilder("testSum").build();
 
-    doubleCounter.add(12d, Attributes.empty());
+    counter.add(100);
+    sdkMeterProvider.forceFlush();
+    testClock.advance(Duration.ofSeconds(1));
 
+    counter.add(200);
+    sdkMeterProvider.forceFlush();
+    testClock.advance(Duration.ofSeconds(1));
+
+    counter.add(300);
+    testClock.advance(Duration.ofSeconds(1));
     CompletableResultCode result = sdkMeterProvider.forceFlush();
 
+    assertTrue(result.isSuccess());
     assertEquals(
-        "testGauge,dt.metrics.source=opentelemetry gauge,12.0 1557212400000", bos.toString());
+        "testSum,dt.metrics.source=opentelemetry count,delta=200 1557212401000testSum,dt.metrics.source=opentelemetry count,delta=300 1557212403000",
+        bos.toString());
+  }
+
+  @Test
+  public void testCounterWithViewDeltaTemporality() throws IOException {
+    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+    URL url = mock(URL.class);
+    HttpURLConnection connection = mock(HttpURLConnection.class);
+    when(url.openConnection()).thenReturn(connection);
+    when(connection.getURL()).thenReturn(url);
+    when(connection.getOutputStream()).thenReturn(bos);
+    when(connection.getResponseCode()).thenReturn(202);
+    when(connection.getInputStream())
+        .thenReturn(
+            new ByteArrayInputStream(
+                "{\n\"linesOk\": 1,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes()));
+
+    DynatraceMetricExporter metricExporter =
+        DynatraceMetricExporter.builder()
+            .setApiToken("mytoken")
+            .setUrl(connection.getURL())
+            .build();
+
+    InMemoryDtMetricReader reader = new InMemoryDtMetricReader(metricExporter);
+    SdkMeterProvider sdkMeterProvider =
+        SdkMeterProvider.builder()
+            .setClock(testClock)
+            .registerMetricReader(reader)
+            .registerView(
+                InstrumentSelector.builder()
+                    .setInstrumentType(InstrumentType.COUNTER)
+                    .setInstrumentName("testSum")
+                    .build(),
+                View.builder()
+                    .setAggregation(Aggregation.sum(AggregationTemporality.DELTA))
+                    .build())
+            .build();
+
+    Meter sdkMeter = sdkMeterProvider.get(getClass().getName());
+    LongCounter counter = sdkMeter.counterBuilder("testSum").build();
+
+    counter.add(100);
+    sdkMeterProvider.forceFlush();
+    testClock.advance(Duration.ofSeconds(1));
+
+    counter.add(200);
+    testClock.advance(Duration.ofSeconds(1));
+    CompletableResultCode result = sdkMeterProvider.forceFlush();
+
+    assertTrue(result.isSuccess());
+    assertEquals(
+        "testSum,dt.metrics.source=opentelemetry count,delta=100 1557212400000testSum,dt.metrics.source=opentelemetry count,delta=200 1557212402000",
+        bos.toString());
   }
 }
