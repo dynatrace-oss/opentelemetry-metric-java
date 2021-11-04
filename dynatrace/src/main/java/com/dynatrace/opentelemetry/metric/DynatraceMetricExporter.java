@@ -67,7 +67,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
       String apiToken,
       String prefix,
       Attributes defaultDimensions,
-      Boolean enrichWithOneAgentMetaData) {
+      boolean enrichWithOneAgentMetaData) {
     this.url = url;
     this.apiToken = apiToken;
 
@@ -259,7 +259,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
   public static class Builder {
     private URL url;
     private String apiToken = null;
-    private Boolean enrichWithOneAgentMetaData = false;
+    private boolean enrichWithOneAgentMetaData = false;
     private String prefix;
     private Attributes defaultDimensions;
 
@@ -278,7 +278,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
       return this;
     }
 
-    public Builder setEnrichWithOneAgentMetaData(Boolean enrich) {
+    public Builder setEnrichWithOneAgentMetaData(boolean enrich) {
       this.enrichWithOneAgentMetaData = enrich;
       return this;
     }
