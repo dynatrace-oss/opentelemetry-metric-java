@@ -13,7 +13,6 @@
  */
 package com.dynatrace.opentelemetry.metric;
 
-import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 

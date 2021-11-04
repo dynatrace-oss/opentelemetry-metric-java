@@ -37,7 +37,7 @@ final class Serializer {
   private static final String TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE =
       "Skipping delta conversion for metric '%s' since no previous value was present in the cache.";
 
-  private static final String TEMPLATE_MSG_NON_SUPPORTED_ATTRIBUTE_TYPE =
+  private static final String TEMPLATE_MSG_UNSUPPORTED_ATTRIBUTE_TYPE =
       "Skipping unsupported dimension with value type '%s'";
 
   private final MetricBuilderFactory builderFactory;
@@ -72,7 +72,7 @@ final class Serializer {
             dimensions.add(Dimension.create(k.getKey(), String.valueOf(v)));
           } else {
             logger.warning(
-                () -> String.format(TEMPLATE_MSG_NON_SUPPORTED_ATTRIBUTE_TYPE, k.getType()));
+                () -> String.format(TEMPLATE_MSG_UNSUPPORTED_ATTRIBUTE_TYPE, k.getType()));
           }
         });
 

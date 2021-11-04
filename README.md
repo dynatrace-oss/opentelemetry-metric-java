@@ -60,12 +60,12 @@ After acquiring a `DynatraceMetricExporter` object, it has to be registered with
 ```java
 // Create the PeriodicMetricReaderFactory, passing our exporter and the export interval:
 // The factory is responsible for creating a PeriodicMetricReader instance.
-MetricReaderFactory metricReader = PeriodicMetricReader.create(exporter, Duration.ofMillis(60000));
+MetricReaderFactory readerFactory = PeriodicMetricReader.create(exporter, Duration.ofMillis(60000));
 
 // Then, we create the MeterProvider, making sure to register our MetricReaderFactory:
 SdkMeterProvider meterProvider = 
     SdkMeterProvider.builder()
-    .registerMetricReader(metricReader)
+    .registerMetricReader(readerFactory)
     .buildAndRegisterGlobal();
 
 // OR you can also use a shorter version:
@@ -81,7 +81,11 @@ In the example case above, metrics are exported every 60 seconds.
 Once metrics are reported using the Metrics API, data will be exported to Dynatrace:
 
 ```java
-Meter meter = GlobalMeterProvider.get().get("com.example.my_instrumentation_library", "0.1.0-alpha", "");
+Meter meter =
+    GlobalMeterProvider.get()
+    .meterBuilder("com.example.my_instrumentation_library")
+    .setInstrumentationVersion("0.1.0-alpha")
+    .build();
 
 LongCounter counter = meter
         .counterBuilder("processed_jobs")

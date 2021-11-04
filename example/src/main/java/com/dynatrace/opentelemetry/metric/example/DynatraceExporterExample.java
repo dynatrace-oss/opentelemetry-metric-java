@@ -67,7 +67,10 @@ public class DynatraceExporterExample {
     // Get or create a named meter instance. If a reference to the MeterProvider ist kept,
     // meterProvider.get(...) would do the same.
     Meter meter =
-        GlobalMeterProvider.get().get(DynatraceExporterExample.class.getName(), "0.1.0-beta", "");
+        GlobalMeterProvider.get()
+            .meterBuilder(DynatraceExporterExample.class.getName())
+            .setInstrumentationVersion("0.1.0-beta")
+            .build();
 
     // Create a counter
     LongCounter counter =

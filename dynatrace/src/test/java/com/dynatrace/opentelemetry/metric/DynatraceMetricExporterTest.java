@@ -192,6 +192,8 @@ class DynatraceMetricExporterTest {
     verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
 
     String a = bos.toString();
+    // Even though Attributes are sorted internally, they might be serialized in an unsorted manner.
+    // This is because the utils library uses a HashMap to merge all dimensions.
     assertThat(a)
         .contains("dt.metrics.source=opentelemetry")
         .contains("attr1=val1")
