@@ -55,14 +55,14 @@ DynatraceMetricExporter exporter =
       .build();
 ```
 
-After acquiring a `DynatraceMetricExporter` object, it has to be registered using a `MetricReader` of OpenTelemetry:
+After acquiring a `DynatraceMetricExporter` object, it has to be registered with the OpenTelemetry SDK using a `MetricReader`:
 
 ```java
-// Create the PeriodicMetricReaderFactory, passing our exporter and the interval to export:
-// The factory is responsible for creating a PeriodicMetricReader instance. The SDK will be doing this.
+// Create the PeriodicMetricReaderFactory, passing our exporter and the export interval:
+// The factory is responsible for creating a PeriodicMetricReader instance.
 MetricReaderFactory metricReader = PeriodicMetricReader.create(exporter, Duration.ofMillis(60000));
 
-// Then, we create the MeterProvider, making sure to register our PeriodicMetricReader:
+// Then, we create the MeterProvider, making sure to register our MetricReaderFactory:
 SdkMeterProvider meterProvider = 
     SdkMeterProvider.builder()
     .registerMetricReader(metricReader)
@@ -102,18 +102,14 @@ The OpenTelemetry Metrics API for Java supports the concept of
 [Attributes](
 https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/common.md#attributes).
 These attributes consist of key-value pairs, where the keys are strings and the values are either primitive types
-or array of primitive types.
+or arrays of uniform primitive types.
 
 At the moment, this exporter **only supports string-value attributes**. This means that if attributes of any other type
 are used, they will be **ignored** and **only** the string-value attributes are going to be sent to Dynatrace.
 
-Support for typed attributes is being worked on, and this exporter will be updated once that functionality is available.
-
 #### The `Attributes` interface
 
-The way to interact with Attributes is by using the
-[Attributes](https://github.com/open-telemetry/opentelemetry-java/blob/main/api/all/src/main/java/io/opentelemetry/api/common/Attributes.java)
-interface from the OpenTelemetry API for Java.
+Create `Attributes` using the OpenTelemetry API interface:
 You can either use the factory methods `of(...)` or the `AttributesBuilder`. E.g.:
 
 ```java
@@ -128,10 +124,10 @@ Attributes attributes =
     Attributes.builder().put("attr1", "value1").put("attr2", "value2").build();
 ```
 
-The default implementation of `Attributes` given by OpenTelemetry ([ArrayBackedAttributes](https://github.com/open-telemetry/opentelemetry-java/blob/main/api/all/src/main/java/io/opentelemetry/api/common/ArrayBackedAttributes.java))
+The implementation of `Attributes` in OpenTelemetry ([ArrayBackedAttributes](https://github.com/open-telemetry/opentelemetry-java/blob/main/api/all/src/main/java/io/opentelemetry/api/common/ArrayBackedAttributes.java))
 guarantees that the data is de-duplicated, sorted by keys and no null/empty keys are present.
 
-For this reason, it's recommended that users use the default implementation.
+For this reason, it's recommended that users use the OpenTelemetry implementation.
 If another implementation is used it **_must_** conform with the `Attributes` interface
 otherwise this exporter **cannot be guaranteed** to work properly, as it relies on this behavior.
 

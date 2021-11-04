@@ -140,7 +140,7 @@ class CumulativeToDeltaConverter {
 
   /**
    * The implementation of the {@link Attributes} interface shipped with OpenTelemetry
-   * (ArrayBackedAttributes) guarantees that the elements are sorted by their key. If a new
+   * ({@link ArrayBackedAttributes}) guarantees that the elements are sorted by their key. If a different
    * implementation is used instead, it *must* ensure the same behavior, otherwise the behavior of
    * this exporter cannot be guaranteed.
    *

@@ -38,7 +38,7 @@ final class Serializer {
       "Skipping delta conversion for metric '%s' since no previous value was present in the cache.";
 
   private static final String TEMPLATE_MSG_NON_SUPPORTED_ATTRIBUTE_TYPE =
-      "Skipping non-supported dimension with type '%s'";
+      "Skipping unsupported dimension with value type '%s'";
 
   private final MetricBuilderFactory builderFactory;
   private final CumulativeToDeltaConverter deltaConverter;
