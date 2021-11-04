@@ -13,6 +13,7 @@
  */
 package com.dynatrace.opentelemetry.metric;
 
+import static org.assertj.core.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
@@ -168,8 +169,7 @@ class DynatraceMetricExporterTest {
 
   @Test
   public void testWithAttributes() throws IOException {
-    Attributes attributes =
-        Attributes.builder().put("attr1", "val1").put("attr2", "val2").build();
+    Attributes attributes = Attributes.builder().put("attr1", "val1").put("attr2", "val2").build();
     MetricData md = generateMetricDataWithAttributes(attributes);
 
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -190,9 +190,12 @@ class DynatraceMetricExporterTest {
     verify(connection).setRequestMethod("POST");
     verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
     verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals(
-        "name,dt.metrics.source=opentelemetry,attr1=val1,attr2=val2 count,delta=194.0 1619687659000",
-        bos.toString());
+
+    String a = bos.toString();
+    assertThat(a)
+        .contains("dt.metrics.source=opentelemetry")
+        .contains("attr1=val1")
+        .contains("attr2=val2");
     assertEquals(CompletableResultCode.ofSuccess(), result);
   }
 
