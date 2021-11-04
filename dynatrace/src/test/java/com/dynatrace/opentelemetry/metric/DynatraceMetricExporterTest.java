@@ -66,7 +66,7 @@ class DynatraceMetricExporterTest {
   }
 
   @Test
-  public void testExport() throws IOException {
+  void testExport() throws IOException {
     MetricData md = generateMetricData();
 
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -93,7 +93,7 @@ class DynatraceMetricExporterTest {
   }
 
   @Test
-  public void testFailedExport() throws IOException {
+  void testFailedExport() throws IOException {
     MetricData md = generateMetricData();
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
 
@@ -110,7 +110,7 @@ class DynatraceMetricExporterTest {
   }
 
   @Test
-  public void testAddPrefix() throws IOException {
+  void testAddPrefix() throws IOException {
     MetricData md = generateMetricData();
 
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -139,7 +139,7 @@ class DynatraceMetricExporterTest {
   }
 
   @Test
-  public void addDefaultDimensions() throws IOException {
+  void addDefaultDimensions() throws IOException {
     MetricData md = generateMetricData();
 
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -168,7 +168,7 @@ class DynatraceMetricExporterTest {
   }
 
   @Test
-  public void testWithAttributes() throws IOException {
+  void testWithAttributes() throws IOException {
     Attributes attributes = Attributes.builder().put("attr1", "val1").put("attr2", "val2").build();
     MetricData md = generateMetricDataWithAttributes(attributes);
 
@@ -648,7 +648,7 @@ class DynatraceMetricExporterTest {
   }
 
   @Test
-  public void testCountertWithViewCumulativeTemporality() throws IOException {
+  void testCountertWithViewCumulativeTemporality() throws IOException {
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     URL url = mock(URL.class);
     HttpURLConnection connection = mock(HttpURLConnection.class);
@@ -667,7 +667,7 @@ class DynatraceMetricExporterTest {
             .setUrl(connection.getURL())
             .build();
 
-    InMemoryDtMetricReader reader = new InMemoryDtMetricReader(metricExporter);
+    MockedMetricReader reader = new MockedMetricReader(metricExporter);
     SdkMeterProvider sdkMeterProvider =
         SdkMeterProvider.builder()
             .setClock(testClock)
@@ -704,7 +704,7 @@ class DynatraceMetricExporterTest {
   }
 
   @Test
-  public void testCounterWithViewDeltaTemporality() throws IOException {
+  void testCounterWithViewDeltaTemporality() throws IOException {
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     URL url = mock(URL.class);
     HttpURLConnection connection = mock(HttpURLConnection.class);
@@ -723,7 +723,7 @@ class DynatraceMetricExporterTest {
             .setUrl(connection.getURL())
             .build();
 
-    InMemoryDtMetricReader reader = new InMemoryDtMetricReader(metricExporter);
+    MockedMetricReader reader = new MockedMetricReader(metricExporter);
     SdkMeterProvider sdkMeterProvider =
         SdkMeterProvider.builder()
             .setClock(testClock)

@@ -166,7 +166,7 @@ class CumulativeToDeltaConverterTest {
   }
 
   @Test
-  public void testAttributesAreSortedLong() {
+  void testAttributesAreSortedLong() {
     // a delta is correctly calculated for the seconds metric, meaning that these two metrics are
     // considered equal by the delta calculation
     assertThat(
@@ -184,7 +184,7 @@ class CumulativeToDeltaConverterTest {
   }
 
   @Test
-  public void testAttributesAreSortedDouble() {
+  void testAttributesAreSortedDouble() {
     // a delta is correctly calculated for the seconds metric, meaning that these two metrics are
     // considered equal by the delta calculation
     assertThat(
@@ -202,7 +202,7 @@ class CumulativeToDeltaConverterTest {
   }
 
   @Test
-  public void testDoubleAndLongDoNotInterfere() {
+  void testDoubleAndLongDoNotInterfere() {
     // both counters are called test but do not interfere due to the different data types.
     assertThat(converter.convertLongTotalToDelta("test", createLongPointData(100L))).isNull();
     assertThat(converter.convertLongTotalToDelta("test", createLongPointData(200L)))
