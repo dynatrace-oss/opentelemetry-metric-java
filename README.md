@@ -10,7 +10,7 @@
 The general setup of OpenTelemetry Java is explained in the official [Getting Started Guide](https://opentelemetry.io/docs/java/manual_instrumentation/).
 Using the Metrics API is explained in the [Metrics section](https://opentelemetry.io/docs/java/manual_instrumentation/#metrics-alpha-only).
 
-To include the Dynatrace OpenTelemetry Metrics exporter in a Gradle build, for example, 
+To include the Dynatrace OpenTelemetry Metrics exporter in a Gradle build, for example,
 use the following in your `settings.gradle` and `build.gradle`:
 
 ```groovy
@@ -33,18 +33,18 @@ dependencies {
 Gradle pulls the library in the specified version directly from GitHub and includes it.
 
 To use the library, we first need to create a `DynatraceMetricExporter`.
-The `.getDefault()` method returns an instance which attempts to export 
+The `.getDefault()` method returns an instance which attempts to export
 to the [local OneAgent endpoint](https://www.dynatrace.com/support/help/how-to-use-dynatrace/metrics/metric-ingestion/ingestion-methods/local-api/).
 
 ```java
 DynatraceMetricExporter exporter = DynatraceMetricExporter.getDefault();
 ```
 
-Alternatively, or if no OneAgent is running on the host, the exporter can be set up 
+Alternatively, or if no OneAgent is running on the host, the exporter can be set up
 using an endpoint URL and an API token with the "ingest metrics" (`metrics.ingest`) permission set.
 It is recommended to limit token scope to only this permission.
-More information on setting up API access using tokens can be found 
-[in the documentation](https://www.dynatrace.com/support/help/dynatrace-api/basics/dynatrace-api-authentication/) 
+More information on setting up API access using tokens can be found
+[in the documentation](https://www.dynatrace.com/support/help/dynatrace-api/basics/dynatrace-api-authentication/)
 and in the [Dynatrace API Token](#dynatrace-api-token) section below.
 
 ```java
@@ -98,7 +98,9 @@ A full setup is provided in our [example project](example/src/main/java/com/dyna
 
 #### Typed attributes support
 
-The OpenTelemetry Metrics API for Java supports the concept of [Attributes](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/common.md#attributes).
+The OpenTelemetry Metrics API for Java supports the concept of
+[Attributes](
+https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/common.md#attributes).
 These attributes consist of key-value pairs, where the keys are strings and the values are either primitive types
 or array of primitive types.
 
@@ -109,9 +111,9 @@ Support for typed attributes is being worked on, and this exporter will be updat
 
 #### The `Attributes` interface
 
-The way to interact with Attributes is by using the 
-[Attributes](https://github.com/open-telemetry/opentelemetry-java/blob/main/api/all/src/main/java/io/opentelemetry/api/common/Attributes.java) 
-interface from the OpenTelemetry API for Java. 
+The way to interact with Attributes is by using the
+[Attributes](https://github.com/open-telemetry/opentelemetry-java/blob/main/api/all/src/main/java/io/opentelemetry/api/common/Attributes.java)
+interface from the OpenTelemetry API for Java.
 You can either use the factory methods `of(...)` or the `AttributesBuilder`. E.g.:
 
 ```java
@@ -128,8 +130,8 @@ Attributes attributes =
 The default implementation of `Attributes` given by OpenTelemetry ([ArrayBackedAttributes](https://github.com/open-telemetry/opentelemetry-java/blob/main/api/all/src/main/java/io/opentelemetry/api/common/ArrayBackedAttributes.java))
 guarantees that the data is de-duplicated, sorted by keys and no null/empty keys are present.
 
-For this reason, it's recommended that users use the default implementation. 
-If another implementation is used it **_must_** conform with the `Attributes` interface 
+For this reason, it's recommended that users use the default implementation.
+If another implementation is used it **_must_** conform with the `Attributes` interface
 otherwise this exporter **cannot be guaranteed** to work properly, as it relies on this behavior.
 
 ### Configuration
@@ -157,7 +159,7 @@ The Dynatrace API token to be used by the exporter is specified using `setApiTok
 The token could, for example, be read from an environment variable.
 It should not be hardcoded into the code, especially if that code is stored in a VCS.
 
-Creating an API token for your Dynatrace environment is described in the 
+Creating an API token for your Dynatrace environment is described in the
 [Dynatrace API documentation](https://www.dynatrace.com/support/help/dynatrace-api/basics/dynatrace-api-authentication/).
 The permission required for sending metrics is the `Ingest metrics` (`metrics.ingest`) permission in the **API v2** section,
 and it is recommended to limit scope to only this permission:
@@ -174,7 +176,7 @@ In the example, a prefix of `otel.java` is used, which leads to metrics named `o
 
 #### Default Dimensions
 
-The `setDefaultDimensions` method can be used to optionally specify a 
+The `setDefaultDimensions` method can be used to optionally specify a
 [Attributes](https://github.com/open-telemetry/opentelemetry-java/blob/main/api/all/src/main/java/io/opentelemetry/api/common/Attributes.java) object,
 which will be added as additional dimensions to all data points. The `Attributes` interface represents key-value pairs.
 
