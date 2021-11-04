@@ -107,7 +107,7 @@ or array of primitive types.
 At the moment, this exporter **only supports string-value attributes**. This means that if attributes of any other type
 are used, they will be **ignored** and **only** the string-value attributes are going to be sent to Dynatrace.
 
-Support for typed attributes is being worked on, and this exporter will be updated once that functionality is done.
+Support for typed attributes is being worked on, and this exporter will be updated once that functionality is available.
 
 #### The `Attributes` interface
 
@@ -118,6 +118,7 @@ You can either use the factory methods `of(...)` or the `AttributesBuilder`. E.g
 
 ```java
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
+import io.opentelemetry.api.common.Attributes;
 
 // Using factory 'of' methods
 Attributes attributes = Attributes.of(stringKey("attr1"), "value1", stringKey("attr2"), "value2");
