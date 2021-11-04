@@ -166,7 +166,7 @@ class CumulativeToDeltaConverterTest {
   }
 
   @Test
-  public void testLabelsAreSortedLong() {
+  public void testAttributesAreSortedLong() {
     // a delta is correctly calculated for the seconds metric, meaning that these two metrics are
     // considered equal by the delta calculation
     assertThat(
@@ -184,7 +184,7 @@ class CumulativeToDeltaConverterTest {
   }
 
   @Test
-  public void testLabelsAreSortedDouble() {
+  public void testAttributesAreSortedDouble() {
     // a delta is correctly calculated for the seconds metric, meaning that these two metrics are
     // considered equal by the delta calculation
     assertThat(

@@ -58,9 +58,9 @@ public class DynatraceExporterExample {
     // set.
     DynatraceMetricExporter exporter = getExampleExporter(args);
 
-    // Create a metrics producer and a meter provider (SdkMeterProvider is both). As noted in the
+    // Creates the meter provider, configuring the metric reader and our exporter in it. As noted in the
     // documentation (https://opentelemetry.io/docs/java/manual_instrumentation/, under the metrics
-    // section), the APIs for acquiring a MeterProvider are in flux, and the example below
+    // section), the APIs for acquiring a MeterProvider are in flux, so the example below
     // might be outdated. Please consult the OpenTelemetry documentation for more information on
     // the preferred way to acquire a MeterProvider.
     SdkMeterProvider meterProvider =
@@ -69,7 +69,7 @@ public class DynatraceExporterExample {
             .buildAndRegisterGlobal();
 
     // Get or create a named meter instance. If a reference to the MeterProvider ist kept,
-    // provider.get(...) would do the same.
+    // meterProvider.get(...) would do the same.
     Meter meter =
         GlobalMeterProvider.get().get(DynatraceExporterExample.class.getName(), "0.1.0-beta", "");
 
@@ -81,15 +81,15 @@ public class DynatraceExporterExample {
             .setUnit("1")
             .build();
 
-    // Use a bound counter with a pre-defined attribute set
+    // Create a bound counter with a pre-defined attributes in it
     BoundLongCounter someWorkCounter =
         counter.bind(Attributes.of(stringKey("bound_dimension"), "dimension_value"));
 
     while (true) {
-      // Record data with bound labels
+      // Record data with bound attributes
       someWorkCounter.add(random.nextInt(5));
 
-      // Or record data on unbound counter and explicitly specify the label set at call-time
+      // Or record data on unbound counter and explicitly specify the attributes at call-time
       counter.add(random.nextInt(10), Attributes.of(stringKey("environment"), "testing"));
       counter.add(random.nextInt(20), Attributes.of(stringKey("environment"), "staging"));
 

@@ -43,13 +43,13 @@ import org.junit.jupiter.api.Test;
 class DynatraceMetricExporterTest {
 
   public static MetricData generateMetricData() {
-    return generateMetricDataWithLabels(Attributes.empty());
+    return generateMetricDataWithAttributes(Attributes.empty());
   }
 
   private final TestClock testClock = TestClock.create();
   private static final long SECOND_NANOS = 1_000_000_000;
 
-  public static MetricData generateMetricDataWithLabels(Attributes attributes) {
+  public static MetricData generateMetricDataWithAttributes(Attributes attributes) {
     return MetricData.createDoubleSum(
         Resource.create(Attributes.builder().build()),
         InstrumentationLibraryInfo.empty(),
@@ -167,10 +167,10 @@ class DynatraceMetricExporterTest {
   }
 
   @Test
-  public void testWithLabels() throws IOException {
+  public void testWithAttributes() throws IOException {
     Attributes attributes =
-        Attributes.builder().put("label1", "val1").put("label2", "val2").build();
-    MetricData md = generateMetricDataWithLabels(attributes);
+        Attributes.builder().put("attr1", "val1").put("attr2", "val2").build();
+    MetricData md = generateMetricDataWithAttributes(attributes);
 
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     ByteArrayInputStream bis =
@@ -191,7 +191,7 @@ class DynatraceMetricExporterTest {
     verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
     verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
     assertEquals(
-        "name,dt.metrics.source=opentelemetry,label1=val1,label2=val2 count,delta=194.0 1619687659000",
+        "name,dt.metrics.source=opentelemetry,attr1=val1,attr2=val2 count,delta=194.0 1619687659000",
         bos.toString());
     assertEquals(CompletableResultCode.ofSuccess(), result);
   }
@@ -758,7 +758,7 @@ class DynatraceMetricExporterTest {
     HttpURLConnection connection = mock(HttpURLConnection.class);
     when(connection.getURL()).thenReturn(new URL("http://localhost"));
     when(connection.getOutputStream()).thenReturn(outputStream);
-    when(connection.getResponseCode()).thenReturn(202);
+    when(connection.getResponseCode()).thenReturn(statusCode);
 
     if (response != null) {
       when(connection.getInputStream())

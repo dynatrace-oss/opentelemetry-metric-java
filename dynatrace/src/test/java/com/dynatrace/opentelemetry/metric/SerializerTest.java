@@ -13,6 +13,7 @@
  */
 package com.dynatrace.opentelemetry.metric;
 
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -34,11 +35,11 @@ class SerializerTest {
   @Test
   void fromAttributes() {
     Attributes attributes =
-        Attributes.builder().put("label1", "value1").put("label2", "value2").build();
+        Attributes.builder().put("attr1", "value1").put("attr2", "value2").build();
 
     DimensionList expected =
         DimensionList.create(
-            Dimension.create("label1", "value1"), Dimension.create("label2", "value2"));
+            Dimension.create("attr1", "value1"), Dimension.create("attr2", "value2"));
 
     DimensionList actual = Serializer.fromAttributes(attributes);
 
@@ -637,6 +638,8 @@ class SerializerTest {
 
   @Test
   void TestGetMinFromBoundaries() {
+
+    Attributes attributes = Attributes.of(stringKey("attr1"), "value1", stringKey("attr2"), "value2");
     // A value between the first two boundaries.
     assertThat(
             Serializer.getMinFromBoundaries(
