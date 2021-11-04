@@ -638,9 +638,6 @@ class SerializerTest {
 
   @Test
   void TestGetMinFromBoundaries() {
-
-    Attributes attributes =
-        Attributes.of(stringKey("attr1"), "value1", stringKey("attr2"), "value2");
     // A value between the first two boundaries.
     assertThat(
             Serializer.getMinFromBoundaries(

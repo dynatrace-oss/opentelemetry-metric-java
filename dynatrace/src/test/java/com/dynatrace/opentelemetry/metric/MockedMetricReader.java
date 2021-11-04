@@ -10,7 +10,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * Inspired on
+ * Inspired by
  * https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk/metrics/src/main/java/io/opentelemetry/sdk/metrics/testing/InMemoryMetricReader.java
  * A reader that calls the exporter whenever it receives a flush call from the MeterProvider. Useful
  * for testing the exporter working with a configured MeterProvider

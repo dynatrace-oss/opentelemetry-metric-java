@@ -648,7 +648,7 @@ class DynatraceMetricExporterTest {
   }
 
   @Test
-  void testCountertWithViewCumulativeTemporality() throws IOException {
+  void testCounterWithViewCumulativeTemporality() throws IOException, InterruptedException {
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     URL url = mock(URL.class);
     HttpURLConnection connection = mock(HttpURLConnection.class);
