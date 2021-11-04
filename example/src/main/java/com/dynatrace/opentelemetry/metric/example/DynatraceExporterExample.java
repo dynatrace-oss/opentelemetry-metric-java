@@ -58,9 +58,9 @@ public class DynatraceExporterExample {
     // set.
     DynatraceMetricExporter exporter = getExampleExporter(args);
 
-    // Creates the meter provider, configuring the metric reader and our exporter in it. As noted in the
-    // documentation (https://opentelemetry.io/docs/java/manual_instrumentation/, under the metrics
-    // section), the APIs for acquiring a MeterProvider are in flux, so the example below
+    // Creates the meter provider, configuring the metric reader and our exporter in it. As noted in
+    // the documentation (https://opentelemetry.io/docs/java/manual_instrumentation/, under the
+    // metrics section), the APIs for acquiring a MeterProvider are in flux, so the example below
     // might be outdated. Please consult the OpenTelemetry documentation for more information on
     // the preferred way to acquire a MeterProvider.
     SdkMeterProvider meterProvider =
