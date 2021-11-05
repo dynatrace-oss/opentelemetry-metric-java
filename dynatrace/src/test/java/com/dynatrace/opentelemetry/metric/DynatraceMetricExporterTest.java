@@ -495,7 +495,7 @@ class DynatraceMetricExporterTest {
   }
 
   @Test
-  void createDoubleSummaryLines() throws IOException {
+  void testDoubleSummaryLines() throws IOException {
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     ByteArrayInputStream bis =
         new ByteArrayInputStream(
@@ -569,7 +569,7 @@ class DynatraceMetricExporterTest {
   }
 
   @Test
-  void createDoubleHistogramLines() throws IOException {
+  void testDoubleHistogramLines() throws IOException {
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     ByteArrayInputStream bis =
         new ByteArrayInputStream(

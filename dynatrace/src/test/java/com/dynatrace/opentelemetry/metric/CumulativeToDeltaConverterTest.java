@@ -173,13 +173,13 @@ class CumulativeToDeltaConverterTest {
             converter.convertLongTotalToDelta(
                 "test",
                 createLongPointData(
-                    100L, 0, Attributes.of(stringKey("l1"), "v1", stringKey("l2"), "v2"))))
+                    100L, 0, Attributes.of(stringKey("attr1"), "v1", stringKey("attr2"), "v2"))))
         .isNull();
     assertThat(
             converter.convertLongTotalToDelta(
                 "test",
                 createLongPointData(
-                    200L, 1, Attributes.of(stringKey("l2"), "v2", stringKey("l1"), "v1"))))
+                    200L, 1, Attributes.of(stringKey("attr2"), "v2", stringKey("attr1"), "v1"))))
         .isEqualTo(100L);
   }
 
@@ -191,13 +191,13 @@ class CumulativeToDeltaConverterTest {
             converter.convertDoubleTotalToDelta(
                 "test",
                 createDoublePointData(
-                    100.2, 0, Attributes.of(stringKey("l1"), "v1", stringKey("l2"), "v2"))))
+                    100.2, 0, Attributes.of(stringKey("attr1"), "v1", stringKey("attr2"), "v2"))))
         .isNull();
     assertThat(
             converter.convertDoubleTotalToDelta(
                 "test",
                 createDoublePointData(
-                    200.5, 1, Attributes.of(stringKey("l2"), "v2", stringKey("l1"), "v1"))))
+                    200.5, 1, Attributes.of(stringKey("attr2"), "v2", stringKey("attr1"), "v1"))))
         .isEqualTo(100.3);
   }
 
@@ -211,5 +211,31 @@ class CumulativeToDeltaConverterTest {
     assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(100.2))).isNull();
     assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(200.5)))
         .isCloseTo(100.3, offset);
+  }
+
+  @Test
+  void testAttributesAreDeDuplicated() {
+    // a delta is correctly calculated for the second metric, meaning that these two metrics are
+    // considered equal by the delta calculation. The duplicated attribute `attr1 is removed.
+    assertThat(
+            converter.convertLongTotalToDelta(
+                "test",
+                createLongPointData(
+                    100L, 0, Attributes.of(stringKey("attr1"), "v1", stringKey("attr2"), "v2"))))
+        .isNull();
+    assertThat(
+            converter.convertLongTotalToDelta(
+                "test",
+                createLongPointData( // has 'attr1' twice
+                    200L,
+                    1,
+                    Attributes.of(
+                        stringKey("attr1"),
+                        "v1",
+                        stringKey("attr2"),
+                        "v2",
+                        stringKey("attr1"),
+                        "v1"))))
+        .isEqualTo(100L);
   }
 }
