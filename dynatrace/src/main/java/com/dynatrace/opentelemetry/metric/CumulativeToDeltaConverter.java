@@ -140,9 +140,9 @@ class CumulativeToDeltaConverter {
 
   /**
    * The implementation of the {@link Attributes} interface shipped with OpenTelemetry ({@link
-   * ArrayBackedAttributes}) guarantees that the elements are sorted by their key, and that no duplicate keys exist. If a different
-   * implementation is used instead, it *must* ensure the same behavior, otherwise the behavior of
-   * this exporter cannot be guaranteed.
+   * ArrayBackedAttributes}) guarantees that the elements are sorted by their key, and that no
+   * duplicate keys exist. If a different implementation is used instead, it *must* ensure the same
+   * behavior, otherwise the behavior of this exporter cannot be guaranteed.
    *
    * @param attributes The attributes of a point.
    * @return A string representation of all attributes.

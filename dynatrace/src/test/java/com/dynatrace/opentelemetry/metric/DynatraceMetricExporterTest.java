@@ -648,7 +648,7 @@ class DynatraceMetricExporterTest {
             .setUrl(connection.getURL())
             .build();
 
-    MockedMetricReader reader = new MockedMetricReader(metricExporter);
+    TestMetricReader reader = new TestMetricReader(metricExporter);
     SdkMeterProvider sdkMeterProvider =
         SdkMeterProvider.builder()
             .setClock(testClock)
@@ -706,7 +706,7 @@ class DynatraceMetricExporterTest {
             .setUrl(connection.getURL())
             .build();
 
-    MockedMetricReader reader = new MockedMetricReader(metricExporter);
+    TestMetricReader reader = new TestMetricReader(metricExporter);
     SdkMeterProvider sdkMeterProvider =
         SdkMeterProvider.builder()
             .setClock(testClock)

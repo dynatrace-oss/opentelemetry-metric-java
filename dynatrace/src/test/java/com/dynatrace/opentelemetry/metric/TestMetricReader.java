@@ -15,12 +15,12 @@ import java.util.Collections;
  * A reader that calls the exporter whenever it receives a flush call from the MeterProvider. Useful
  * for testing the exporter working with a configured MeterProvider
  */
-class MockedMetricReader implements MetricReader, MetricReaderFactory {
+class TestMetricReader implements MetricReader, MetricReaderFactory {
   private MetricProducer metricProducer;
   private final MetricExporter exporter;
   private volatile Collection<MetricData> latest = Collections.emptyList();
 
-  MockedMetricReader(MetricExporter exporter) {
+  TestMetricReader(MetricExporter exporter) {
     this.exporter = exporter;
   }
 

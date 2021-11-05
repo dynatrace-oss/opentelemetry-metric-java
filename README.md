@@ -113,14 +113,14 @@ https://github.com/open-telemetry/opentelemetry-specification/blob/main/specific
 These attributes consist of key-value pairs, where the keys are strings
 and the values are either primitive types or arrays of uniform primitive types.
 
-At the moment, this exporter **only supports string-value attributes**.
+At the moment, this exporter **only supports attributes with a string value type**.
 This means that if attributes of any other type are used,
-they will be **ignored** and **only** the string-value attributes
+they will be **ignored** and **only** the string-valued attributes
 are going to be sent to Dynatrace.
 
 #### The `Attributes` interface
 
-Create `Attributes` using the OpenTelemetry API interface:
+Create `Attributes` using the OpenTelemetry API.
 You can either use the factory methods `of(...)` or the `AttributesBuilder`. E.g.:
 
 ```java
