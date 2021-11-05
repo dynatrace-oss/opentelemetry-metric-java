@@ -314,6 +314,7 @@ class DynatraceMetricExporterTest {
             add(
                 DoublePointData.create(
                     1619687639000000000L, 1619687659000000000L, Attributes.empty(), 300.6));
+            // No timestamps in this point, so we also test the serialization without it
             add(DoublePointData.create(0L, 0L, Attributes.empty(), 500.8));
           }
         };

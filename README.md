@@ -69,17 +69,9 @@ After acquiring a `DynatraceMetricExporter` object, it has to be registered
 with the OpenTelemetry SDK using a `MetricReader`:
 
 ```java
-// Create the PeriodicMetricReaderFactory, passing our exporter and the export interval:
-// The factory is responsible for creating a PeriodicMetricReader instance.
-MetricReaderFactory readerFactory = PeriodicMetricReader.create(exporter, Duration.ofMillis(60000));
-
-// Then, we create the MeterProvider, making sure to register our MetricReaderFactory:
-SdkMeterProvider meterProvider = 
-    SdkMeterProvider.builder()
-    .registerMetricReader(readerFactory)
-    .buildAndRegisterGlobal();
-
-// OR you can also use a shorter version:
+// Create the MeterProvider and register it globally. 
+// The MeterProvider is configured with the PeriodicMetricReader
+// which takes our exporter and the export interval.
 SdkMeterProvider meterProvider =
     SdkMeterProvider.builder()
     .registerMetricReader(PeriodicMetricReader.create(exporter, Duration.ofMillis(60000)))
@@ -213,7 +205,8 @@ The `setDefaultDimensions` method can be used to optionally specify a
 object, which will be added as additional dimensions to all data points.
 The `Attributes` interface represents key-value pairs.
 
-Dimension keys will be normalized, prior to be sent to the server.
+Dimension keys will be normalized and de-duplicated,
+prior to being sent to the server.
 Dimensions set on instruments will overwrite default dimensions
 if they share the same name after normalization.
 [OneAgent metadata](#export-oneagent-metadata) will overwrite
