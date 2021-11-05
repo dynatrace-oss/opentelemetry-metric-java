@@ -161,7 +161,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
           logger.warning(
               () ->
                   String.format(
-                      "Tried to serialize metric of type %s. The Dynatrace metrics exporter does not handle metrics of that type at the time.",
+                      "Tried to serialize metric of type %s. The Dynatrace metrics exporter does not handle metrics of that type at this time.",
                       metric.getType().toString()));
           break;
       }
