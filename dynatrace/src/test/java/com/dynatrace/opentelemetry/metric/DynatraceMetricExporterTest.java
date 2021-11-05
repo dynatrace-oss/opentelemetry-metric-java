@@ -687,22 +687,24 @@ class DynatraceMetricExporterTest {
     Meter sdkMeter = sdkMeterProvider.get(getClass().getName());
     LongCounter counter = sdkMeter.counterBuilder("testSum").build();
 
+    CompletableResultCode result;
+    // the first export is empty because the cache is empty
     counter.add(100);
-    sdkMeterProvider.forceFlush();
     testClock.advance(Duration.ofSeconds(1));
+    result = sdkMeterProvider.forceFlush();
+    assertMetricLinesAreEqual("", bos, result);
 
     counter.add(200);
-    sdkMeterProvider.forceFlush();
     testClock.advance(Duration.ofSeconds(1));
+    result = sdkMeterProvider.forceFlush();
+    assertMetricLinesAreEqual(
+        "testSum,dt.metrics.source=opentelemetry count,delta=200 1557212402000", bos, result);
 
     counter.add(300);
     testClock.advance(Duration.ofSeconds(1));
-    CompletableResultCode result = sdkMeterProvider.forceFlush();
-
-    assertTrue(result.isSuccess());
-    assertEquals(
-        "testSum,dt.metrics.source=opentelemetry count,delta=200 1557212401000testSum,dt.metrics.source=opentelemetry count,delta=300 1557212403000",
-        bos.toString());
+    result = sdkMeterProvider.forceFlush();
+    assertMetricLinesAreEqual(
+        "testSum,dt.metrics.source=opentelemetry count,delta=300 1557212403000", bos, result);
   }
 
   @Test
@@ -743,18 +745,25 @@ class DynatraceMetricExporterTest {
     Meter sdkMeter = sdkMeterProvider.get(getClass().getName());
     LongCounter counter = sdkMeter.counterBuilder("testSum").build();
 
-    counter.add(100);
-    sdkMeterProvider.forceFlush();
+    CompletableResultCode result;
+    // the first export is empty because the cache is empty
     testClock.advance(Duration.ofSeconds(1));
+    counter.add(100);
+    result = sdkMeterProvider.forceFlush();
+    assertMetricLinesAreEqual(
+        "testSum,dt.metrics.source=opentelemetry count,delta=100 1557212401000", bos, result);
 
     counter.add(200);
     testClock.advance(Duration.ofSeconds(1));
-    CompletableResultCode result = sdkMeterProvider.forceFlush();
+    result = sdkMeterProvider.forceFlush();
+    assertMetricLinesAreEqual(
+        "testSum,dt.metrics.source=opentelemetry count,delta=200 1557212402000", bos, result);
 
-    assertTrue(result.isSuccess());
-    assertEquals(
-        "testSum,dt.metrics.source=opentelemetry count,delta=100 1557212400000testSum,dt.metrics.source=opentelemetry count,delta=200 1557212402000",
-        bos.toString());
+    counter.add(300);
+    testClock.advance(Duration.ofSeconds(1));
+    result = sdkMeterProvider.forceFlush();
+    assertMetricLinesAreEqual(
+        "testSum,dt.metrics.source=opentelemetry count,delta=300 1557212403000", bos, result);
   }
 
   private HttpURLConnection setUpMockConnection(
@@ -772,5 +781,12 @@ class DynatraceMetricExporterTest {
                   "{\n\"linesOk\": 1,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes()));
     }
     return connection;
+  }
+
+  private void assertMetricLinesAreEqual(
+      String expected, ByteArrayOutputStream actual, CompletableResultCode resultCode) {
+    assertTrue(resultCode.isSuccess());
+    assertEquals(expected, actual.toString());
+    actual.reset();
   }
 }
