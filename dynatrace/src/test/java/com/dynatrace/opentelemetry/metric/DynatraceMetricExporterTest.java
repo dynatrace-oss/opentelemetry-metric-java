@@ -48,7 +48,6 @@ class DynatraceMetricExporterTest {
   }
 
   private final TestClock testClock = TestClock.create();
-  private static final long SECOND_NANOS = 1_000_000_000;
 
   public static MetricData generateMetricDataWithAttributes(Attributes attributes) {
     return MetricData.createDoubleSum(
@@ -84,12 +83,11 @@ class DynatraceMetricExporterTest {
 
     CompletableResultCode result = metricExporter.export(Collections.singleton(md), connection);
 
-    verify(connection).setRequestMethod("POST");
-    verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
-    verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals(
-        "name,dt.metrics.source=opentelemetry count,delta=194.0 1619687659000", bos.toString());
-    assertEquals(CompletableResultCode.ofSuccess(), result);
+    assertExportRequestSuccess(
+        connection,
+        "name,dt.metrics.source=opentelemetry count,delta=194.0 1619687659000",
+        bos.toString(),
+        result);
   }
 
   @Test
@@ -129,13 +127,11 @@ class DynatraceMetricExporterTest {
 
     CompletableResultCode result = metricExporter.export(Collections.singleton(md), connection);
 
-    verify(connection).setRequestMethod("POST");
-    verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
-    verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals(
+    assertExportRequestSuccess(
+        connection,
         "prefix.name,dt.metrics.source=opentelemetry count,delta=194.0 1619687659000",
-        bos.toString());
-    assertEquals(CompletableResultCode.ofSuccess(), result);
+        bos.toString(),
+        result);
   }
 
   @Test
@@ -158,13 +154,11 @@ class DynatraceMetricExporterTest {
 
     CompletableResultCode result = metricExporter.export(Collections.singleton(md), connection);
 
-    verify(connection).setRequestMethod("POST");
-    verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
-    verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals(
+    assertExportRequestSuccess(
+        connection,
         "name,default=value,dt.metrics.source=opentelemetry count,delta=194.0 1619687659000",
-        bos.toString());
-    assertEquals(CompletableResultCode.ofSuccess(), result);
+        bos.toString(),
+        result);
   }
 
   @Test
@@ -243,14 +237,12 @@ class DynatraceMetricExporterTest {
     CompletableResultCode result =
         metricExporter.export(Collections.singleton(metricData), connection);
 
-    verify(connection).setRequestMethod("POST");
-    verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
-    verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals(
+    assertExportRequestSuccess(
+        connection,
         "longSumData,dt.metrics.source=opentelemetry count,delta=198 1619687659000\n"
             + "longSumData,dt.metrics.source=opentelemetry count,delta=135",
-        bos.toString());
-    assertEquals(CompletableResultCode.ofSuccess(), result);
+        bos.toString(),
+        result);
   }
 
   @Test
@@ -295,15 +287,13 @@ class DynatraceMetricExporterTest {
     CompletableResultCode result =
         metricExporter.export(Collections.singleton(metricData), connection);
 
-    verify(connection).setRequestMethod("POST");
-    verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
-    verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals(
+    assertExportRequestSuccess(
+        connection,
         "longSumData,dt.metrics.source=opentelemetry count,delta=123 1619687659000\n"
             + "longSumData,dt.metrics.source=opentelemetry count,delta=321 1619687659000\n"
             + "longSumData,dt.metrics.source=opentelemetry count,delta=456",
-        bos.toString());
-    assertEquals(CompletableResultCode.ofSuccess(), result);
+        bos.toString(),
+        result);
   }
 
   @Test
@@ -347,14 +337,12 @@ class DynatraceMetricExporterTest {
     CompletableResultCode result =
         metricExporter.export(Collections.singleton(metricData), connection);
 
-    verify(connection).setRequestMethod("POST");
-    verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
-    verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals(
+    assertExportRequestSuccess(
+        connection,
         "doubleSumData,dt.metrics.source=opentelemetry count,delta=200.3 1619687659000\n"
             + "doubleSumData,dt.metrics.source=opentelemetry count,delta=200.2",
-        bos.toString());
-    assertEquals(CompletableResultCode.ofSuccess(), result);
+        bos.toString(),
+        result);
   }
 
   @Test
@@ -398,15 +386,13 @@ class DynatraceMetricExporterTest {
     CompletableResultCode result =
         metricExporter.export(Collections.singleton(metricData), connection);
 
-    verify(connection).setRequestMethod("POST");
-    verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
-    verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals(
+    assertExportRequestSuccess(
+        connection,
         "doubleSumData,dt.metrics.source=opentelemetry count,delta=123.456 1619687659000\n"
             + "doubleSumData,dt.metrics.source=opentelemetry count,delta=321.456 1619687659000\n"
             + "doubleSumData,dt.metrics.source=opentelemetry count,delta=654.321",
-        bos.toString());
-    assertEquals(CompletableResultCode.ofSuccess(), result);
+        bos.toString(),
+        result);
   }
 
   @Test
@@ -449,15 +435,13 @@ class DynatraceMetricExporterTest {
     CompletableResultCode result =
         metricExporter.export(Collections.singleton(metricData), connection);
 
-    verify(connection).setRequestMethod("POST");
-    verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
-    verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals(
+    assertExportRequestSuccess(
+        connection,
         "longGaugeData,dt.metrics.source=opentelemetry gauge,123 1619687659000\n"
             + "longGaugeData,dt.metrics.source=opentelemetry gauge,321 1619687659000\n"
             + "longGaugeData,dt.metrics.source=opentelemetry gauge,456",
-        bos.toString());
-    assertEquals(CompletableResultCode.ofSuccess(), result);
+        bos.toString(),
+        result);
   }
 
   @Test
@@ -500,15 +484,13 @@ class DynatraceMetricExporterTest {
     CompletableResultCode result =
         metricExporter.export(Collections.singleton(metricData), connection);
 
-    verify(connection).setRequestMethod("POST");
-    verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
-    verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals(
+    assertExportRequestSuccess(
+        connection,
         "doubleGaugeData,dt.metrics.source=opentelemetry gauge,123.456 1619687659000\n"
             + "doubleGaugeData,dt.metrics.source=opentelemetry gauge,321.456 1619687659000\n"
             + "doubleGaugeData,dt.metrics.source=opentelemetry gauge,654.321",
-        bos.toString());
-    assertEquals(CompletableResultCode.ofSuccess(), result);
+        bos.toString(),
+        result);
   }
 
   @Test
@@ -576,15 +558,13 @@ class DynatraceMetricExporterTest {
     CompletableResultCode result =
         metricExporter.export(Collections.singleton(metricData), connection);
 
-    verify(connection).setRequestMethod("POST");
-    verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
-    verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals(
+    assertExportRequestSuccess(
+        connection,
         "doubleSummary,dt.metrics.source=opentelemetry gauge,min=0.1,max=100.1,sum=500.7,count=7 1619687659000\n"
             + "doubleSummary,dt.metrics.source=opentelemetry gauge,min=0.22,max=123.45,sum=202.66,count=3 1619687659000\n"
             + "doubleSummary,dt.metrics.source=opentelemetry gauge,min=0.123,max=234.5,sum=300.7,count=10",
-        bos.toString());
-    assertEquals(CompletableResultCode.ofSuccess(), result);
+        bos.toString(),
+        result);
   }
 
   @Test
@@ -639,14 +619,12 @@ class DynatraceMetricExporterTest {
     CompletableResultCode result =
         metricExporter.export(Collections.singleton(metricData), connection);
 
-    verify(connection).setRequestMethod("POST");
-    verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
-    verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-    assertEquals(
+    assertExportRequestSuccess(
+        connection,
         "doubleHistogram,dt.metrics.source=opentelemetry gauge,min=0.1,max=5.6,sum=10.123,count=6 1619687659000\n"
             + "doubleHistogram,dt.metrics.source=opentelemetry gauge,min=0.2,max=5.9,sum=23.45,count=11",
-        bos.toString());
-    assertEquals(CompletableResultCode.ofSuccess(), result);
+        bos.toString(),
+        result);
   }
 
   @Test
@@ -781,6 +759,19 @@ class DynatraceMetricExporterTest {
                   "{\n\"linesOk\": 1,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes()));
     }
     return connection;
+  }
+
+  private void assertExportRequestSuccess(
+      HttpURLConnection connection,
+      String expectedMetricPayload,
+      String actualMetricPayload,
+      CompletableResultCode result)
+      throws IOException {
+    verify(connection).setRequestMethod("POST");
+    verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
+    verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
+    assertEquals(expectedMetricPayload, actualMetricPayload);
+    assertEquals(CompletableResultCode.ofSuccess(), result);
   }
 
   private void assertMetricLinesAreEqual(
