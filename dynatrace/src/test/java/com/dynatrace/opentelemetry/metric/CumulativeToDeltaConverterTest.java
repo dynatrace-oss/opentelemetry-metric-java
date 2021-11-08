@@ -216,7 +216,7 @@ class CumulativeToDeltaConverterTest {
   @Test
   void testAttributesAreDeDuplicated() {
     // a delta is correctly calculated for the second metric, meaning that these two metrics are
-    // considered equal by the delta calculation. The duplicated attribute `attr1 is removed.
+    // considered equal by the delta calculation. The duplicated attribute attr1 is removed.
     assertThat(
             converter.convertLongTotalToDelta(
                 "test",
