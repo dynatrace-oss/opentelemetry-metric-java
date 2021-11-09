@@ -20,14 +20,13 @@ plugins {
 }
 
 group = "com.dynatrace.opentelemetry.metric"
-version = "0.3.0-alpha"
+version = "0.4.0-alpha"
 
 repositories {
     mavenCentral()
-    jcenter()
 }
 
-def otelVersion = '1.2.0'
+def otelVersion = '1.7.1'
 
 dependencies {
     implementation("io.opentelemetry:opentelemetry-sdk:${otelVersion}")
@@ -41,6 +40,7 @@ dependencies {
     testCompile("org.assertj:assertj-core:3.11.1")
 
     testImplementation("org.mockito:mockito-core:3.8.0")
+    testImplementation("io.opentelemetry:opentelemetry-sdk-testing:${otelVersion}")
 }
 
 test {

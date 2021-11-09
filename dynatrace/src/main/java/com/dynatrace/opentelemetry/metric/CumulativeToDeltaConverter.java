@@ -2,7 +2,8 @@ package com.dynatrace.opentelemetry.metric;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import io.opentelemetry.api.metrics.common.Labels;
+import io.opentelemetry.api.common.AttributeType;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.DoublePointData;
 import io.opentelemetry.sdk.metrics.data.LongPointData;
 import java.time.Duration;
@@ -44,11 +45,6 @@ class CumulativeToDeltaConverter {
     this.cache = CacheBuilder.newBuilder().expireAfterWrite(expireAfter).build();
   }
 
-  private static String createIdentifier(String name, Labels labels, String type) {
-    // (\u001d = ASCII group separator)
-    return String.format("%s\u001d%s\u001d%s", name, getSortedLabelsString(labels), type);
-  }
-
   /**
    * Convert a total counter to a delta. The identity of a counter is defined by its name and its
    * dimensions.
@@ -59,7 +55,7 @@ class CumulativeToDeltaConverter {
    *     or the value itself if there is not.
    */
   public Double convertDoubleTotalToDelta(String metricName, DoublePointData point) {
-    String identifier = createIdentifier(metricName, point.getLabels(), "DOUBLE");
+    String identifier = createIdentifier(metricName, point.getAttributes(), "DOUBLE");
 
     double newValue = point.getValue();
     // reset the map on nan or inf
@@ -103,7 +99,7 @@ class CumulativeToDeltaConverter {
    *     or the value itself if there is not.
    */
   public Long convertLongTotalToDelta(String metricName, LongPointData point) {
-    String identifier = createIdentifier(metricName, point.getLabels(), "LONG");
+    String identifier = createIdentifier(metricName, point.getAttributes(), "LONG");
 
     long newValue = point.getValue();
     final CacheValue cacheValue = this.cache.getIfPresent(identifier);
@@ -137,18 +133,34 @@ class CumulativeToDeltaConverter {
     this.cache.invalidateAll();
   }
 
-  private static String getSortedLabelsString(Labels labels) {
-    if (labels.isEmpty()) {
+  private static String createIdentifier(String name, Attributes attributes, String type) {
+    // (\u001d = ASCII group separator)
+    return String.format("%s\u001d%s\u001d%s", name, getSortedAttributesString(attributes), type);
+  }
+
+  /**
+   * The implementation of the {@link Attributes} interface shipped with OpenTelemetry
+   * (ArrayBackedAttributes) guarantees that the elements are sorted by their key, and that no
+   * duplicate keys exist. If a different implementation is used instead, it *must* ensure the same
+   * behavior, otherwise the behavior of this exporter cannot be guaranteed.
+   *
+   * @param attributes The attributes of a point.
+   * @return A string representation of all attributes.
+   */
+  private static String getSortedAttributesString(Attributes attributes) {
+    if (attributes.isEmpty()) {
       return "";
     }
-    List<AbstractMap.SimpleEntry<String, String>> keyValuePairs = new ArrayList<>(labels.size());
-    labels.forEach((k, v) -> keyValuePairs.add(new AbstractMap.SimpleEntry<>(k, v)));
-    keyValuePairs.sort(Map.Entry.comparingByKey());
 
     StringJoiner joiner = new StringJoiner(",");
-    for (AbstractMap.SimpleEntry<String, String> kv : keyValuePairs) {
-      joiner.add(String.format("%s=%s", kv.getKey(), kv.getValue()));
-    }
+
+    // Attributes are sorted by key once they are "built"
+    attributes.forEach(
+        (k, v) -> {
+          if (k.getType() == AttributeType.STRING) {
+            joiner.add(String.format("%s=%s", k.getKey(), v));
+          }
+        });
     return joiner.toString();
   }
 }

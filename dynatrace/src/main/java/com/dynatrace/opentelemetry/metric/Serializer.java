@@ -15,7 +15,8 @@ package com.dynatrace.opentelemetry.metric;
 
 import com.dynatrace.metric.util.*;
 import com.google.common.annotations.VisibleForTesting;
-import io.opentelemetry.api.metrics.common.Labels;
+import io.opentelemetry.api.common.AttributeType;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.*;
 import java.time.Duration;
 import java.time.Instant;
@@ -26,12 +27,18 @@ import java.util.logging.Logger;
 
 final class Serializer {
   private static final Logger logger = Logger.getLogger(Serializer.class.getName());
+
   // the precision used to identify whether a percentile is the 0% (min) or 100% (max) percentile.
   private static final double PERCENTILE_PRECISION = 0.0001;
+
   private static final String TEMPLATE_ERR_METRIC_LINE =
       "Could not create metric line for data point with name %s (%s).";
+
   private static final String TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE =
       "Skipping delta conversion for metric '%s' since no previous value was present in the cache.";
+
+  private static final String TEMPLATE_MSG_UNSUPPORTED_ATTRIBUTE_TYPE =
+      "Skipping unsupported dimension with value type '%s'";
 
   private final MetricBuilderFactory builderFactory;
   private final CumulativeToDeltaConverter deltaConverter;
@@ -45,7 +52,8 @@ final class Serializer {
     Metric.Builder builder =
         builderFactory
             .newMetricBuilder(metric.getName())
-            .setDimensions(fromLabels(point.getLabels()));
+            .setDimensions(fromAttributes(point.getAttributes()));
+
     long epochNanos = point.getEpochNanos();
     // Only set a timestamp if it is available for the PointData.
     // If it is missing, the server will use the current time at ingest.
@@ -55,14 +63,24 @@ final class Serializer {
     return builder;
   }
 
-  static List<Dimension> toListOfDimensions(Labels labels) {
-    ArrayList<Dimension> dimensions = new ArrayList<>(labels.size());
-    labels.forEach((k, v) -> dimensions.add(Dimension.create(k, v)));
+  static List<Dimension> toListOfDimensions(Attributes attributes) {
+    ArrayList<Dimension> dimensions = new ArrayList<>(attributes.size());
+
+    attributes.forEach(
+        (k, v) -> {
+          if (k.getType() == AttributeType.STRING) {
+            dimensions.add(Dimension.create(k.getKey(), String.valueOf(v)));
+          } else {
+            logger.warning(
+                () -> String.format(TEMPLATE_MSG_UNSUPPORTED_ATTRIBUTE_TYPE, k.getType()));
+          }
+        });
+
     return dimensions;
   }
 
-  static DimensionList fromLabels(Labels labels) {
-    return DimensionList.fromCollection(toListOfDimensions(labels));
+  static DimensionList fromAttributes(Attributes attributes) {
+    return DimensionList.fromCollection(toListOfDimensions(attributes));
   }
 
   @VisibleForTesting
@@ -81,11 +99,13 @@ final class Serializer {
             builder.setLongCounterValueDelta(delta);
             lines.add(builder.serialize());
           } else {
-            logger.finest(String.format(TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE, metric.getName()));
+            logger.finest(
+                () -> String.format(TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE, metric.getName()));
           }
         }
       } catch (MetricException me) {
-        logger.warning(String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
+        logger.warning(
+            () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
       }
     }
     return lines;
@@ -99,7 +119,8 @@ final class Serializer {
         lines.add(
             createMetricBuilder(metric, point).setLongGaugeValue(point.getValue()).serialize());
       } catch (MetricException me) {
-        logger.warning(String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
+        logger.warning(
+            () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
       }
     }
     return lines;
@@ -113,7 +134,8 @@ final class Serializer {
         lines.add(
             createMetricBuilder(metric, point).setDoubleGaugeValue(point.getValue()).serialize());
       } catch (MetricException me) {
-        logger.warning(String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
+        logger.warning(
+            () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
       }
     }
     return lines;
@@ -134,12 +156,14 @@ final class Serializer {
             builder.setDoubleCounterValueDelta(delta);
             lines.add(builder.serialize());
           } else {
-            logger.finest(String.format(TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE, metric.getName()));
+            logger.finest(
+                () -> String.format(TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE, metric.getName()));
           }
         }
 
       } catch (MetricException me) {
-        logger.warning(String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
+        logger.warning(
+            () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
       }
     }
     return lines;
@@ -164,7 +188,8 @@ final class Serializer {
       }
       if (Double.isNaN(min) || Double.isNaN(max)) {
         logger.warning(
-            "The min and/or max value could not be retrieved. This happens if the 0% and 100% quantile are not set for the summary.");
+            () ->
+                "The min and/or max value could not be retrieved. This happens if the 0% and 100% quantile are not set for the summary.");
       }
 
       try {
@@ -173,7 +198,8 @@ final class Serializer {
                 .setDoubleSummaryValue(min, max, sum, count)
                 .serialize());
       } catch (MetricException me) {
-        logger.warning(String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
+        logger.warning(
+            () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
       }
     }
     return lines;
@@ -194,7 +220,8 @@ final class Serializer {
                 .setDoubleSummaryValue(min, max, sum, count)
                 .serialize());
       } catch (MetricException me) {
-        logger.warning(String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
+        logger.warning(
+            () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
       }
     }
     return lines;
