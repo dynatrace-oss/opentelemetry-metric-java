@@ -139,8 +139,8 @@ class CumulativeToDeltaConverter {
   }
 
   /**
-   * The implementation of the {@link Attributes} interface shipped with OpenTelemetry ({@link
-   * ArrayBackedAttributes}) guarantees that the elements are sorted by their key, and that no
+   * The implementation of the {@link Attributes} interface shipped with OpenTelemetry
+   * (ArrayBackedAttributes) guarantees that the elements are sorted by their key, and that no
    * duplicate keys exist. If a different implementation is used instead, it *must* ensure the same
    * behavior, otherwise the behavior of this exporter cannot be guaranteed.
    *
@@ -151,6 +151,7 @@ class CumulativeToDeltaConverter {
     if (attributes.isEmpty()) {
       return "";
     }
+
     StringJoiner joiner = new StringJoiner(",");
 
     // Attributes are sorted by key once they are "built"

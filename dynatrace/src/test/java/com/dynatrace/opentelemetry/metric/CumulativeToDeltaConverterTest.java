@@ -15,6 +15,7 @@ package com.dynatrace.opentelemetry.metric;
 
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.DoublePointData;
@@ -214,9 +215,7 @@ class CumulativeToDeltaConverterTest {
   }
 
   @Test
-  void testAttributesAreDeDuplicated() {
-    // a delta is correctly calculated for the second metric, meaning that these two metrics are
-    // considered equal by the delta calculation. The duplicated attribute attr1 is removed.
+  void testCumulativeToDeltaWithDuplicatedAttributes() {
     assertThat(
             converter.convertLongTotalToDelta(
                 "test",
@@ -226,16 +225,33 @@ class CumulativeToDeltaConverterTest {
     assertThat(
             converter.convertLongTotalToDelta(
                 "test",
-                createLongPointData( // has 'attr1' twice
+                createLongPointData(
                     200L,
                     1,
                     Attributes.of(
                         stringKey("attr1"),
-                        "v1",
+                        "some value",
                         stringKey("attr2"),
                         "v2",
                         stringKey("attr1"),
                         "v1"))))
         .isEqualTo(100L);
+  }
+
+  @Test
+  void testAttributesAreDeDuplicateAndSorted() {
+    // Our converter relies on the sorting and deduplication to properly
+    // create identifiers out of metrics. For this reason, we have this test.
+    Attributes attributes =
+        Attributes.of(
+            stringKey("attr2"), "v2", stringKey("attr1"), "some value", stringKey("attr1"), "v1");
+
+    Object[] keys = attributes.asMap().keySet().toArray();
+
+    assertEquals("attr1", keys[0].toString());
+    assertEquals("v1", attributes.get(stringKey("attr1")));
+
+    assertEquals("attr2", keys[1].toString());
+    assertEquals("v2", attributes.get(stringKey("attr2")));
   }
 }

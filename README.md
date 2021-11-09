@@ -1,8 +1,5 @@
 # Dynatrace OpenTelemetry Metrics Exporter for Java
 
-This exporter is built against the OpenTelemetry Java SDK [v1.7.1](
-https://github.com/open-telemetry/opentelemetry-java/releases/tag/v1.7.1).
-
 > This exporter is based on the OpenTelemetry Metrics SDK for Java, which is
 > currently in an alpha state and neither considered stable
 > nor complete as of this writing.
@@ -11,6 +8,9 @@ https://github.com/open-telemetry/opentelemetry-java/releases/tag/v1.7.1).
 > See [open-telemetry/opentelemetry-java](
 https://github.com/open-telemetry/opentelemetry-java)
 > for the current state of the OpenTelemetry SDK for Java.
+
+This exporter is built against the OpenTelemetry Java SDK [v1.7.1](
+https://github.com/open-telemetry/opentelemetry-java/releases/tag/v1.7.1).
 
 ## Getting started
 
