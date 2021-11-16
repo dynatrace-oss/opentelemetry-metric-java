@@ -79,7 +79,8 @@ class CumulativeToDeltaConverterTest {
         .isCloseTo(100.3, offset);
 
     try {
-      Thread.sleep(100);
+      // wait for the map entries to expire
+      Thread.sleep(120);
     } catch (InterruptedException ignored) {
     }
 
@@ -159,7 +160,8 @@ class CumulativeToDeltaConverterTest {
         .isEqualTo(100L);
 
     try {
-      Thread.sleep(100);
+      // wait for the map entries to expire
+      Thread.sleep(120);
     } catch (InterruptedException ignored) {
     }
 

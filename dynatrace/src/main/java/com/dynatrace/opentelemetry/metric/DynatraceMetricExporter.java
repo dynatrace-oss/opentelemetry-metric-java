@@ -28,6 +28,7 @@ import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -200,13 +201,18 @@ public final class DynatraceMetricExporter implements MetricExporter {
                   new InputStreamReader(connection.getInputStream(), Charsets.UTF_8));
           resultCode = handleSuccess(code, metricLines.size(), response);
         } else {
-          String response =
-              CharStreams.toString(
-                  new InputStreamReader(connection.getErrorStream(), Charsets.UTF_8));
-          logger.warning(
-              () ->
+          if (logger.isLoggable(Level.WARNING)) {
+            InputStream errorStream = connection.getErrorStream();
+            if (errorStream != null) {
+              String message =
+                  CharStreams.toString(new InputStreamReader(errorStream, Charsets.UTF_8));
+              logger.warning(
                   String.format(
-                      "Error while exporting. Status code: %d; Response: %s", code, response));
+                      "Error while exporting. Status code: %d; Response: %s", code, message));
+            } else {
+              logger.warning(String.format("Error while exporting. Status code: %d", code));
+            }
+          }
           resultCode = CompletableResultCode.ofFailure();
         }
       } catch (Exception e) {
