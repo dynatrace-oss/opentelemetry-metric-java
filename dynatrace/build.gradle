@@ -16,7 +16,7 @@
 
 plugins {
     id 'java'
-    id 'com.github.sherter.google-java-format' version '0.8'
+    id "com.diffplug.spotless" version "6.0.0"
 }
 
 group = "com.dynatrace.opentelemetry.metric"
@@ -47,5 +47,18 @@ test {
     useJUnitPlatform()
     testLogging {
         events "passed", "skipped", "failed"
+    }
+}
+
+spotless {
+    format 'misc', {
+        target '*.gradle', '*.md', '.gitignore'
+
+        trimTrailingWhitespace()
+        indentWithSpaces(4)
+        endWithNewline()
+    }
+    java {
+        googleJavaFormat()
     }
 }

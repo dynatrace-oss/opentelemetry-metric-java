@@ -16,7 +16,7 @@
 
 plugins {
     id 'application'
-    id 'com.github.sherter.google-java-format' version '0.8'
+    id 'com.diffplug.spotless' version '6.0.0'
 }
 
 mainClassName = "com.dynatrace.opentelemetry.metric.example.DynatraceExporterExample"
@@ -37,4 +37,17 @@ dependencies {
     implementation("io.opentelemetry:opentelemetry-sdk:${otelVersion}")
     implementation("io.opentelemetry:opentelemetry-sdk-metrics:${otelVersion}-alpha")
     implementation project(":dynatrace")
+}
+
+spotless {
+    format 'misc', {
+        target '*.gradle', '*.md', '.gitignore'
+
+        trimTrailingWhitespace()
+        indentWithSpaces(4)
+        endWithNewline()
+    }
+    java {
+        googleJavaFormat()
+    }
 }
