@@ -29,7 +29,6 @@ import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -175,9 +174,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
   }
 
   @VisibleForTesting
-  CompletableResultCode export(
-      Collection<MetricData> metrics, HttpURLConnection connection) {
-
+  CompletableResultCode export(Collection<MetricData> metrics, HttpURLConnection connection) {
     List<String> metricLines = serializeToMetricLines(metrics);
     for (List<String> partition :
         Lists.partition(metricLines, DynatraceMetricApiConstants.getPayloadLinesLimit())) {
