@@ -28,6 +28,8 @@ import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
+
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -202,16 +204,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
           resultCode = handleSuccess(code, metricLines.size(), response);
         } else {
           if (logger.isLoggable(Level.WARNING)) {
-            InputStream errorStream = connection.getErrorStream();
-            if (errorStream != null) {
-              String message =
-                  CharStreams.toString(new InputStreamReader(errorStream, Charsets.UTF_8));
-              logger.warning(
-                  String.format(
-                      "Error while exporting. Status code: %d; Response: %s", code, message));
-            } else {
-              logger.warning(String.format("Error while exporting. Status code: %d", code));
-            }
+            logExportingError(connection.getErrorStream(), code);
           }
           resultCode = CompletableResultCode.ofFailure();
         }
@@ -224,6 +217,16 @@ public final class DynatraceMetricExporter implements MetricExporter {
       }
     }
     return CompletableResultCode.ofSuccess();
+  }
+
+  private void logExportingError(InputStream errorStream, int code) throws IOException {
+    if (errorStream != null) {
+      String message = CharStreams.toString(new InputStreamReader(errorStream, Charsets.UTF_8));
+      logger.warning(
+          String.format("Error while exporting. Status code: %d; Response: %s", code, message));
+    } else {
+      logger.warning(String.format("Error while exporting. Status code: %d", code));
+    }
   }
 
   private CompletableResultCode handleSuccess(int code, int totalLines, String response) {
