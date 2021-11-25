@@ -129,7 +129,7 @@ class CumulativeToDeltaConverter {
   }
 
   // VisibleForTesting
-  void reset() {
+  void expireCache() {
     this.cache.invalidateAll();
   }
 

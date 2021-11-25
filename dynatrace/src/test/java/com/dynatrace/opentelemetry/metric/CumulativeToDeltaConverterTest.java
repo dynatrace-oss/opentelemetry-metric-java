@@ -32,7 +32,7 @@ class CumulativeToDeltaConverterTest {
 
   @BeforeEach
   void setUp() {
-    converter.reset();
+    converter.expireCache();
   }
 
   private DoublePointData createDoublePointData(Double value, int offset, Attributes attributes) {
@@ -78,11 +78,8 @@ class CumulativeToDeltaConverterTest {
     assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(300.7, 2)))
         .isCloseTo(100.3, offset);
 
-    try {
-      // wait for the map entries to expire
-      Thread.sleep(120);
-    } catch (InterruptedException ignored) {
-    }
+    // simulate the cache expiring
+    this.converter.expireCache();
 
     // after the timeout the map is reset.
     assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(100.3, 3)))
@@ -159,11 +156,8 @@ class CumulativeToDeltaConverterTest {
     assertThat(converter.convertLongTotalToDelta("test", createLongPointData(300L, 2)))
         .isEqualTo(100L);
 
-    try {
-      // wait for the map entries to expire
-      Thread.sleep(120);
-    } catch (InterruptedException ignored) {
-    }
+    // simulate the cache expiring.
+    this.converter.expireCache();
 
     assertThat(converter.convertLongTotalToDelta("test", createLongPointData(400L, 3))).isNull();
   }
