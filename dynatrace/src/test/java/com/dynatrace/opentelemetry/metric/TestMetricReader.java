@@ -20,6 +20,8 @@ import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import io.opentelemetry.sdk.metrics.export.MetricProducer;
 import io.opentelemetry.sdk.metrics.export.MetricReader;
 import io.opentelemetry.sdk.metrics.export.MetricReaderFactory;
+
+import javax.annotation.Nonnull;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -52,8 +54,9 @@ class TestMetricReader implements MetricReader, MetricReaderFactory {
     return CompletableResultCode.ofSuccess();
   }
 
+
   @Override
-  public MetricReader apply(MetricProducer producer) {
+  public MetricReader apply(@Nonnull MetricProducer producer) {
     this.metricProducer = producer;
     return this;
   }

@@ -82,7 +82,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
     }
 
     if (enrichWithOneAgentMetaData) {
-      builder = builder.withOneAgentMetadata();
+      builder = builder.withDynatraceMetadata();
     }
 
     List<Dimension> dimensions;
@@ -175,7 +175,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
   }
 
   @VisibleForTesting
-  protected CompletableResultCode export(
+  CompletableResultCode export(
       Collection<MetricData> metrics, HttpURLConnection connection) {
 
     List<String> metricLines = serializeToMetricLines(metrics);
