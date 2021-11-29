@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2021 Dynatrace LLC
  *
  * <p>Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
@@ -11,6 +11,7 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.dynatrace.opentelemetry.metric;
 
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
@@ -32,7 +33,7 @@ class CumulativeToDeltaConverterTest {
 
   @BeforeEach
   void setUp() {
-    converter.reset();
+    converter.expireCache();
   }
 
   private DoublePointData createDoublePointData(Double value, int offset, Attributes attributes) {
@@ -78,10 +79,8 @@ class CumulativeToDeltaConverterTest {
     assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(300.7, 2)))
         .isCloseTo(100.3, offset);
 
-    try {
-      Thread.sleep(100);
-    } catch (InterruptedException ignored) {
-    }
+    // simulate the cache expiring
+    this.converter.expireCache();
 
     // after the timeout the map is reset.
     assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(100.3, 3)))
@@ -158,10 +157,8 @@ class CumulativeToDeltaConverterTest {
     assertThat(converter.convertLongTotalToDelta("test", createLongPointData(300L, 2)))
         .isEqualTo(100L);
 
-    try {
-      Thread.sleep(100);
-    } catch (InterruptedException ignored) {
-    }
+    // simulate the cache expiring.
+    this.converter.expireCache();
 
     assertThat(converter.convertLongTotalToDelta("test", createLongPointData(400L, 3))).isNull();
   }

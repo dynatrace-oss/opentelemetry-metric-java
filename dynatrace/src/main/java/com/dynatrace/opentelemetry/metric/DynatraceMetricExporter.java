@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2020 Dynatrace LLC
  *
  * <p>Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
@@ -11,6 +11,7 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.dynatrace.opentelemetry.metric;
 
 import com.dynatrace.metric.util.Dimension;
@@ -28,6 +29,8 @@ import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -78,7 +81,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
     }
 
     if (enrichWithOneAgentMetaData) {
-      builder = builder.withOneAgentMetadata();
+      builder = builder.withDynatraceMetadata();
     }
 
     List<Dimension> dimensions;
@@ -171,9 +174,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
   }
 
   @VisibleForTesting
-  protected CompletableResultCode export(
-      Collection<MetricData> metrics, HttpURLConnection connection) {
-
+  CompletableResultCode export(Collection<MetricData> metrics, HttpURLConnection connection) {
     List<String> metricLines = serializeToMetricLines(metrics);
     for (List<String> partition :
         Lists.partition(metricLines, DynatraceMetricApiConstants.getPayloadLinesLimit())) {
@@ -200,13 +201,9 @@ public final class DynatraceMetricExporter implements MetricExporter {
                   new InputStreamReader(connection.getInputStream(), Charsets.UTF_8));
           resultCode = handleSuccess(code, metricLines.size(), response);
         } else {
-          String response =
-              CharStreams.toString(
-                  new InputStreamReader(connection.getErrorStream(), Charsets.UTF_8));
-          logger.warning(
-              () ->
-                  String.format(
-                      "Error while exporting. Status code: %d; Response: %s", code, response));
+          if (logger.isLoggable(Level.WARNING)) {
+            logExportingError(connection.getErrorStream(), code);
+          }
           resultCode = CompletableResultCode.ofFailure();
         }
       } catch (Exception e) {
@@ -218,6 +215,16 @@ public final class DynatraceMetricExporter implements MetricExporter {
       }
     }
     return CompletableResultCode.ofSuccess();
+  }
+
+  private void logExportingError(InputStream errorStream, int code) throws IOException {
+    if (errorStream != null) {
+      String message = CharStreams.toString(new InputStreamReader(errorStream, Charsets.UTF_8));
+      logger.warning(
+          String.format("Error while exporting. Status code: %d; Response: %s", code, message));
+    } else {
+      logger.warning(String.format("Error while exporting. Status code: %d", code));
+    }
   }
 
   private CompletableResultCode handleSuccess(int code, int totalLines, String response) {

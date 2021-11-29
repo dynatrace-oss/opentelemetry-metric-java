@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2021 Dynatrace LLC
  *
  * <p>Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
@@ -11,6 +11,7 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.dynatrace.opentelemetry.metric;
 
 import static org.assertj.core.api.Assertions.*;
@@ -629,7 +630,7 @@ class DynatraceMetricExporterTest {
   }
 
   @Test
-  void testCounterWithViewCumulativeTemporality() throws IOException, InterruptedException {
+  void testCounterWithViewCumulativeTemporality() throws IOException {
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     URL url = mock(URL.class);
     HttpURLConnection connection = mock(HttpURLConnection.class);
