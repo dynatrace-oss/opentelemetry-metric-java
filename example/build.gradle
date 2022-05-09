@@ -22,20 +22,20 @@ plugins {
 mainClassName = "com.dynatrace.opentelemetry.metric.example.DynatraceExporterExample"
 
 group = "com.dynatrace.opentelemetry.metric.example"
-version = "0.2.0-alpha"
+version = "0.3.0-alpha"
 
 repositories {
     mavenCentral()
-    jcenter()
+    maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
 }
 
-def otelVersion = '1.7.1'
+def otelVersion = '1.14.0-SNAPSHOT'
 
 dependencies {
-    implementation("io.opentelemetry:opentelemetry-api:${otelVersion}")
-    implementation("io.opentelemetry:opentelemetry-api-metrics:${otelVersion}-alpha")
-    implementation("io.opentelemetry:opentelemetry-sdk:${otelVersion}")
-    implementation("io.opentelemetry:opentelemetry-sdk-metrics:${otelVersion}-alpha")
+    implementation platform("io.opentelemetry:opentelemetry-bom:${otelVersion}")
+    implementation("io.opentelemetry:opentelemetry-api")
+    implementation("io.opentelemetry:opentelemetry-sdk")
+
     implementation project(":dynatrace")
 }
 

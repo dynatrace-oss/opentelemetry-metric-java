@@ -24,13 +24,17 @@ version = "0.4.0-alpha"
 
 repositories {
     mavenCentral()
+    maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
 }
 
-def otelVersion = '1.7.1'
+def otelVersion = '1.14.0-SNAPSHOT'
 
 dependencies {
-    implementation("io.opentelemetry:opentelemetry-sdk:${otelVersion}")
-    implementation("io.opentelemetry:opentelemetry-sdk-metrics:${otelVersion}-alpha")
+    implementation platform("io.opentelemetry:opentelemetry-bom:${otelVersion}")
+    implementation('io.opentelemetry:opentelemetry-sdk')
+    implementation('io.opentelemetry:opentelemetry-sdk-metrics')
+
+
     implementation("com.google.guava:guava:30.0-jre")
 
     implementation('com.dynatrace.metric.util:dynatrace-metric-utils-java:1.1.+')
@@ -40,7 +44,7 @@ dependencies {
     testImplementation("org.assertj:assertj-core:3.11.1")
 
     testImplementation("org.mockito:mockito-core:3.12.4")
-    testImplementation("io.opentelemetry:opentelemetry-sdk-testing:${otelVersion}")
+    testImplementation('io.opentelemetry:opentelemetry-sdk-testing')
 }
 
 test {
