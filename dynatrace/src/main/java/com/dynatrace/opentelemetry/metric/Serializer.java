@@ -173,24 +173,29 @@ final class Serializer {
   @VisibleForTesting
   List<String> createDoubleSummaryLines(MetricData metric) {
     List<String> lines = new ArrayList<>();
-    for (DoubleSummaryPointData point : metric.getDoubleSummaryData().getPoints()) {
+    for (SummaryPointData point : metric.getSummaryData().getPoints()) {
       double min = Double.NaN;
       double max = Double.NaN;
       double sum = point.getSum();
       long count = point.getCount();
 
-      List<ValueAtPercentile> percentileValues = point.getPercentileValues();
-      for (ValueAtPercentile percentileValue : percentileValues) {
-        if (Math.abs(percentileValue.getPercentile() - 0.0) < PERCENTILE_PRECISION) {
-          min = percentileValue.getValue();
-        } else if (Math.abs(percentileValue.getPercentile() - 100.0) < PERCENTILE_PRECISION) {
-          max = percentileValue.getValue();
+      for (ValueAtQuantile valueAtQuantile : point.getValues()) {
+        if (Math.abs(valueAtQuantile.getQuantile() - 0.0) < PERCENTILE_PRECISION) {
+          // 0% quantile == minimum
+          min = valueAtQuantile.getValue();
+        } else if (Math.abs(valueAtQuantile.getQuantile() - 100.0) < PERCENTILE_PRECISION) {
+          // 100% quantile == maximum
+          max = valueAtQuantile.getValue();
         }
       }
+
       if (Double.isNaN(min) || Double.isNaN(max)) {
         logger.warning(
             () ->
-                "The min and/or max value could not be retrieved. This happens if the 0% and 100% quantile are not set for the summary.");
+                "The min and/or max value could not be retrieved. This happens if the 0% and 100% quantile are not set for the summary. Using mean instead.");
+        double mean = sum / count;
+        min = mean;
+        max = mean;
       }
 
       try {
@@ -209,9 +214,9 @@ final class Serializer {
   @VisibleForTesting
   List<String> createDoubleHistogramLines(MetricData metric) {
     List<String> lines = new ArrayList<>();
-    for (DoubleHistogramPointData point : metric.getDoubleHistogramData().getPoints()) {
-      double min = getMinFromBoundaries(point);
-      double max = getMaxFromBoundaries(point);
+    for (HistogramPointData point : metric.getHistogramData().getPoints()) {
+      double min = point.hasMin() ? point.getMin() : getMinFromBoundaries(point);
+      double max = point.hasMax() ? point.getMax() : getMaxFromBoundaries(point);
       double sum = point.getSum();
       long count = point.getCount();
 
@@ -229,7 +234,7 @@ final class Serializer {
   }
 
   @VisibleForTesting
-  static double getMinFromBoundaries(DoubleHistogramPointData pointData) {
+  static double getMinFromBoundaries(HistogramPointData pointData) {
     if (pointData.getCounts().size() == 1) {
       // In this case, only one bucket exists: (-Inf, Inf). If there were any boundaries, there
       // would be more counts.
@@ -237,7 +242,7 @@ final class Serializer {
         // in case the single bucket contains something, use the mean as min.
         return pointData.getSum() / pointData.getCount();
       }
-      // otherwise the histogram has no data. Use the sum as the min and max, respectively.
+      // otherwise, the histogram has no data. Use the sum as the min and max, respectively.
       return pointData.getSum();
     }
 
@@ -270,7 +275,7 @@ final class Serializer {
   }
 
   @VisibleForTesting
-  static double getMaxFromBoundaries(DoubleHistogramPointData pointData) {
+  static double getMaxFromBoundaries(HistogramPointData pointData) {
     // see getMinFromBoundaries for a very similar method that is annotated.
     if (pointData.getCounts().size() == 1) {
       if (pointData.getCounts().get(0) > 0) {

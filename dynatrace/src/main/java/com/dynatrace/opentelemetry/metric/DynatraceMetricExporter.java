@@ -26,6 +26,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.common.CompletableResultCode;
+import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
@@ -261,6 +262,12 @@ public final class DynatraceMetricExporter implements MetricExporter {
   @Override
   public CompletableResultCode shutdown() {
     return CompletableResultCode.ofSuccess();
+  }
+
+  @Override
+  public AggregationTemporality getAggregationTemporality(InstrumentType instrumentType) {
+    // Use Delta export.
+    return AggregationTemporality.DELTA;
   }
 
   public static class Builder {
