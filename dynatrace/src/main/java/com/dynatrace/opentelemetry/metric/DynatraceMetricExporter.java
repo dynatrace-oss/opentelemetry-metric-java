@@ -19,7 +19,6 @@ import com.dynatrace.metric.util.DimensionList;
 import com.dynatrace.metric.util.DynatraceMetricApiConstants;
 import com.dynatrace.metric.util.MetricBuilderFactory;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -40,6 +39,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -55,11 +55,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
 
   private static final Logger logger = Logger.getLogger(DynatraceMetricExporter.class.getName());
   private static final List<Dimension> staticDimensions =
-      new ArrayList<Dimension>() {
-        {
-          add(Dimension.create("dt.metrics.source", "opentelemetry"));
-        }
-      };
+      Collections.singletonList(Dimension.create("dt.metrics.source", "opentelemetry"));
 
   private static final Pattern EXTRACT_LINES_OK = Pattern.compile("\"linesOk\":\\s?(\\d+)");
   private static final Pattern EXTRACT_LINES_INVALID =
@@ -182,7 +178,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
       CompletableResultCode resultCode;
       String joinedMetricLines = Joiner.on('\n').join(partition);
 
-      logger.finer(() -> String.format("Exporting metrics:\n%s", joinedMetricLines));
+      logger.finer(() -> String.format("Exporting metrics:%n%s", joinedMetricLines));
       try {
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Accept", "*/*; q=0");
@@ -199,7 +195,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
         if (code < 400) {
           String response =
               CharStreams.toString(
-                  new InputStreamReader(connection.getInputStream(), Charsets.UTF_8));
+                  new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8));
           resultCode = handleSuccess(code, metricLines.size(), response);
         } else {
           if (logger.isLoggable(Level.WARNING)) {
@@ -220,11 +216,13 @@ public final class DynatraceMetricExporter implements MetricExporter {
 
   private void logExportingError(InputStream errorStream, int code) throws IOException {
     if (errorStream != null) {
-      String message = CharStreams.toString(new InputStreamReader(errorStream, Charsets.UTF_8));
+      String message =
+          CharStreams.toString(new InputStreamReader(errorStream, StandardCharsets.UTF_8));
       logger.warning(
-          String.format("Error while exporting. Status code: %d; Response: %s", code, message));
+          () ->
+              String.format("Error while exporting. Status code: %d; Response: %s", code, message));
     } else {
-      logger.warning(String.format("Error while exporting. Status code: %d", code));
+      logger.warning(() -> String.format("Error while exporting. Status code: %d", code));
     }
   }
 

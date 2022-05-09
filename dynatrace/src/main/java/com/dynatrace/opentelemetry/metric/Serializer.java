@@ -84,7 +84,6 @@ final class Serializer {
     return DimensionList.fromCollection(toListOfDimensions(attributes));
   }
 
-  @VisibleForTesting
   List<String> createLongSumLines(MetricData metric, boolean isDelta) {
     List<String> lines = new ArrayList<>();
     for (LongPointData point : metric.getLongSumData().getPoints()) {
@@ -112,7 +111,6 @@ final class Serializer {
     return lines;
   }
 
-  @VisibleForTesting
   List<String> createLongGaugeLines(MetricData metric) {
     List<String> lines = new ArrayList<>();
     for (LongPointData point : metric.getLongGaugeData().getPoints()) {
@@ -127,7 +125,6 @@ final class Serializer {
     return lines;
   }
 
-  @VisibleForTesting
   List<String> createDoubleGaugeLines(MetricData metric) {
     List<String> lines = new ArrayList<>();
     for (DoublePointData point : metric.getDoubleGaugeData().getPoints()) {
@@ -142,7 +139,6 @@ final class Serializer {
     return lines;
   }
 
-  @VisibleForTesting
   List<String> createDoubleSumLines(MetricData metric, boolean isDelta) {
     List<String> lines = new ArrayList<>();
     for (DoublePointData point : metric.getDoubleSumData().getPoints()) {
@@ -170,7 +166,6 @@ final class Serializer {
     return lines;
   }
 
-  @VisibleForTesting
   List<String> createDoubleSummaryLines(MetricData metric) {
     List<String> lines = new ArrayList<>();
     for (SummaryPointData point : metric.getSummaryData().getPoints()) {
@@ -211,7 +206,6 @@ final class Serializer {
     return lines;
   }
 
-  @VisibleForTesting
   List<String> createDoubleHistogramLines(MetricData metric) {
     List<String> lines = new ArrayList<>();
     for (HistogramPointData point : metric.getHistogramData().getPoints()) {
