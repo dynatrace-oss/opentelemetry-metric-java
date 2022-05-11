@@ -133,23 +133,18 @@ public final class DynatraceMetricExporter implements MetricExporter {
   private List<String> serializeToMetricLines(Collection<MetricData> metrics) {
     ArrayList<String> metricLines = new ArrayList<>();
     for (MetricData metric : metrics) {
-      boolean isDelta;
       switch (metric.getType()) {
         case LONG_GAUGE:
           metricLines.addAll(serializer.createLongGaugeLines(metric));
           break;
         case LONG_SUM:
-          isDelta =
-              metric.getLongSumData().getAggregationTemporality() == AggregationTemporality.DELTA;
-          metricLines.addAll(serializer.createLongSumLines(metric, isDelta));
+          metricLines.addAll(serializer.createLongSumLines(metric));
           break;
         case DOUBLE_GAUGE:
           metricLines.addAll(serializer.createDoubleGaugeLines(metric));
           break;
         case DOUBLE_SUM:
-          isDelta =
-              metric.getDoubleSumData().getAggregationTemporality() == AggregationTemporality.DELTA;
-          metricLines.addAll(serializer.createDoubleSumLines(metric, isDelta));
+          metricLines.addAll(serializer.createDoubleSumLines(metric));
           break;
         case SUMMARY:
           metricLines.addAll(serializer.createDoubleSummaryLines(metric));
