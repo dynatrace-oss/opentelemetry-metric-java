@@ -259,7 +259,12 @@ public final class DynatraceMetricExporter implements MetricExporter {
 
   @Override
   public AggregationTemporality getAggregationTemporality(InstrumentType instrumentType) {
-    // Use Delta export.
+    if (instrumentType == InstrumentType.OBSERVABLE_UP_DOWN_COUNTER
+        || instrumentType == InstrumentType.UP_DOWN_COUNTER) {
+      // Use cumulative temporality for non-monotonic sums
+      return AggregationTemporality.CUMULATIVE;
+    }
+    // Otherwise, use delta temporality.
     return AggregationTemporality.DELTA;
   }
 
