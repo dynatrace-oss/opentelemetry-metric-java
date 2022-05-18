@@ -22,6 +22,9 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.DoublePointData;
 import io.opentelemetry.sdk.metrics.data.LongPointData;
 import java.time.Duration;
+
+import io.opentelemetry.sdk.metrics.internal.data.ImmutableDoublePointData;
+import io.opentelemetry.sdk.metrics.internal.data.ImmutableLongPointData;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,7 +40,7 @@ class CumulativeToDeltaConverterTest {
   }
 
   private DoublePointData createDoublePointData(Double value, int offset, Attributes attributes) {
-    return DoublePointData.create(
+    return ImmutableDoublePointData.create(
         1619687659000000000L,
         1619687659000000000L + Duration.ofSeconds(offset).toNanos(),
         attributes,
@@ -53,7 +56,7 @@ class CumulativeToDeltaConverterTest {
   }
 
   private LongPointData createLongPointData(Long value, int offset, Attributes attributes) {
-    return LongPointData.create(
+    return ImmutableLongPointData.create(
         1619687659000000000L,
         1619687659000000000L + Duration.ofSeconds(offset).toNanos(),
         attributes,
