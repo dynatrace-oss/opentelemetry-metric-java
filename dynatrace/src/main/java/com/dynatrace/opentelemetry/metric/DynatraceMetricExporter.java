@@ -47,7 +47,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 
-/** Export metric to Dynatrace. */
+/** Export metrics to Dynatrace. */
 public final class DynatraceMetricExporter implements MetricExporter {
   private final URL url;
   private final String apiToken;
@@ -68,9 +68,11 @@ public final class DynatraceMetricExporter implements MetricExporter {
       String prefix,
       Attributes defaultDimensions,
       boolean enrichWithOneAgentMetaData) {
-    this.url = url;
-    this.apiToken = apiToken;
+    this(url, apiToken, prepareSerializer(prefix, defaultDimensions, enrichWithOneAgentMetaData));
+  }
 
+  private static Serializer prepareSerializer(
+      String prefix, Attributes defaultDimensions, boolean enrichWithOneAgentMetaData) {
     MetricBuilderFactory.MetricBuilderFactoryBuilder builder = MetricBuilderFactory.builder();
 
     if (!Strings.isNullOrEmpty(prefix)) {
@@ -90,8 +92,14 @@ public final class DynatraceMetricExporter implements MetricExporter {
 
     dimensions.addAll(staticDimensions);
     builder.withDefaultDimensions(DimensionList.fromCollection(dimensions));
+    return new Serializer(builder.build());
+  }
 
-    serializer = new Serializer(builder.build());
+  @VisibleForTesting
+  DynatraceMetricExporter(URL url, String apiToken, Serializer serializer) {
+    this.url = url;
+    this.apiToken = apiToken;
+    this.serializer = serializer;
   }
 
   public static Builder builder() {
@@ -130,7 +138,8 @@ public final class DynatraceMetricExporter implements MetricExporter {
     return export(metrics, connection);
   }
 
-  private List<String> serializeToMetricLines(Collection<MetricData> metrics) {
+  @VisibleForTesting
+  List<String> serializeToMetricLines(Collection<MetricData> metrics) {
     ArrayList<String> metricLines = new ArrayList<>();
     for (MetricData metric : metrics) {
       switch (metric.getType()) {

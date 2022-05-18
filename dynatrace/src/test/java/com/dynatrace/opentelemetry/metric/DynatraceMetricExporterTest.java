@@ -14,60 +14,44 @@
 
 package com.dynatrace.opentelemetry.metric;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.*;
-
+import com.dynatrace.metric.util.Dimension;
+import com.dynatrace.metric.util.DimensionList;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.metrics.LongCounter;
-import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.common.CompletableResultCode;
-import io.opentelemetry.sdk.common.InstrumentationLibraryInfo;
-import io.opentelemetry.sdk.metrics.SdkMeterProvider;
-import io.opentelemetry.sdk.metrics.common.InstrumentType;
-import io.opentelemetry.sdk.metrics.data.*;
-import io.opentelemetry.sdk.metrics.view.Aggregation;
-import io.opentelemetry.sdk.metrics.view.InstrumentSelector;
-import io.opentelemetry.sdk.metrics.view.View;
-import io.opentelemetry.sdk.resources.Resource;
-import io.opentelemetry.sdk.testing.time.TestClock;
+import io.opentelemetry.sdk.metrics.InstrumentType;
+import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
+import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.opentelemetry.sdk.metrics.data.MetricDataType;
+import io.opentelemetry.sdk.metrics.internal.data.ImmutableDoublePointData;
+import io.opentelemetry.sdk.metrics.internal.data.ImmutableMetricData;
+import io.opentelemetry.sdk.metrics.internal.data.ImmutableSumData;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.ProtocolException;
 import java.net.URL;
-import java.time.Duration;
-import java.util.*;
-import org.junit.jupiter.api.Test;
+import java.util.Collections;
+import java.util.stream.Stream;
+
+import static com.dynatrace.opentelemetry.metric.TestDataConstants.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.*;
 
 class DynatraceMetricExporterTest {
 
-  public static MetricData generateMetricData() {
-    return generateMetricDataWithAttributes(Attributes.empty());
-  }
-
-  private final TestClock testClock = TestClock.create();
-
-  public static MetricData generateMetricDataWithAttributes(Attributes attributes) {
-    return MetricData.createDoubleSum(
-        Resource.create(Attributes.builder().build()),
-        InstrumentationLibraryInfo.empty(),
-        "name",
-        "desc",
-        "",
-        DoubleSumData.create(
-            true,
-            AggregationTemporality.DELTA,
-            Collections.singleton(
-                DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, attributes, 194.0))));
-  }
-
   @Test
   void testExport() throws IOException {
-    MetricData md = generateMetricData();
+    MetricData md = generateValidDoubleSumData();
 
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     ByteArrayInputStream bis =
@@ -78,6 +62,7 @@ class DynatraceMetricExporterTest {
 
     DynatraceMetricExporter metricExporter =
         DynatraceMetricExporter.builder()
+            .setEnrichWithOneAgentMetaData(false)
             .setApiToken("mytoken")
             .setUrl(connection.getURL())
             .build();
@@ -86,23 +71,26 @@ class DynatraceMetricExporterTest {
 
     assertExportRequestSuccess(
         connection,
-        "name,dt.metrics.source=opentelemetry count,delta=194.0 1619687659000",
+        String.format(
+            "%s,dt.metrics.source=opentelemetry count,delta=194.0 %d", DEFAULT_NAME, MILLIS_TS_2),
         bos.toString(),
         result);
   }
 
   @Test
   void testFailedExport() throws IOException {
-    MetricData md = generateMetricData();
+    MetricData md = generateValidDoubleSumData();
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
 
     HttpURLConnection connection = setUpMockConnection(400, bos, null);
 
     DynatraceMetricExporter metricExporter =
         DynatraceMetricExporter.builder()
+            .setEnrichWithOneAgentMetaData(false)
             .setApiToken("mytoken")
             .setUrl(connection.getURL())
             .build();
+
     CompletableResultCode result = metricExporter.export(Collections.singleton(md), connection);
 
     assertEquals(CompletableResultCode.ofFailure(), result);
@@ -110,7 +98,7 @@ class DynatraceMetricExporterTest {
 
   @Test
   void testAddPrefix() throws IOException {
-    MetricData md = generateMetricData();
+    MetricData md = generateValidDoubleSumData();
 
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     ByteArrayInputStream bis =
@@ -121,6 +109,7 @@ class DynatraceMetricExporterTest {
 
     DynatraceMetricExporter metricExporter =
         DynatraceMetricExporter.builder()
+            .setEnrichWithOneAgentMetaData(false)
             .setApiToken("mytoken")
             .setUrl(connection.getURL())
             .setPrefix("prefix")
@@ -130,14 +119,16 @@ class DynatraceMetricExporterTest {
 
     assertExportRequestSuccess(
         connection,
-        "prefix.name,dt.metrics.source=opentelemetry count,delta=194.0 1619687659000",
+        String.format(
+            "prefix.%s,dt.metrics.source=opentelemetry count,delta=194.0 %d",
+            DEFAULT_NAME, MILLIS_TS_2),
         bos.toString(),
         result);
   }
 
   @Test
   void addDefaultDimensions() throws IOException {
-    MetricData md = generateMetricData();
+    MetricData md = generateValidDoubleSumData();
 
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     ByteArrayInputStream bis =
@@ -148,6 +139,7 @@ class DynatraceMetricExporterTest {
 
     DynatraceMetricExporter metricExporter =
         DynatraceMetricExporter.builder()
+            .setEnrichWithOneAgentMetaData(false)
             .setApiToken("mytoken")
             .setUrl(connection.getURL())
             .setDefaultDimensions(Attributes.of(AttributeKey.stringKey("default"), "value"))
@@ -157,7 +149,9 @@ class DynatraceMetricExporterTest {
 
     assertExportRequestSuccess(
         connection,
-        "name,default=value,dt.metrics.source=opentelemetry count,delta=194.0 1619687659000",
+        String.format(
+            "%s,default=value,dt.metrics.source=opentelemetry count,delta=194.0 %d",
+            DEFAULT_NAME, MILLIS_TS_2),
         bos.toString(),
         result);
   }
@@ -165,7 +159,7 @@ class DynatraceMetricExporterTest {
   @Test
   void testWithAttributes() throws IOException {
     Attributes attributes = Attributes.builder().put("attr1", "val1").put("attr2", "val2").build();
-    MetricData md = generateMetricDataWithAttributes(attributes);
+    MetricData md = generateValidDoubleSumData(attributes);
 
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     ByteArrayInputStream bis =
@@ -176,574 +170,74 @@ class DynatraceMetricExporterTest {
 
     DynatraceMetricExporter metricExporter =
         DynatraceMetricExporter.builder()
+            .setEnrichWithOneAgentMetaData(false)
             .setApiToken("mytoken")
             .setUrl(connection.getURL())
             .build();
 
     CompletableResultCode result = metricExporter.export(Collections.singleton(md), connection);
 
-    verify(connection).setRequestMethod("POST");
-    verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
-    verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
+    assertRequestProperties(connection);
 
-    String a = bos.toString();
+    String actual = bos.toString();
+
     // Even though Attributes are sorted internally, they might be serialized in an unsorted manner.
     // This is because the utils library uses a HashMap to merge all dimensions.
-    assertThat(a)
+    assertThat(actual)
         .contains("dt.metrics.source=opentelemetry")
         .contains("attr1=val1")
-        .contains("attr2=val2");
+        .contains("attr2=val2")
+        .startsWith(DEFAULT_NAME)
+        .endsWith(String.format("count,delta=194.0 %d", MILLIS_TS_2));
     assertEquals(CompletableResultCode.ofSuccess(), result);
   }
 
   @Test
-  void testLongSumLinesCumulative() throws IOException {
-    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    ByteArrayInputStream bis =
-        new ByteArrayInputStream(
-            "{\n\"linesOk\": 2,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes());
-
-    HttpURLConnection connection = setUpMockConnection(202, bos, bis);
-
-    Collection<LongPointData> longPointDataCollection =
-        new ArrayList<LongPointData>() {
-          {
-            add(
-                LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 123L));
-            add(
-                LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 321L));
-            add(LongPointData.create(0L, 0L, Attributes.empty(), 456L));
-          }
-        };
-    LongSumData longSumData =
-        LongSumData.create(true, AggregationTemporality.CUMULATIVE, longPointDataCollection);
-
-    MetricData metricData =
-        MetricData.createLongSum(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "longSumData",
-            "",
-            "",
-            longSumData);
-
-    DynatraceMetricExporter metricExporter =
-        DynatraceMetricExporter.builder()
-            .setApiToken("mytoken")
-            .setUrl(connection.getURL())
-            .build();
-
-    CompletableResultCode result =
-        metricExporter.export(Collections.singleton(metricData), connection);
-
-    assertExportRequestSuccess(
-        connection,
-        "longSumData,dt.metrics.source=opentelemetry count,delta=198 1619687659000\n"
-            + "longSumData,dt.metrics.source=opentelemetry count,delta=135",
-        bos.toString(),
-        result);
-  }
-
-  @Test
-  void testLongSumLinesDelta() throws IOException {
-    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    ByteArrayInputStream bis =
-        new ByteArrayInputStream(
-            "{\n\"linesOk\": 3,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes());
-
-    HttpURLConnection connection = setUpMockConnection(202, bos, bis);
-
-    Collection<LongPointData> longPointDataCollection =
-        new ArrayList<LongPointData>() {
-          {
-            add(
-                LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 123L));
-            add(
-                LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 321L));
-            add(LongPointData.create(0L, 0L, Attributes.empty(), 456L));
-          }
-        };
-    LongSumData longSumData =
-        LongSumData.create(true, AggregationTemporality.DELTA, longPointDataCollection);
-
-    MetricData metricData =
-        MetricData.createLongSum(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "longSumData",
-            "",
-            "",
-            longSumData);
-
-    DynatraceMetricExporter metricExporter =
-        DynatraceMetricExporter.builder()
-            .setApiToken("mytoken")
-            .setUrl(connection.getURL())
-            .build();
-
-    CompletableResultCode result =
-        metricExporter.export(Collections.singleton(metricData), connection);
-
-    assertExportRequestSuccess(
-        connection,
-        "longSumData,dt.metrics.source=opentelemetry count,delta=123 1619687659000\n"
-            + "longSumData,dt.metrics.source=opentelemetry count,delta=321 1619687659000\n"
-            + "longSumData,dt.metrics.source=opentelemetry count,delta=456",
-        bos.toString(),
-        result);
-  }
-
-  @Test
-  void testDoubleSumLinesCumulative() throws IOException {
-    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    ByteArrayInputStream bis =
-        new ByteArrayInputStream(
-            "{\n\"linesOk\": 2,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes());
-
-    HttpURLConnection connection = setUpMockConnection(202, bos, bis);
-
-    Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<DoublePointData>() {
-          {
-            add(
-                DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 100.3));
-            add(
-                DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 300.6));
-            // No timestamps in this point, so we also test the serialization without it
-            add(DoublePointData.create(0L, 0L, Attributes.empty(), 500.8));
-          }
-        };
-    DoubleSumData doubleSumData =
-        DoubleSumData.create(true, AggregationTemporality.CUMULATIVE, doublePointDataCollection);
-    MetricData metricData =
-        MetricData.createDoubleSum(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "doubleSumData",
-            "",
-            "",
-            doubleSumData);
-
-    DynatraceMetricExporter metricExporter =
-        DynatraceMetricExporter.builder()
-            .setApiToken("mytoken")
-            .setUrl(connection.getURL())
-            .build();
-
-    CompletableResultCode result =
-        metricExporter.export(Collections.singleton(metricData), connection);
-
-    assertExportRequestSuccess(
-        connection,
-        "doubleSumData,dt.metrics.source=opentelemetry count,delta=200.3 1619687659000\n"
-            + "doubleSumData,dt.metrics.source=opentelemetry count,delta=200.2",
-        bos.toString(),
-        result);
-  }
-
-  @Test
-  void testDoubleSumLinesDelta() throws IOException {
-    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    ByteArrayInputStream bis =
-        new ByteArrayInputStream(
-            "{\n\"linesOk\": 3,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes());
-
-    HttpURLConnection connection = setUpMockConnection(202, bos, bis);
-
-    Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<DoublePointData>() {
-          {
-            add(
-                DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 123.456d));
-            add(
-                DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 321.456d));
-            add(DoublePointData.create(0L, 0L, Attributes.empty(), 654.321d));
-          }
-        };
-    DoubleSumData doubleSumData =
-        DoubleSumData.create(true, AggregationTemporality.DELTA, doublePointDataCollection);
-    MetricData metricData =
-        MetricData.createDoubleSum(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "doubleSumData",
-            "",
-            "",
-            doubleSumData);
-
-    DynatraceMetricExporter metricExporter =
-        DynatraceMetricExporter.builder()
-            .setApiToken("mytoken")
-            .setUrl(connection.getURL())
-            .build();
-
-    CompletableResultCode result =
-        metricExporter.export(Collections.singleton(metricData), connection);
-
-    assertExportRequestSuccess(
-        connection,
-        "doubleSumData,dt.metrics.source=opentelemetry count,delta=123.456 1619687659000\n"
-            + "doubleSumData,dt.metrics.source=opentelemetry count,delta=321.456 1619687659000\n"
-            + "doubleSumData,dt.metrics.source=opentelemetry count,delta=654.321",
-        bos.toString(),
-        result);
-  }
-
-  @Test
-  void testLongGaugeLines() throws IOException {
-    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    ByteArrayInputStream bis =
-        new ByteArrayInputStream(
-            "{\n\"linesOk\": 3,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes());
-
-    HttpURLConnection connection = setUpMockConnection(202, bos, bis);
-
-    Collection<LongPointData> longPointDataCollection =
-        new ArrayList<LongPointData>() {
-          {
-            add(
-                LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 123L));
-            add(
-                LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 321L));
-            add(LongPointData.create(0L, 0L, Attributes.empty(), 456L));
-          }
-        };
-    LongGaugeData longGaugeData = LongGaugeData.create(longPointDataCollection);
-    MetricData metricData =
-        MetricData.createLongGauge(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "longGaugeData",
-            "",
-            "",
-            longGaugeData);
-
-    DynatraceMetricExporter metricExporter =
-        DynatraceMetricExporter.builder()
-            .setApiToken("mytoken")
-            .setUrl(connection.getURL())
-            .build();
-
-    CompletableResultCode result =
-        metricExporter.export(Collections.singleton(metricData), connection);
-
-    assertExportRequestSuccess(
-        connection,
-        "longGaugeData,dt.metrics.source=opentelemetry gauge,123 1619687659000\n"
-            + "longGaugeData,dt.metrics.source=opentelemetry gauge,321 1619687659000\n"
-            + "longGaugeData,dt.metrics.source=opentelemetry gauge,456",
-        bos.toString(),
-        result);
-  }
-
-  @Test
-  void testDoubleGaugeLines() throws IOException {
-    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    ByteArrayInputStream bis =
-        new ByteArrayInputStream(
-            "{\n\"linesOk\": 3,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes());
-
-    HttpURLConnection connection = setUpMockConnection(202, bos, bis);
-
-    Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<DoublePointData>() {
-          {
-            add(
-                DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 123.456d));
-            add(
-                DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 321.456d));
-            add(DoublePointData.create(0L, 0L, Attributes.empty(), 654.321d));
-          }
-        };
-    DoubleGaugeData doubleGaugeData = DoubleGaugeData.create(doublePointDataCollection);
-    MetricData metricData =
-        MetricData.createDoubleGauge(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "doubleGaugeData",
-            "",
-            "",
-            doubleGaugeData);
-
-    DynatraceMetricExporter metricExporter =
-        DynatraceMetricExporter.builder()
-            .setApiToken("mytoken")
-            .setUrl(connection.getURL())
-            .build();
-
-    CompletableResultCode result =
-        metricExporter.export(Collections.singleton(metricData), connection);
-
-    assertExportRequestSuccess(
-        connection,
-        "doubleGaugeData,dt.metrics.source=opentelemetry gauge,123.456 1619687659000\n"
-            + "doubleGaugeData,dt.metrics.source=opentelemetry gauge,321.456 1619687659000\n"
-            + "doubleGaugeData,dt.metrics.source=opentelemetry gauge,654.321",
-        bos.toString(),
-        result);
-  }
-
-  @Test
-  void testDoubleSummaryLines() throws IOException {
-    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    ByteArrayInputStream bis =
-        new ByteArrayInputStream(
-            "{\n\"linesOk\": 3,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes());
-
-    HttpURLConnection connection = setUpMockConnection(202, bos, bis);
-
-    Collection<DoubleSummaryPointData> doubleSummaryPointDataCollection =
-        new ArrayList<DoubleSummaryPointData>() {
-          {
-            add(
-                DoubleSummaryPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    7,
-                    500.70d,
-                    Arrays.asList(
-                        ValueAtPercentile.create(0.0, 0.1),
-                        ValueAtPercentile.create(100.0, 100.1))));
-            add(
-                DoubleSummaryPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    3,
-                    202.66d,
-                    Arrays.asList(
-                        ValueAtPercentile.create(0.0, 0.22),
-                        ValueAtPercentile.create(100.0, 123.45))));
-            add(
-                DoubleSummaryPointData.create(
-                    0L,
-                    0L,
-                    Attributes.empty(),
-                    10,
-                    300.70d,
-                    Arrays.asList(
-                        ValueAtPercentile.create(0.0, 0.123),
-                        ValueAtPercentile.create(100.0, 234.5))));
-          }
-        };
-
-    DoubleSummaryData doubleSummaryData =
-        DoubleSummaryData.create(doubleSummaryPointDataCollection);
-    MetricData metricData =
-        MetricData.createDoubleSummary(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "doubleSummary",
-            "",
-            "",
-            doubleSummaryData);
-
-    DynatraceMetricExporter metricExporter =
-        DynatraceMetricExporter.builder()
-            .setApiToken("mytoken")
-            .setUrl(connection.getURL())
-            .build();
-
-    CompletableResultCode result =
-        metricExporter.export(Collections.singleton(metricData), connection);
-
-    assertExportRequestSuccess(
-        connection,
-        "doubleSummary,dt.metrics.source=opentelemetry gauge,min=0.1,max=100.1,sum=500.7,count=7 1619687659000\n"
-            + "doubleSummary,dt.metrics.source=opentelemetry gauge,min=0.22,max=123.45,sum=202.66,count=3 1619687659000\n"
-            + "doubleSummary,dt.metrics.source=opentelemetry gauge,min=0.123,max=234.5,sum=300.7,count=10",
-        bos.toString(),
-        result);
-  }
-
-  @Test
-  void testDoubleHistogramLines() throws IOException {
-    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    ByteArrayInputStream bis =
-        new ByteArrayInputStream(
-            "{\n\"linesOk\": 2,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes());
-
-    HttpURLConnection connection = setUpMockConnection(202, bos, bis);
-
-    Collection<DoubleHistogramPointData> doubleHistogramPointDataCollection =
-        new ArrayList<DoubleHistogramPointData>() {
-          {
-            add(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    10.123d,
-                    Arrays.asList(0.1d, 1.2d, 3.4d, 5.6d),
-                    Arrays.asList(0L, 2L, 1L, 3L, 0L)));
-            add(
-                DoubleHistogramPointData.create(
-                    0L,
-                    0L,
-                    Attributes.empty(),
-                    23.45d,
-                    Arrays.asList(0.2d, 1.2d, 3.4d, 5.9d),
-                    Arrays.asList(0L, 2L, 1L, 3L, 5L)));
-          }
-        };
-
-    DoubleHistogramData doubleHistogramData =
-        DoubleHistogramData.create(
-            AggregationTemporality.CUMULATIVE, doubleHistogramPointDataCollection);
-    MetricData metricData =
-        MetricData.createDoubleHistogram(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "doubleHistogram",
-            "",
-            "",
-            doubleHistogramData);
-
-    DynatraceMetricExporter metricExporter =
-        DynatraceMetricExporter.builder()
-            .setApiToken("mytoken")
-            .setUrl(connection.getURL())
-            .build();
-
-    CompletableResultCode result =
-        metricExporter.export(Collections.singleton(metricData), connection);
-
-    assertExportRequestSuccess(
-        connection,
-        "doubleHistogram,dt.metrics.source=opentelemetry gauge,min=0.1,max=5.6,sum=10.123,count=6 1619687659000\n"
-            + "doubleHistogram,dt.metrics.source=opentelemetry gauge,min=0.2,max=5.9,sum=23.45,count=11",
-        bos.toString(),
-        result);
-  }
-
-  @Test
-  void testCounterWithViewCumulativeTemporality() throws IOException {
-    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    URL url = mock(URL.class);
-    HttpURLConnection connection = mock(HttpURLConnection.class);
-    when(url.openConnection()).thenReturn(connection);
-    when(connection.getURL()).thenReturn(url);
-    when(connection.getOutputStream()).thenReturn(bos);
-    when(connection.getResponseCode()).thenReturn(202);
-    when(connection.getInputStream())
-        .thenReturn(
-            new ByteArrayInputStream(
-                "{\n\"linesOk\": 1,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes()));
-
-    DynatraceMetricExporter metricExporter =
-        DynatraceMetricExporter.builder()
-            .setApiToken("mytoken")
-            .setUrl(connection.getURL())
-            .build();
-
-    TestMetricReader reader = new TestMetricReader(metricExporter);
-    SdkMeterProvider sdkMeterProvider =
-        SdkMeterProvider.builder()
-            .setClock(testClock)
-            .registerMetricReader(reader)
-            .registerView(
-                InstrumentSelector.builder()
-                    .setInstrumentType(InstrumentType.COUNTER)
-                    .setInstrumentName("testSum")
-                    .build(),
-                View.builder()
-                    .setAggregation(Aggregation.sum(AggregationTemporality.CUMULATIVE))
-                    .build())
-            .build();
-
-    Meter sdkMeter = sdkMeterProvider.get(getClass().getName());
-    LongCounter counter = sdkMeter.counterBuilder("testSum").build();
-
-    CompletableResultCode result;
-    // the first export is empty because the cache is empty
-    counter.add(100);
-    testClock.advance(Duration.ofSeconds(1));
-    result = sdkMeterProvider.forceFlush();
-    assertMetricLinesAreEqual("", bos, result);
-
-    counter.add(200);
-    testClock.advance(Duration.ofSeconds(1));
-    result = sdkMeterProvider.forceFlush();
-    assertMetricLinesAreEqual(
-        "testSum,dt.metrics.source=opentelemetry count,delta=200 1557212402000", bos, result);
-
-    counter.add(300);
-    testClock.advance(Duration.ofSeconds(1));
-    result = sdkMeterProvider.forceFlush();
-    assertMetricLinesAreEqual(
-        "testSum,dt.metrics.source=opentelemetry count,delta=300 1557212403000", bos, result);
-  }
-
-  @Test
-  void testCounterWithViewDeltaTemporality() throws IOException {
-    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    URL url = mock(URL.class);
-    HttpURLConnection connection = mock(HttpURLConnection.class);
-    when(url.openConnection()).thenReturn(connection);
-    when(connection.getURL()).thenReturn(url);
-    when(connection.getOutputStream()).thenReturn(bos);
-    when(connection.getResponseCode()).thenReturn(202);
-    when(connection.getInputStream())
-        .thenReturn(
-            new ByteArrayInputStream(
-                "{\n\"linesOk\": 1,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes()));
-
-    DynatraceMetricExporter metricExporter =
-        DynatraceMetricExporter.builder()
-            .setApiToken("mytoken")
-            .setUrl(connection.getURL())
-            .build();
-
-    TestMetricReader reader = new TestMetricReader(metricExporter);
-    SdkMeterProvider sdkMeterProvider =
-        SdkMeterProvider.builder()
-            .setClock(testClock)
-            .registerMetricReader(reader)
-            .registerView(
-                InstrumentSelector.builder()
-                    .setInstrumentType(InstrumentType.COUNTER)
-                    .setInstrumentName("testSum")
-                    .build(),
-                View.builder()
-                    .setAggregation(Aggregation.sum(AggregationTemporality.DELTA))
-                    .build())
-            .build();
-
-    Meter sdkMeter = sdkMeterProvider.get(getClass().getName());
-    LongCounter counter = sdkMeter.counterBuilder("testSum").build();
-
-    CompletableResultCode result;
-    // the first export is empty because the cache is empty
-    testClock.advance(Duration.ofSeconds(1));
-    counter.add(100);
-    result = sdkMeterProvider.forceFlush();
-    assertMetricLinesAreEqual(
-        "testSum,dt.metrics.source=opentelemetry count,delta=100 1557212401000", bos, result);
-
-    counter.add(200);
-    testClock.advance(Duration.ofSeconds(1));
-    result = sdkMeterProvider.forceFlush();
-    assertMetricLinesAreEqual(
-        "testSum,dt.metrics.source=opentelemetry count,delta=200 1557212402000", bos, result);
-
-    counter.add(300);
-    testClock.advance(Duration.ofSeconds(1));
-    result = sdkMeterProvider.forceFlush();
-    assertMetricLinesAreEqual(
-        "testSum,dt.metrics.source=opentelemetry count,delta=300 1557212403000", bos, result);
+  void testDynatraceMetadata() throws IOException {
+    try (MockedStatic<DimensionList> dimensionListMock = mockStatic(DimensionList.class)) {
+      // call the real methods except for the fromDynatraceMetadata method.
+      dimensionListMock
+          .when(() -> DimensionList.create(Mockito.any(Dimension.class)))
+          .thenCallRealMethod();
+      dimensionListMock
+          .when(() -> DimensionList.fromCollection(Mockito.any()))
+          .thenCallRealMethod();
+      dimensionListMock
+          .when(() -> DimensionList.merge(Mockito.any(DimensionList.class)))
+          .thenCallRealMethod();
+      DimensionList metadata =
+          DimensionList.create(
+              Dimension.create("dt.metadata.one", "value_one"),
+              Dimension.create("dt.metadata.two", "value_two"));
+      dimensionListMock.when(DimensionList::fromDynatraceMetadata).thenReturn(metadata);
+
+      MetricData md = generateValidDoubleSumData();
+
+      ByteArrayOutputStream bos = new ByteArrayOutputStream();
+      ByteArrayInputStream bis =
+          new ByteArrayInputStream(
+              "{\n\"linesOk\": 1,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes());
+
+      HttpURLConnection connection = setUpMockConnection(202, bos, bis);
+
+      DynatraceMetricExporter metricExporter =
+          DynatraceMetricExporter.builder()
+              .setEnrichWithOneAgentMetaData(true) // trigger retrieval of DynatraceMetadata
+              .setApiToken("mytoken")
+              .setUrl(connection.getURL())
+              .build();
+
+      CompletableResultCode result = metricExporter.export(Collections.singleton(md), connection);
+      assertThat(result).isEqualTo(CompletableResultCode.ofSuccess());
+      assertThat(bos.toString())
+          .contains("dt.metadata.one=value_one")
+          .contains("dt.metadata.two=value_two")
+          .contains("dt.metrics.source=opentelemetry")
+          .startsWith(DEFAULT_NAME)
+          .endsWith(String.format("count,delta=194.0 %d", MILLIS_TS_2));
+
+      assertRequestProperties(connection);
+    }
   }
 
   private HttpURLConnection setUpMockConnection(
@@ -763,23 +257,143 @@ class DynatraceMetricExporterTest {
     return connection;
   }
 
+  @Test
+  void testSerializeToMetricLines_CallsCorrectSerializerMethod_LongSum() {
+    Serializer serializerMock = mock(Serializer.class);
+    DynatraceMetricExporter exporter =
+        new DynatraceMetricExporter(mock(URL.class), "", serializerMock);
+    MetricData metricData = mock(MetricData.class);
+
+    when(metricData.getType()).thenReturn(MetricDataType.LONG_SUM);
+    exporter.serializeToMetricLines(Collections.singletonList(metricData));
+    verify(serializerMock).createLongSumLines(metricData);
+  }
+
+  @Test
+  void testSerializeToMetricLines_CallsCorrectSerializerMethod_LongGauge() {
+    Serializer serializerMock = mock(Serializer.class);
+    DynatraceMetricExporter exporter =
+        new DynatraceMetricExporter(mock(URL.class), "", serializerMock);
+    MetricData metricData = mock(MetricData.class);
+
+    when(metricData.getType()).thenReturn(MetricDataType.LONG_GAUGE);
+    exporter.serializeToMetricLines(Collections.singletonList(metricData));
+    verify(serializerMock).createLongGaugeLines(metricData);
+  }
+
+  @Test
+  void testSerializeToMetricLines_CallsCorrectSerializerMethod_DoubleSum() {
+    Serializer serializerMock = mock(Serializer.class);
+    DynatraceMetricExporter exporter =
+        new DynatraceMetricExporter(mock(URL.class), "", serializerMock);
+    MetricData metricData = mock(MetricData.class);
+
+    when(metricData.getType()).thenReturn(MetricDataType.DOUBLE_SUM);
+    exporter.serializeToMetricLines(Collections.singletonList(metricData));
+    verify(serializerMock).createDoubleSumLines(metricData);
+  }
+
+  @Test
+  void testSerializeToMetricLines_CallsCorrectSerializerMethod_DoubleGauge() {
+    Serializer serializerMock = mock(Serializer.class);
+    DynatraceMetricExporter exporter =
+        new DynatraceMetricExporter(mock(URL.class), "", serializerMock);
+    MetricData metricData = mock(MetricData.class);
+
+    when(metricData.getType()).thenReturn(MetricDataType.DOUBLE_GAUGE);
+    exporter.serializeToMetricLines(Collections.singletonList(metricData));
+    verify(serializerMock).createDoubleGaugeLines(metricData);
+  }
+
+  @Test
+  void testSerializeToMetricLines_CallsCorrectSerializerMethod_Summary() {
+    Serializer serializerMock = mock(Serializer.class);
+    DynatraceMetricExporter exporter =
+        new DynatraceMetricExporter(mock(URL.class), "", serializerMock);
+    MetricData metricData = mock(MetricData.class);
+
+    when(metricData.getType()).thenReturn(MetricDataType.SUMMARY);
+    exporter.serializeToMetricLines(Collections.singletonList(metricData));
+    verify(serializerMock).createDoubleSummaryLines(metricData);
+  }
+
+  @Test
+  void testSerializeToMetricLines_CallsCorrectSerializerMethod_Histogram() {
+    Serializer serializerMock = mock(Serializer.class);
+    DynatraceMetricExporter exporter =
+        new DynatraceMetricExporter(mock(URL.class), "", serializerMock);
+    MetricData metricData = mock(MetricData.class);
+
+    when(metricData.getType()).thenReturn(MetricDataType.HISTOGRAM);
+    exporter.serializeToMetricLines(Collections.singletonList(metricData));
+    verify(serializerMock).createDoubleHistogramLines(metricData);
+  }
+
+  @Test
+  void testSerializeToMetricLines_CallsCorrectSerializerMethod_ExponentialHistogram() {
+    Serializer serializerMock = mock(Serializer.class);
+    DynatraceMetricExporter exporter =
+        new DynatraceMetricExporter(mock(URL.class), "", serializerMock);
+    MetricData metricData = mock(MetricData.class);
+
+    when(metricData.getType()).thenReturn(MetricDataType.EXPONENTIAL_HISTOGRAM);
+    exporter.serializeToMetricLines(Collections.singletonList(metricData));
+    // no interactions should have occurred with the mock, as we don't deal with Exponential
+    // Histogram yet.
+    verifyNoInteractions(serializerMock);
+  }
+
+  @ParameterizedTest
+  @MethodSource("provideInstrumentTypes")
+  void testGetRightAggregationTemporalityForType(
+      InstrumentType type, AggregationTemporality temporality) {
+    DynatraceMetricExporter exporter =
+        DynatraceMetricExporter.builder().setEnrichWithOneAgentMetaData(false).build();
+    assertThat(exporter.getAggregationTemporality(type)).isEqualTo(temporality);
+  }
+
+  private static Stream<Arguments> provideInstrumentTypes() {
+    return Stream.of(
+        Arguments.of(InstrumentType.COUNTER, AggregationTemporality.DELTA),
+        Arguments.of(InstrumentType.OBSERVABLE_COUNTER, AggregationTemporality.DELTA),
+        Arguments.of(InstrumentType.HISTOGRAM, AggregationTemporality.DELTA),
+        Arguments.of(InstrumentType.UP_DOWN_COUNTER, AggregationTemporality.CUMULATIVE),
+        Arguments.of(InstrumentType.OBSERVABLE_UP_DOWN_COUNTER, AggregationTemporality.CUMULATIVE));
+  }
+
+  private static MetricData generateValidDoubleSumData() {
+    return generateValidDoubleSumData(EMPTY_ATTRIBUTES);
+  }
+
+  private static MetricData generateValidDoubleSumData(Attributes attributes) {
+    return ImmutableMetricData.createDoubleSum(
+        DEFAULT_RESOURCE,
+        DEFAULT_SCOPE,
+        DEFAULT_NAME,
+        DEFAULT_DESC,
+        DEFAULT_UNIT,
+        ImmutableSumData.create(
+            true,
+            AggregationTemporality.DELTA,
+            Collections.singleton(
+                ImmutableDoublePointData.create(NANOS_TS_1, NANOS_TS_2, attributes, 194.0))));
+  }
+
   private void assertExportRequestSuccess(
       HttpURLConnection connection,
       String expectedMetricPayload,
       String actualMetricPayload,
       CompletableResultCode result)
       throws IOException {
-    verify(connection).setRequestMethod("POST");
-    verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
-    verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
+    assertRequestProperties(connection);
+
     assertEquals(expectedMetricPayload, actualMetricPayload);
     assertEquals(CompletableResultCode.ofSuccess(), result);
   }
 
-  private void assertMetricLinesAreEqual(
-      String expected, ByteArrayOutputStream actual, CompletableResultCode resultCode) {
-    assertTrue(resultCode.isSuccess());
-    assertEquals(expected, actual.toString());
-    actual.reset();
+  private void assertRequestProperties(HttpURLConnection connection) throws ProtocolException {
+    verify(connection).setRequestMethod("POST");
+    verify(connection).setRequestProperty("Authorization", "Api-Token mytoken");
+    verify(connection).setRequestProperty("Content-Type", "text/plain; charset=utf-8");
   }
 }
