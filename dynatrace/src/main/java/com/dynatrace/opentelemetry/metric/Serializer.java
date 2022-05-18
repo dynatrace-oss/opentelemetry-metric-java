@@ -19,9 +19,12 @@ import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.common.AttributeType;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.*;
+
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
@@ -89,46 +92,55 @@ final class Serializer {
     boolean isDelta = data.getAggregationTemporality() == AggregationTemporality.DELTA;
     boolean isMonotonic = data.isMonotonic();
     if (isMonotonic) {
+      createLinesFromMonotonicLongSum(metric, lines, data, isDelta);
+    } else {
+      createLinesFromNonMonotonicLongSum(metric, lines, data, isDelta);
+    }
+    return lines;
+  }
+
+  private void createLinesFromNonMonotonicLongSum(
+      MetricData metric, List<String> lines, SumData<LongPointData> data, boolean isDelta) {
+    if (isDelta) {
+      logger.warning("Non-monotonic Delta counter found. Dropping...");
+    } else {
       for (LongPointData point : data.getPoints()) {
         try {
-          Metric.Builder builder = createMetricBuilder(metric, point);
-
-          if (isDelta) {
-            builder.setLongCounterValueDelta(point.getValue());
-            lines.add(builder.serialize());
-          } else {
-            Long delta = deltaConverter.convertLongTotalToDelta(metric.getName(), point);
-            if (delta != null) {
-              builder.setLongCounterValueDelta(delta);
-              lines.add(builder.serialize());
-            } else {
-              logger.finest(
-                  () -> String.format(TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE, metric.getName()));
-            }
-          }
-        } catch (MetricException me) {
+          lines.add(
+              createMetricBuilder(metric, point).setLongGaugeValue(point.getValue()).serialize());
+        } catch (MetricException e) {
           logger.warning(
-              () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
-        }
-      }
-    } else {
-      if (isDelta) {
-        // TODO non-monotonic delta requires Delta->cumulative conversion.
-        logger.warning("Non-monotonic Delta counter found. Dropping...");
-        return Collections.emptyList();
-      } else {
-        for (LongPointData point : data.getPoints()) {
-          try {
-            lines.add(
-                createMetricBuilder(metric, point).setLongGaugeValue(point.getValue()).serialize());
-          } catch (MetricException e) {
-            logger.warning(
-                () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), e.getMessage()));
-          }
+              () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), e.getMessage()));
         }
       }
     }
-    return lines;
+  }
+
+  private void createLinesFromMonotonicLongSum(
+      MetricData metric, List<String> lines, SumData<LongPointData> data, boolean isDelta) {
+    for (LongPointData point : data.getPoints()) {
+      try {
+        Metric.Builder builder = createMetricBuilder(metric, point);
+
+        if (isDelta) {
+          // We expect monotonic deltas most of the time.
+          builder.setLongCounterValueDelta(point.getValue());
+          lines.add(builder.serialize());
+        } else {
+          Long delta = deltaConverter.convertLongTotalToDelta(metric.getName(), point);
+          if (delta != null) {
+            builder.setLongCounterValueDelta(delta);
+            lines.add(builder.serialize());
+          } else {
+            logger.finest(
+                () -> String.format(TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE, metric.getName()));
+          }
+        }
+      } catch (MetricException me) {
+        logger.warning(
+            () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
+      }
+    }
   }
 
   List<String> createLongGaugeLines(MetricData metric) {
@@ -165,48 +177,54 @@ final class Serializer {
     boolean isDelta = data.getAggregationTemporality() == AggregationTemporality.DELTA;
     boolean isMonotonic = data.isMonotonic();
     if (isMonotonic) {
+      createLinesFromMonotonicDoubleSum(metric, lines, data, isDelta);
+    } else {
+      createLinesFromNonMonotonicDoubleSum(metric, lines, data, isDelta);
+    }
+    return lines;
+  }
+
+  private void createLinesFromNonMonotonicDoubleSum(
+      MetricData metric, List<String> lines, SumData<DoublePointData> data, boolean isDelta) {
+    if (isDelta) {
+      logger.warning("Non-monotonic Delta counter found. Dropping...");
+    } else {
       for (DoublePointData point : data.getPoints()) {
         try {
-          Metric.Builder builder = createMetricBuilder(metric, point);
-          if (isDelta) {
-            builder.setDoubleCounterValueDelta(point.getValue());
-            lines.add(builder.serialize());
-          } else {
-            Double delta = deltaConverter.convertDoubleTotalToDelta(metric.getName(), point);
-            if (delta != null) {
-              builder.setDoubleCounterValueDelta(delta);
-              lines.add(builder.serialize());
-            } else {
-              logger.finest(
-                  () -> String.format(TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE, metric.getName()));
-            }
-          }
-
-        } catch (MetricException me) {
+          lines.add(
+              createMetricBuilder(metric, point).setDoubleGaugeValue(point.getValue()).serialize());
+        } catch (MetricException e) {
           logger.warning(
-              () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
-        }
-      }
-    } else {
-      if (isDelta) {
-        // TODO non-monotonic delta requires Delta->cumulative conversion.
-        logger.warning("Non-monotonic Delta counter found. Dropping...");
-        return Collections.emptyList();
-      } else {
-        for (DoublePointData point : data.getPoints()) {
-          try {
-            lines.add(
-                createMetricBuilder(metric, point)
-                    .setDoubleGaugeValue(point.getValue())
-                    .serialize());
-          } catch (MetricException e) {
-            logger.warning(
-                () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), e.getMessage()));
-          }
+              () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), e.getMessage()));
         }
       }
     }
-    return lines;
+  }
+
+  private void createLinesFromMonotonicDoubleSum(
+      MetricData metric, List<String> lines, SumData<DoublePointData> data, boolean isDelta) {
+    for (DoublePointData point : data.getPoints()) {
+      try {
+        Metric.Builder builder = createMetricBuilder(metric, point);
+        if (isDelta) {
+          builder.setDoubleCounterValueDelta(point.getValue());
+          lines.add(builder.serialize());
+        } else {
+          Double delta = deltaConverter.convertDoubleTotalToDelta(metric.getName(), point);
+          if (delta != null) {
+            builder.setDoubleCounterValueDelta(delta);
+            lines.add(builder.serialize());
+          } else {
+            logger.finest(
+                () -> String.format(TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE, metric.getName()));
+          }
+        }
+
+      } catch (MetricException me) {
+        logger.warning(
+            () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
+      }
+    }
   }
 
   List<String> createDoubleSummaryLines(MetricData metric) {
@@ -250,6 +268,11 @@ final class Serializer {
   }
 
   List<String> createDoubleHistogramLines(MetricData metric) {
+    if (metric.getHistogramData().getAggregationTemporality()
+        == AggregationTemporality.CUMULATIVE) {
+      logger.warning("Cumulative Histogram encountered, dropping...");
+      return Collections.emptyList();
+    }
     List<String> lines = new ArrayList<>();
     for (HistogramPointData point : metric.getHistogramData().getPoints()) {
       double min = point.hasMin() ? point.getMin() : getMinFromBoundaries(point);

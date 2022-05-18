@@ -14,23 +14,33 @@
 
 package com.dynatrace.opentelemetry.metric;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
-
 import com.dynatrace.metric.util.Dimension;
 import com.dynatrace.metric.util.DimensionList;
 import com.dynatrace.metric.util.MetricBuilderFactory;
 import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.sdk.common.InstrumentationLibraryInfo;
-import io.opentelemetry.sdk.metrics.data.*;
-import io.opentelemetry.sdk.resources.Resource;
-import java.util.*;
+import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
+import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.opentelemetry.sdk.metrics.internal.data.*;
 import org.assertj.core.data.Offset;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+import static com.dynatrace.opentelemetry.metric.TestDataConstants.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 class SerializerTest {
-  private static final Serializer serializer =
-      new Serializer(MetricBuilderFactory.builder().build());
+  private Serializer serializer = null;
+
+  @BeforeEach
+  void setUp() {
+    serializer = new Serializer(MetricBuilderFactory.builder().build());
+  }
 
   @Test
   void fromAttributes() {
@@ -43,22 +53,22 @@ class SerializerTest {
 
     DimensionList actual = Serializer.fromAttributes(attributes);
 
-    assertEquals(expected.getDimensions(), actual.getDimensions());
-    assertNotSame(expected, actual);
+    assertThat(actual.getDimensions()).containsOnlyElementsOf(expected.getDimensions());
+    assertThat(actual).isNotSameAs(expected);
   }
 
   @Test
-  void fromTypedAttributes() {
+  void dropTypedAttributes() {
     Attributes attributes =
         Attributes.builder().put("attr1", 1).put("attr2", 1.5).put("attr3", true).build();
 
     DimensionList actual = Serializer.fromAttributes(attributes);
 
-    assertTrue(actual.getDimensions().isEmpty());
+    assertThat(actual.getDimensions()).isEmpty();
   }
 
   @Test
-  void fromTypedAttributesArrayValues() {
+  void dropTypedAttributesArrayValues() {
     Attributes attributes =
         Attributes.builder()
             .put("attr1", "v1", "v2")
@@ -69,7 +79,7 @@ class SerializerTest {
 
     DimensionList actual = Serializer.fromAttributes(attributes);
 
-    assertTrue(actual.getDimensions().isEmpty());
+    assertThat(actual.getDimensions()).isEmpty();
   }
 
   @Test
@@ -88,496 +98,501 @@ class SerializerTest {
 
     DimensionList actual = Serializer.fromAttributes(attributes);
 
-    Dimension expected1 = Dimension.create("_", "test");
-    Dimension expected2 = Dimension.create("_test2", "test2");
-
-    assertEquals(2, actual.getDimensions().size());
-    assertTrue(actual.getDimensions().contains(expected1));
-    assertTrue(actual.getDimensions().contains(expected2));
+    assertThat(actual.getDimensions())
+        .hasSize(2)
+        .containsExactlyInAnyOrder(
+            Dimension.create("_", "test"), Dimension.create("_test2", "test2"));
   }
 
   @Test
-  void createLongSumLinesCumulative() {
-    Collection<LongPointData> longPointDataCollection =
-        new ArrayList<LongPointData>() {
-          {
-            add(
-                LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 123L));
-            add(
-                LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 321L));
-            add(LongPointData.create(0L, 0L, Attributes.empty(), 456L));
-          }
-        };
-    LongSumData longSumData =
-        LongSumData.create(true, AggregationTemporality.CUMULATIVE, longPointDataCollection);
+  void createSumLines_Double_Cumulative_Monotonic() {
     MetricData metricData =
-        MetricData.createLongSum(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "longSumData",
-            "",
-            "",
-            longSumData);
+        ImmutableMetricData.createDoubleSum(
+            DEFAULT_RESOURCE,
+            DEFAULT_SCOPE,
+            DEFAULT_NAME,
+            DEFAULT_DESC,
+            DEFAULT_UNIT,
+            ImmutableSumData.create(
+                true,
+                AggregationTemporality.CUMULATIVE,
+                Arrays.asList(
+                    ImmutableDoublePointData.create(
+                        NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, 123.7),
+                    ImmutableDoublePointData.create(
+                        NANOS_TS_1, NANOS_TS_3, EMPTY_ATTRIBUTES, 321.9),
+                    ImmutableDoublePointData.create(0L, 0L, EMPTY_ATTRIBUTES, 456.7))));
 
-    List<String> longSumLines = serializer.createLongSumLines(metricData, false);
-    assertThat(longSumLines).hasSize(2);
-    assertThat(longSumLines.get(0)).isEqualTo("longSumData count,delta=198 1619687659000");
-    assertThat(longSumLines.get(1)).isEqualTo("longSumData count,delta=135");
+    // Cumulative monotonic counters are transformed to Delta monotonic counters, losing the first
+    // data point as a reference
+    List<String> lines = serializer.createDoubleSumLines(metricData);
+    assertThat(lines)
+        .hasSize(2)
+        .containsExactly(
+            String.format("%s count,delta=198.2 %d", DEFAULT_NAME, MILLIS_TS_3),
+            String.format("%s count,delta=134.8", DEFAULT_NAME));
   }
 
   @Test
-  void createLongSumLinesDelta() {
-    Collection<LongPointData> longPointDataCollection =
-        new ArrayList<LongPointData>() {
-          {
-            add(
-                LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 123L));
-            add(
-                LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 321L));
-            add(LongPointData.create(0L, 0L, Attributes.empty(), 456L));
-          }
-        };
-    LongSumData longSumData =
-        LongSumData.create(true, AggregationTemporality.DELTA, longPointDataCollection);
+  void createSumLines_Double_Cumulative_NonMonotonic() {
     MetricData metricData =
-        MetricData.createLongSum(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "longSumData",
-            "",
-            "",
-            longSumData);
+        ImmutableMetricData.createDoubleSum(
+            DEFAULT_RESOURCE,
+            DEFAULT_SCOPE,
+            DEFAULT_NAME,
+            DEFAULT_DESC,
+            DEFAULT_UNIT,
+            ImmutableSumData.create(
+                false,
+                AggregationTemporality.CUMULATIVE,
+                Arrays.asList(
+                    ImmutableDoublePointData.create(
+                        NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, 123.7),
+                    ImmutableDoublePointData.create(NANOS_TS_1, NANOS_TS_3, EMPTY_ATTRIBUTES, 21.9),
+                    ImmutableDoublePointData.create(0L, 0L, EMPTY_ATTRIBUTES, 456.7))));
 
-    List<String> longSumLines = serializer.createLongSumLines(metricData, true);
-    assertThat(longSumLines).hasSize(3);
-    assertThat(longSumLines.get(0)).isEqualTo("longSumData count,delta=123 1619687659000");
-    assertThat(longSumLines.get(1)).isEqualTo("longSumData count,delta=321 1619687659000");
-    assertThat(longSumLines.get(2)).isEqualTo("longSumData count,delta=456");
+    // Non-monotonic Sums will be converted to Gauge.
+    List<String> lines = serializer.createDoubleSumLines(metricData);
+    assertThat(lines)
+        .hasSize(3)
+        .containsExactly(
+            String.format("%s gauge,123.7 %d", DEFAULT_NAME, MILLIS_TS_2),
+            String.format("%s gauge,21.9 %d", DEFAULT_NAME, MILLIS_TS_3),
+            String.format("%s gauge,456.7", DEFAULT_NAME));
   }
 
   @Test
-  void createLongGaugeLines() {
-    Collection<LongPointData> longPointDataCollection =
-        new ArrayList<LongPointData>() {
-          {
-            add(
-                LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 123L));
-            add(
-                LongPointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 321L));
-            add(LongPointData.create(0L, 0L, Attributes.empty(), 456L));
-          }
-        };
-    LongGaugeData longGaugeData = LongGaugeData.create(longPointDataCollection);
+  void createSumLines_Double_Delta_Monotonic() {
     MetricData metricData =
-        MetricData.createLongGauge(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "longGaugeData",
-            "",
-            "",
-            longGaugeData);
+        ImmutableMetricData.createDoubleSum(
+            DEFAULT_RESOURCE,
+            DEFAULT_SCOPE,
+            DEFAULT_NAME,
+            DEFAULT_DESC,
+            DEFAULT_UNIT,
+            ImmutableSumData.create(
+                true,
+                AggregationTemporality.DELTA,
+                Arrays.asList(
+                    ImmutableDoublePointData.create(
+                        NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, 123.7),
+                    ImmutableDoublePointData.create(
+                        NANOS_TS_1, NANOS_TS_3, EMPTY_ATTRIBUTES, 321.9),
+                    ImmutableDoublePointData.create(0L, 0L, EMPTY_ATTRIBUTES, 456.7))));
 
-    List<String> longGaugeLines = serializer.createLongGaugeLines(metricData);
-    assertThat(longGaugeLines).hasSize(3);
-    assertThat(longGaugeLines.get(0)).isEqualTo("longGaugeData gauge,123 1619687659000");
-    assertThat(longGaugeLines.get(1)).isEqualTo("longGaugeData gauge,321 1619687659000");
-    assertThat(longGaugeLines.get(2)).isEqualTo("longGaugeData gauge,456");
+    // Delta monotonic counters are exported as they are.
+    List<String> lines = serializer.createDoubleSumLines(metricData);
+    assertThat(lines)
+        .hasSize(3)
+        .containsExactly(
+            String.format("%s count,delta=123.7 %d", DEFAULT_NAME, MILLIS_TS_2),
+            String.format("%s count,delta=321.9 %d", DEFAULT_NAME, MILLIS_TS_3),
+            String.format("%s count,delta=456.7", DEFAULT_NAME));
   }
 
   @Test
-  void createDoubleGaugeLines() {
-    Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<DoublePointData>() {
-          {
-            add(
-                DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 123.456d));
-            add(
-                DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 321.456d));
-            add(DoublePointData.create(0L, 0L, Attributes.empty(), 654.321d));
-          }
-        };
-    DoubleGaugeData doubleGaugeData = DoubleGaugeData.create(doublePointDataCollection);
+  void createSumLines_Double_Delta_NonMonotonic() {
     MetricData metricData =
-        MetricData.createDoubleGauge(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "doubleGaugeData",
-            "",
-            "",
-            doubleGaugeData);
+        ImmutableMetricData.createDoubleSum(
+            DEFAULT_RESOURCE,
+            DEFAULT_SCOPE,
+            DEFAULT_NAME,
+            DEFAULT_DESC,
+            DEFAULT_UNIT,
+            ImmutableSumData.create(
+                false,
+                AggregationTemporality.DELTA,
+                Arrays.asList(
+                    ImmutableDoublePointData.create(
+                        NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, 123.7),
+                    ImmutableDoublePointData.create(NANOS_TS_1, NANOS_TS_3, EMPTY_ATTRIBUTES, 20.9),
+                    ImmutableDoublePointData.create(0L, 0L, EMPTY_ATTRIBUTES, 456.7))));
 
-    List<String> doubleGaugeLines = serializer.createDoubleGaugeLines(metricData);
-    assertThat(doubleGaugeLines).hasSize(3);
-    assertThat(doubleGaugeLines.get(0)).isEqualTo("doubleGaugeData gauge,123.456 1619687659000");
-    assertThat(doubleGaugeLines.get(1)).isEqualTo("doubleGaugeData gauge,321.456 1619687659000");
-    assertThat(doubleGaugeLines.get(2)).isEqualTo("doubleGaugeData gauge,654.321");
+    List<String> lines = serializer.createDoubleSumLines(metricData);
+    // delta non-monotonic sums are currently dropped (requires Delta -> cumulative conversion).
+    assertThat(lines).isEmpty();
   }
 
   @Test
-  void createInvalidDoubleGaugeLines() {
-    Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<DoublePointData>() {
-          {
-            add(
-                DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), Double.NaN));
-            add(
-                DoublePointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    Double.POSITIVE_INFINITY));
-            add(
-                DoublePointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    Double.NEGATIVE_INFINITY));
-          }
-        };
-    DoubleGaugeData doubleGaugeData = DoubleGaugeData.create(doublePointDataCollection);
+  void createSumLines_Long_Cumulative_Monotonic() {
     MetricData metricData =
-        MetricData.createDoubleGauge(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "doubleGaugeData",
-            "",
-            "",
-            doubleGaugeData);
+        ImmutableMetricData.createLongSum(
+            DEFAULT_RESOURCE,
+            DEFAULT_SCOPE,
+            DEFAULT_NAME,
+            DEFAULT_DESC,
+            DEFAULT_UNIT,
+            ImmutableSumData.create(
+                true,
+                AggregationTemporality.CUMULATIVE,
+                Arrays.asList(
+                    ImmutableLongPointData.create(NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, 123),
+                    ImmutableLongPointData.create(NANOS_TS_1, NANOS_TS_3, EMPTY_ATTRIBUTES, 321),
+                    ImmutableLongPointData.create(0L, 0L, EMPTY_ATTRIBUTES, 456))));
 
-    List<String> doubleGaugeLines = serializer.createDoubleGaugeLines(metricData);
-    assertThat(doubleGaugeLines).isEmpty();
+    // Cumulative monotonic counters are transformed to Delta monotonic counters, losing the first
+    // data point as a reference
+    List<String> lines = serializer.createLongSumLines(metricData);
+    assertThat(lines)
+        .hasSize(2)
+        .containsExactly(
+            String.format("%s count,delta=198 %d", DEFAULT_NAME, MILLIS_TS_3),
+            String.format("%s count,delta=135", DEFAULT_NAME));
   }
 
   @Test
-  void createDoubleSumLinesCumulative() {
-    Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<DoublePointData>() {
-          {
-            add(
-                DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 100.3));
-            add(
-                DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 300.6));
-            add(DoublePointData.create(0L, 0L, Attributes.empty(), 500.8));
-          }
-        };
-    DoubleSumData doubleSumData =
-        DoubleSumData.create(true, AggregationTemporality.CUMULATIVE, doublePointDataCollection);
+  void createSumLines_Long_Cumulative_NonMonotonic() {
     MetricData metricData =
-        MetricData.createDoubleSum(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "doubleSumData",
-            "",
-            "",
-            doubleSumData);
+        ImmutableMetricData.createLongSum(
+            DEFAULT_RESOURCE,
+            DEFAULT_SCOPE,
+            DEFAULT_NAME,
+            DEFAULT_DESC,
+            DEFAULT_UNIT,
+            ImmutableSumData.create(
+                false,
+                AggregationTemporality.CUMULATIVE,
+                Arrays.asList(
+                    ImmutableLongPointData.create(NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, 123),
+                    ImmutableLongPointData.create(NANOS_TS_1, NANOS_TS_3, EMPTY_ATTRIBUTES, 21),
+                    ImmutableLongPointData.create(0L, 0L, EMPTY_ATTRIBUTES, 456))));
 
-    List<String> doubleSumLines = serializer.createDoubleSumLines(metricData, false);
-    assertThat(doubleSumLines).hasSize(2);
-    // 300.6 - 100.3 = 200.3
-    assertThat(doubleSumLines.get(0)).isEqualTo("doubleSumData count,delta=200.3 1619687659000");
-    // 500.8 - 300.6 = 200.2
-    assertThat(doubleSumLines.get(1)).isEqualTo("doubleSumData count,delta=200.2");
+    // Non-monotonic Sums will be converted to Gauge.
+    List<String> lines = serializer.createLongSumLines(metricData);
+    assertThat(lines)
+        .hasSize(3)
+        .containsExactly(
+            String.format("%s gauge,123 %d", DEFAULT_NAME, MILLIS_TS_2),
+            String.format("%s gauge,21 %d", DEFAULT_NAME, MILLIS_TS_3),
+            String.format("%s gauge,456", DEFAULT_NAME));
   }
 
   @Test
-  void createInvalidDoubleSumLinesCumulative() {
-    Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<DoublePointData>() {
-          {
-            add(
-                DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), Double.NaN));
-            add(
-                DoublePointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    Double.POSITIVE_INFINITY));
-            add(
-                DoublePointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    Double.NEGATIVE_INFINITY));
-          }
-        };
-    DoubleSumData doubleSumData =
-        DoubleSumData.create(true, AggregationTemporality.CUMULATIVE, doublePointDataCollection);
+  void createSumLines_Long_Delta_Monotonic() {
     MetricData metricData =
-        MetricData.createDoubleSum(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "doubleSumData",
-            "",
-            "",
-            doubleSumData);
+        ImmutableMetricData.createLongSum(
+            DEFAULT_RESOURCE,
+            DEFAULT_SCOPE,
+            DEFAULT_NAME,
+            DEFAULT_DESC,
+            DEFAULT_UNIT,
+            ImmutableSumData.create(
+                true,
+                AggregationTemporality.DELTA,
+                Arrays.asList(
+                    ImmutableLongPointData.create(NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, 123),
+                    ImmutableLongPointData.create(NANOS_TS_1, NANOS_TS_3, EMPTY_ATTRIBUTES, 321),
+                    ImmutableLongPointData.create(0L, 0L, EMPTY_ATTRIBUTES, 456))));
 
-    List<String> doubleSumLines = serializer.createDoubleSumLines(metricData, false);
-    assertThat(doubleSumLines).isEmpty();
+    List<String> longSumLines = serializer.createLongSumLines(metricData);
+    assertThat(longSumLines)
+        .hasSize(3)
+        .containsExactly(
+            String.format("%s count,delta=123 %d", DEFAULT_NAME, MILLIS_TS_2),
+            String.format("%s count,delta=321 %d", DEFAULT_NAME, MILLIS_TS_3),
+            String.format("%s count,delta=456", DEFAULT_NAME));
   }
 
   @Test
-  void createDoubleSumLinesDelta() {
-    Collection<DoublePointData> doublePointDataCollection =
-        new ArrayList<DoublePointData>() {
-          {
-            add(
-                DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 123.456d));
-            add(
-                DoublePointData.create(
-                    1619687639000000000L, 1619687659000000000L, Attributes.empty(), 321.456d));
-            add(DoublePointData.create(0L, 0L, Attributes.empty(), 654.321d));
-          }
-        };
-    DoubleSumData doubleSumData =
-        DoubleSumData.create(true, AggregationTemporality.DELTA, doublePointDataCollection);
+  void createSumLines_Long_Delta_NonMonotonic() {
     MetricData metricData =
-        MetricData.createDoubleSum(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "doubleSumData",
-            "",
-            "",
-            doubleSumData);
+        ImmutableMetricData.createLongSum(
+            DEFAULT_RESOURCE,
+            DEFAULT_SCOPE,
+            DEFAULT_NAME,
+            DEFAULT_DESC,
+            DEFAULT_UNIT,
+            ImmutableSumData.create(
+                false,
+                AggregationTemporality.DELTA,
+                Arrays.asList(
+                    ImmutableLongPointData.create(NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, 123),
+                    ImmutableLongPointData.create(NANOS_TS_1, NANOS_TS_3, EMPTY_ATTRIBUTES, 21),
+                    ImmutableLongPointData.create(0L, 0L, EMPTY_ATTRIBUTES, 456))));
 
-    List<String> doubleSumLines = serializer.createDoubleSumLines(metricData, true);
-    assertThat(doubleSumLines).hasSize(3);
-    assertThat(doubleSumLines.get(0)).isEqualTo("doubleSumData count,delta=123.456 1619687659000");
-    assertThat(doubleSumLines.get(1)).isEqualTo("doubleSumData count,delta=321.456 1619687659000");
-    assertThat(doubleSumLines.get(2)).isEqualTo("doubleSumData count,delta=654.321");
+    // delta non-monotonic sums are currently dropped (requires Delta -> cumulative conversion).
+    List<String> lines = serializer.createLongSumLines(metricData);
+    assertThat(lines).isEmpty();
+  }
+
+  @Test
+  void createGaugeLines_Long() {
+    MetricData metricData =
+        ImmutableMetricData.createLongGauge(
+            DEFAULT_RESOURCE,
+            DEFAULT_SCOPE,
+            DEFAULT_NAME,
+            DEFAULT_DESC,
+            DEFAULT_UNIT,
+            ImmutableGaugeData.create(
+                Arrays.asList(
+                    ImmutableLongPointData.create(NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, 123),
+                    ImmutableLongPointData.create(NANOS_TS_1, NANOS_TS_3, EMPTY_ATTRIBUTES, 23),
+                    ImmutableLongPointData.create(0L, 0L, EMPTY_ATTRIBUTES, 345))));
+    List<String> lines = serializer.createLongGaugeLines(metricData);
+
+    assertThat(lines)
+        .hasSize(3)
+        .containsExactly(
+            String.format("%s gauge,123 %s", DEFAULT_NAME, MILLIS_TS_2),
+            String.format("%s gauge,23 %s", DEFAULT_NAME, MILLIS_TS_3),
+            String.format("%s gauge,345", DEFAULT_NAME));
+  }
+
+  @Test
+  void createGaugeLines_Double() {
+    MetricData metricData =
+        ImmutableMetricData.createDoubleGauge(
+            DEFAULT_RESOURCE,
+            DEFAULT_SCOPE,
+            DEFAULT_NAME,
+            DEFAULT_DESC,
+            DEFAULT_UNIT,
+            ImmutableGaugeData.create(
+                Arrays.asList(
+                    ImmutableDoublePointData.create(
+                        NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, 123.4),
+                    ImmutableDoublePointData.create(NANOS_TS_1, NANOS_TS_3, EMPTY_ATTRIBUTES, 23.5),
+                    ImmutableDoublePointData.create(0L, 0L, EMPTY_ATTRIBUTES, 345.6))));
+    List<String> lines = serializer.createDoubleGaugeLines(metricData);
+
+    assertThat(lines)
+        .hasSize(3)
+        .containsExactly(
+            String.format("%s gauge,123.4 %s", DEFAULT_NAME, MILLIS_TS_2),
+            String.format("%s gauge,23.5 %s", DEFAULT_NAME, MILLIS_TS_3),
+            String.format("%s gauge,345.6", DEFAULT_NAME));
   }
 
   @Test
   void createDoubleSummaryLines() {
-    Collection<DoubleSummaryPointData> doubleSummaryPointDataCollection =
-        new ArrayList<DoubleSummaryPointData>() {
-          {
-            add(
-                DoubleSummaryPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    7,
-                    500.70d,
-                    Arrays.asList(
-                        ValueAtPercentile.create(0.0, 0.1),
-                        ValueAtPercentile.create(100.0, 100.1))));
-            add(
-                DoubleSummaryPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    3,
-                    202.66d,
-                    Arrays.asList(
-                        ValueAtPercentile.create(0.0, 0.22),
-                        ValueAtPercentile.create(100.0, 123.45))));
-            add(
-                DoubleSummaryPointData.create(
-                    0L,
-                    0L,
-                    Attributes.empty(),
-                    10,
-                    300.70d,
-                    Arrays.asList(
-                        ValueAtPercentile.create(0.0, 0.123),
-                        ValueAtPercentile.create(100.0, 234.5))));
-          }
-        };
-
-    DoubleSummaryData doubleSummaryData =
-        DoubleSummaryData.create(doubleSummaryPointDataCollection);
     MetricData metricData =
-        MetricData.createDoubleSummary(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "doubleSummary",
-            "",
-            "",
-            doubleSummaryData);
+        ImmutableMetricData.createDoubleSummary(
+            DEFAULT_RESOURCE,
+            DEFAULT_SCOPE,
+            DEFAULT_NAME,
+            DEFAULT_DESC,
+            DEFAULT_UNIT,
+            ImmutableSummaryData.create(
+                Arrays.asList(
+                    ImmutableSummaryPointData.create(
+                        NANOS_TS_1,
+                        NANOS_TS_2,
+                        EMPTY_ATTRIBUTES,
+                        4,
+                        100.4,
+                        Arrays.asList(
+                            ImmutableValueAtQuantile.create(.5, 15.1),
+                            ImmutableValueAtQuantile.create(.9, 24.2))),
+                    ImmutableSummaryPointData.create(
+                        NANOS_TS_1,
+                        NANOS_TS_3,
+                        EMPTY_ATTRIBUTES,
+                        5,
+                        125.5,
+                        Arrays.asList(
+                            ImmutableValueAtQuantile.create(.5, 15.12),
+                            ImmutableValueAtQuantile.create(.9, 24.23))))));
 
-    List<String> doubleSummaryLines = serializer.createDoubleSummaryLines(metricData);
-    assertThat(doubleSummaryLines).hasSize(3);
-    assertThat(doubleSummaryLines.get(0))
-        .isEqualTo("doubleSummary gauge,min=0.1,max=100.1,sum=500.7,count=7 1619687659000");
-    assertThat(doubleSummaryLines.get(1))
-        .isEqualTo("doubleSummary gauge,min=0.22,max=123.45,sum=202.66,count=3 1619687659000");
-    assertThat(doubleSummaryLines.get(2))
-        .isEqualTo("doubleSummary gauge,min=0.123,max=234.5,sum=300.7,count=10");
+    // Quantiles are dropped, only a summary gauge with min=max=sum/count and sum & count is
+    // exported
+    List<String> lines = serializer.createDoubleSummaryLines(metricData);
+    assertThat(lines)
+        .hasSize(2)
+        .containsExactly(
+            String.format(
+                "%s gauge,min=25.1,max=25.1,sum=100.4,count=4 %s", DEFAULT_NAME, MILLIS_TS_2),
+            String.format(
+                "%s gauge,min=25.1,max=25.1,sum=125.5,count=5 %s", DEFAULT_NAME, MILLIS_TS_3));
+  }
+
+  @Test
+  void createHistogramLines_Delta() {
+    MetricData metricData =
+        ImmutableMetricData.createDoubleHistogram(
+            DEFAULT_RESOURCE,
+            DEFAULT_SCOPE,
+            DEFAULT_NAME,
+            DEFAULT_DESC,
+            DEFAULT_UNIT,
+            ImmutableHistogramData.create(
+                AggregationTemporality.DELTA,
+                Arrays.asList(
+                    ImmutableHistogramPointData.create(
+                        NANOS_TS_1,
+                        NANOS_TS_2,
+                        EMPTY_ATTRIBUTES,
+                        125.5,
+                        null,
+                        null,
+                        Arrays.asList(0.0, 12.5, 50.7),
+                        Arrays.asList(0L, 5L, 3L, 0L)),
+                    ImmutableHistogramPointData.create(
+                        NANOS_TS_1,
+                        NANOS_TS_3,
+                        EMPTY_ATTRIBUTES,
+                        100.4,
+                        1.2,
+                        32.6,
+                        Arrays.asList(2.3, 11.4, 23.6),
+                        Arrays.asList(1L, 7L, 4L, 1L)))));
+
+    List<String> lines = serializer.createDoubleHistogramLines(metricData);
+    assertThat(lines)
+        .hasSize(2)
+        .containsExactly(
+            // min&max estimated from boundaries
+            String.format(
+                "%s gauge,min=0.0,max=50.7,sum=125.5,count=8 %d", DEFAULT_NAME, MILLIS_TS_2),
+            // uses explicitly set min&max
+            String.format(
+                "%s gauge,min=1.2,max=32.6,sum=100.4,count=13 %d", DEFAULT_NAME, MILLIS_TS_3));
+  }
+
+  @Test
+  void createHistogramLines_Cumulative() {
+    MetricData metricData =
+        ImmutableMetricData.createDoubleHistogram(
+            DEFAULT_RESOURCE,
+            DEFAULT_SCOPE,
+            DEFAULT_NAME,
+            DEFAULT_DESC,
+            DEFAULT_UNIT,
+            ImmutableHistogramData.create(
+                AggregationTemporality.CUMULATIVE,
+                Arrays.asList(
+                    ImmutableHistogramPointData.create(
+                        NANOS_TS_1,
+                        NANOS_TS_2,
+                        EMPTY_ATTRIBUTES,
+                        125.5,
+                        null,
+                        null,
+                        Arrays.asList(0.0, 12.5, 50.7),
+                        Arrays.asList(0L, 5L, 3L, 0L)),
+                    ImmutableHistogramPointData.create(
+                        NANOS_TS_1,
+                        NANOS_TS_3,
+                        EMPTY_ATTRIBUTES,
+                        100.4,
+                        1.2,
+                        32.6,
+                        Arrays.asList(2.3, 11.4, 23.6),
+                        Arrays.asList(1L, 7L, 4L, 1L)))));
+
+    List<String> lines = serializer.createDoubleHistogramLines(metricData);
+    assertThat(lines).isEmpty();
+  }
+
+  @Test
+  void createInvalidDoubleSumLinesCumulative() {
+    MetricData metricData =
+        ImmutableMetricData.createDoubleSum(
+            DEFAULT_RESOURCE,
+            DEFAULT_SCOPE,
+            DEFAULT_NAME,
+            DEFAULT_DESC,
+            DEFAULT_UNIT,
+            ImmutableSumData.create(
+                false,
+                AggregationTemporality.DELTA,
+                Arrays.asList(
+                    ImmutableDoublePointData.create(
+                        NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, Double.NaN),
+                    ImmutableDoublePointData.create(
+                        NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, Double.NEGATIVE_INFINITY),
+                    ImmutableDoublePointData.create(
+                        NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, Double.POSITIVE_INFINITY))));
+
+    List<String> doubleSumLines = serializer.createDoubleSumLines(metricData);
+    assertThat(doubleSumLines).isEmpty();
   }
 
   @Test
   void createInvalidDoubleSummaryLines() {
-    Collection<DoubleSummaryPointData> doubleSummaryPointDataCollection =
-        new ArrayList<DoubleSummaryPointData>() {
-          {
-            // NaN
-            add(
-                DoubleSummaryPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    3,
-                    Double.NaN,
-                    Arrays.asList(
-                        ValueAtPercentile.create(0.0, 0.22),
-                        ValueAtPercentile.create(100.0, 123.45))));
-            // +Infinity
-            add(
-                DoubleSummaryPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    3,
-                    Double.POSITIVE_INFINITY,
-                    Arrays.asList(
-                        ValueAtPercentile.create(0.0, 0.22),
-                        ValueAtPercentile.create(100.0, 123.45))));
-            // -Infinity
-            add(
-                DoubleSummaryPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    3,
-                    Double.NEGATIVE_INFINITY,
-                    Arrays.asList(
-                        ValueAtPercentile.create(0.0, 0.22),
-                        ValueAtPercentile.create(100.0, 123.45))));
-            // Will be dropped since no min and max are set and are, by default, assumed to be NaN.
-            add(
-                DoubleSummaryPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    0,
-                    660.66d,
-                    Collections.emptyList()));
-          }
-        };
-
-    DoubleSummaryData doubleSummaryData =
-        DoubleSummaryData.create(doubleSummaryPointDataCollection);
     MetricData metricData =
-        MetricData.createDoubleSummary(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "doubleSummary",
-            "",
-            "",
-            doubleSummaryData);
+        ImmutableMetricData.createDoubleSummary(
+            DEFAULT_RESOURCE,
+            DEFAULT_SCOPE,
+            DEFAULT_NAME,
+            DEFAULT_DESC,
+            DEFAULT_UNIT,
+            ImmutableSummaryData.create(
+                Arrays.asList(
+                    ImmutableSummaryPointData.create(
+                        NANOS_TS_1,
+                        NANOS_TS_2,
+                        EMPTY_ATTRIBUTES,
+                        3,
+                        Double.NaN,
+                        Arrays.asList(
+                            ImmutableValueAtQuantile.create(0.0, 0.22),
+                            ImmutableValueAtQuantile.create(100.0, 123.45))),
+                    ImmutableSummaryPointData.create(
+                        NANOS_TS_1,
+                        NANOS_TS_2,
+                        EMPTY_ATTRIBUTES,
+                        3,
+                        Double.POSITIVE_INFINITY,
+                        Arrays.asList(
+                            ImmutableValueAtQuantile.create(0.0, 0.22),
+                            ImmutableValueAtQuantile.create(100.0, 123.45))),
+                    ImmutableSummaryPointData.create(
+                        NANOS_TS_1,
+                        NANOS_TS_2,
+                        EMPTY_ATTRIBUTES,
+                        3,
+                        Double.NEGATIVE_INFINITY,
+                        Arrays.asList(
+                            ImmutableValueAtQuantile.create(0.0, 0.22),
+                            ImmutableValueAtQuantile.create(100.0, 123.45))))));
 
     List<String> doubleSummaryLines = serializer.createDoubleSummaryLines(metricData);
     assertThat(doubleSummaryLines).isEmpty();
   }
 
   @Test
-  void createDoubleHistogramLines() {
-    Collection<DoubleHistogramPointData> doubleHistogramPointDataCollection =
-        new ArrayList<DoubleHistogramPointData>() {
-          {
-            add(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    10.123d,
-                    Arrays.asList(0.1d, 1.2d, 3.4d, 5.6d),
-                    Arrays.asList(0L, 2L, 1L, 3L, 0L)));
-            add(
-                DoubleHistogramPointData.create(
-                    0L,
-                    0L,
-                    Attributes.empty(),
-                    23.45d,
-                    Arrays.asList(0.2d, 1.2d, 3.4d, 5.9d),
-                    Arrays.asList(0L, 2L, 1L, 3L, 5L)));
-          }
-        };
-
-    DoubleHistogramData doubleHistogramData =
-        DoubleHistogramData.create(
-            AggregationTemporality.CUMULATIVE, doubleHistogramPointDataCollection);
-    MetricData metricData =
-        MetricData.createDoubleHistogram(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "doubleHistogram",
-            "",
-            "",
-            doubleHistogramData);
-
-    List<String> doubleHistogramLines = serializer.createDoubleHistogramLines(metricData);
-    assertThat(doubleHistogramLines).hasSize(2);
-    assertThat(doubleHistogramLines.get(0))
-        .isEqualTo("doubleHistogram gauge,min=0.1,max=5.6,sum=10.123,count=6 1619687659000");
-    assertThat(doubleHistogramLines.get(1))
-        .isEqualTo("doubleHistogram gauge,min=0.2,max=5.9,sum=23.45,count=11");
-  }
-
-  @Test
   void createInvalidDoubleHistogramLines() {
-    Collection<DoubleHistogramPointData> doubleHistogramPointDataCollection =
-        new ArrayList<DoubleHistogramPointData>() {
-          {
-            add(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    Double.NaN,
-                    Arrays.asList(0.1d, 1.2d, 3.4d, 5.6d),
-                    Arrays.asList(0L, 2L, 1L, 3L, 0L)));
-            add(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    Double.NEGATIVE_INFINITY,
-                    Arrays.asList(0.1d, 1.2d, 3.4d, 5.6d),
-                    Arrays.asList(0L, 2L, 1L, 3L, 0L)));
-            add(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    Double.POSITIVE_INFINITY,
-                    Arrays.asList(0.1d, 1.2d, 3.4d, 5.6d),
-                    Arrays.asList(0L, 2L, 1L, 3L, 0L)));
-            add(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
-                    10.234,
-                    Arrays.asList(0.1d, 1.2d, 3.4d, Double.NaN),
-                    Arrays.asList(0L, 2L, 1L, 3L, 0L)));
-          }
-        };
-
-    DoubleHistogramData doubleHistogramData =
-        DoubleHistogramData.create(
-            AggregationTemporality.CUMULATIVE, doubleHistogramPointDataCollection);
     MetricData metricData =
-        MetricData.createDoubleHistogram(
-            Resource.getDefault(),
-            InstrumentationLibraryInfo.empty(),
-            "doubleHistogram",
-            "",
-            "",
-            doubleHistogramData);
+        ImmutableMetricData.createDoubleHistogram(
+            DEFAULT_RESOURCE,
+            DEFAULT_SCOPE,
+            DEFAULT_NAME,
+            DEFAULT_DESC,
+            DEFAULT_UNIT,
+            ImmutableHistogramData.create(
+                AggregationTemporality.DELTA,
+                Arrays.asList(
+                    // NaN Sum
+                    ImmutableHistogramPointData.create(
+                        NANOS_TS_1,
+                        NANOS_TS_2,
+                        EMPTY_ATTRIBUTES,
+                        Double.NaN,
+                        null,
+                        null,
+                        Arrays.asList(0.0, 5.0, 10.0),
+                        Arrays.asList(0L, 1L, 2L, 3L)),
+                    // +Inf sum
+                    ImmutableHistogramPointData.create(
+                        NANOS_TS_1,
+                        NANOS_TS_2,
+                        EMPTY_ATTRIBUTES,
+                        Double.POSITIVE_INFINITY,
+                        null,
+                        null,
+                        Arrays.asList(0.0, 5.0, 10.0),
+                        Arrays.asList(0L, 1L, 2L, 3L)),
+                    // -Inf sum
+                    ImmutableHistogramPointData.create(
+                        NANOS_TS_1,
+                        NANOS_TS_2,
+                        EMPTY_ATTRIBUTES,
+                        Double.NEGATIVE_INFINITY,
+                        null,
+                        null,
+                        Arrays.asList(0.0, 5.0, 10.0),
+                        Arrays.asList(0L, 1L, 2L, 3L)))));
 
     List<String> doubleHistogramLines = serializer.createDoubleHistogramLines(metricData);
     assertThat(doubleHistogramLines).isEmpty();
@@ -585,52 +600,75 @@ class SerializerTest {
     assertThrows(
         IllegalArgumentException.class,
         () ->
-            DoubleHistogramPointData.create(
-                1619687639000000000L,
-                1619687659000000000L,
-                Attributes.empty(),
+            ImmutableHistogramPointData.create(
+                NANOS_TS_1,
+                NANOS_TS_2,
+                EMPTY_ATTRIBUTES,
                 10.234,
+                null,
+                null,
                 Arrays.asList(Double.NaN, 1.2d, 3.4d, 5.6d),
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
     assertThrows(
         IllegalArgumentException.class,
         () ->
-            DoubleHistogramPointData.create(
-                1619687639000000000L,
-                1619687659000000000L,
-                Attributes.empty(),
+            ImmutableHistogramPointData.create(
+                NANOS_TS_1,
+                NANOS_TS_2,
+                EMPTY_ATTRIBUTES,
                 10.234,
+                null,
+                null,
                 Arrays.asList(0.1d, 1.2d, 3.4d, Double.POSITIVE_INFINITY),
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
     assertThrows(
         IllegalArgumentException.class,
         () ->
-            DoubleHistogramPointData.create(
-                1619687639000000000L,
-                1619687659000000000L,
-                Attributes.empty(),
+            ImmutableHistogramPointData.create(
+                NANOS_TS_1,
+                NANOS_TS_2,
+                EMPTY_ATTRIBUTES,
                 10.234,
+                null,
+                null,
                 Arrays.asList(Double.POSITIVE_INFINITY, 1.2d, 3.4d, 5.6d),
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
     assertThrows(
         IllegalArgumentException.class,
         () ->
-            DoubleHistogramPointData.create(
-                1619687639000000000L,
-                1619687659000000000L,
-                Attributes.empty(),
+            ImmutableHistogramPointData.create(
+                NANOS_TS_1,
+                NANOS_TS_2,
+                EMPTY_ATTRIBUTES,
                 10.234,
+                null,
+                null,
                 Arrays.asList(0.1d, 1.2d, 3.4d, Double.NEGATIVE_INFINITY),
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
     assertThrows(
         IllegalArgumentException.class,
         () ->
-            DoubleHistogramPointData.create(
-                1619687639000000000L,
-                1619687659000000000L,
-                Attributes.empty(),
+            ImmutableHistogramPointData.create(
+                NANOS_TS_1,
+                NANOS_TS_2,
+                EMPTY_ATTRIBUTES,
                 10.234,
+                null,
+                null,
                 Arrays.asList(Double.NEGATIVE_INFINITY, 1.2d, 3.4d, 5.6d),
+                Arrays.asList(0L, 2L, 1L, 3L, 0L)));
+    // Number of bounds does not match number of counts
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            ImmutableHistogramPointData.create(
+                NANOS_TS_1,
+                NANOS_TS_2,
+                EMPTY_ATTRIBUTES,
+                10.234,
+                null,
+                null,
+                Arrays.asList(1.2, 3.4),
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
   }
 
@@ -639,72 +677,84 @@ class SerializerTest {
     // A value between the first two boundaries.
     assertThat(
             Serializer.getMinFromBoundaries(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
+                ImmutableHistogramPointData.create(
+                    NANOS_TS_1,
+                    NANOS_TS_2,
+                    EMPTY_ATTRIBUTES,
                     10.234,
+                    null,
+                    null,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(0L, 1L, 0L, 3L, 0L, 4L))))
-        .isCloseTo(1d, Offset.offset(0.001));
+        .isCloseTo(1d, OFFSET);
 
     // lowest bucket has value, use the first boundary as estimation instead of -Inf
     assertThat(
             Serializer.getMinFromBoundaries(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
+                ImmutableHistogramPointData.create(
+                    NANOS_TS_1,
+                    NANOS_TS_2,
+                    EMPTY_ATTRIBUTES,
                     10.234,
+                    null,
+                    null,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(1L, 0L, 0L, 3L, 0L, 4L))))
-        .isCloseTo(1d, Offset.offset(0.001));
+        .isCloseTo(1d, OFFSET);
 
     // lowest bucket (-Inf, 1) has values, mean is lower than the lowest bucket bound and smaller
     // than the sum
     assertThat(
             Serializer.getMinFromBoundaries(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
+                ImmutableHistogramPointData.create(
+                    NANOS_TS_1,
+                    NANOS_TS_2,
+                    EMPTY_ATTRIBUTES,
                     0.234,
+                    null,
+                    null,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(3L, 0L, 0L, 0L, 0L, 0L))))
-        .isCloseTo(0.234 / 3, Offset.offset(0.001));
+        .isCloseTo(0.234 / 3, OFFSET);
 
     // lowest bucket (-Inf, 0) has values, sum is lower than the lowest bucket bound
     assertThat(
             Serializer.getMinFromBoundaries(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
+                ImmutableHistogramPointData.create(
+                    NANOS_TS_1,
+                    NANOS_TS_2,
+                    EMPTY_ATTRIBUTES,
                     -25.3,
+                    null,
+                    null,
                     Arrays.asList(0d, 5d),
                     Arrays.asList(3L, 0L, 0L))))
-        .isCloseTo(-25.3, Offset.offset(0.001));
+        .isCloseTo(-25.3, OFFSET);
 
     // no bucket has a value
     assertThat(
             Serializer.getMinFromBoundaries(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
+                ImmutableHistogramPointData.create(
+                    NANOS_TS_1,
+                    NANOS_TS_2,
+                    EMPTY_ATTRIBUTES,
                     10.234,
+                    null,
+                    null,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(0L, 0L, 0L, 0L, 0L, 0L))))
-        .isCloseTo(10.234, Offset.offset(0.001));
+        .isCloseTo(10.234, OFFSET);
 
     // just one bucket from -Inf to Inf, calc the mean as min value.
     assertThat(
             Serializer.getMinFromBoundaries(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
+                ImmutableHistogramPointData.create(
+                    NANOS_TS_1,
+                    NANOS_TS_2,
+                    EMPTY_ATTRIBUTES,
                     8.8,
+                    null,
+                    null,
                     Collections.emptyList(),
                     Collections.singletonList(4L))))
         .isCloseTo(2.2, Offset.offset(0.1));
@@ -712,11 +762,13 @@ class SerializerTest {
     // just one bucket from -Inf to Inf, with a count of 1
     assertThat(
             Serializer.getMinFromBoundaries(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
+                ImmutableHistogramPointData.create(
+                    NANOS_TS_1,
+                    NANOS_TS_2,
+                    EMPTY_ATTRIBUTES,
                     1.2,
+                    null,
+                    null,
                     Collections.emptyList(),
                     Collections.singletonList(1L))))
         .isCloseTo(1.2, Offset.offset(0.1));
@@ -724,17 +776,19 @@ class SerializerTest {
     // only the last bucket has a value (5, +Inf)
     assertThat(
             Serializer.getMinFromBoundaries(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
+                ImmutableHistogramPointData.create(
+                    NANOS_TS_1,
+                    NANOS_TS_2,
+                    EMPTY_ATTRIBUTES,
                     10.234,
+                    null,
+                    null,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(0L, 0L, 0L, 0L, 0L, 1L))))
-        .isCloseTo(5d, Offset.offset(0.001));
+        .isCloseTo(5d, OFFSET);
 
-    // skipping the test where both buckets and counts are empty, as that will throw an exception
-    // on creating the DoubleHistogramDataPoint.
+    // skipping the test where both buckets and counts are empty, as that will throw an exception on
+    // creating the ImmutableHistogramDataPoint.
   }
 
   @Test
@@ -742,47 +796,55 @@ class SerializerTest {
     // A value between the last two boundaries.
     assertThat(
             Serializer.getMaxFromBoundaries(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
+                ImmutableHistogramPointData.create(
+                    NANOS_TS_1,
+                    NANOS_TS_2,
+                    EMPTY_ATTRIBUTES,
                     10.234,
+                    null,
+                    null,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(0L, 1L, 0L, 3L, 2L, 0L))))
-        .isCloseTo(5d, Offset.offset(0.001));
+        .isCloseTo(5d, OFFSET);
 
     // last bucket has value, use the last boundary as estimation instead of Inf
     assertThat(
             Serializer.getMaxFromBoundaries(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
+                ImmutableHistogramPointData.create(
+                    NANOS_TS_1,
+                    NANOS_TS_2,
+                    EMPTY_ATTRIBUTES,
                     10.234,
+                    null,
+                    null,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(1L, 0L, 0L, 3L, 0L, 4L))))
-        .isCloseTo(5d, Offset.offset(0.001));
+        .isCloseTo(5d, OFFSET);
 
     // no bucket has a value
     assertThat(
             Serializer.getMaxFromBoundaries(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
+                ImmutableHistogramPointData.create(
+                    NANOS_TS_1,
+                    NANOS_TS_2,
+                    EMPTY_ATTRIBUTES,
                     10.234,
+                    null,
+                    null,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(0L, 0L, 0L, 0L, 0L, 0L))))
-        .isCloseTo(10.234, Offset.offset(0.001));
+        .isCloseTo(10.234, OFFSET);
 
     // just one bucket from -Inf to Inf, calc the mean as max value.
     assertThat(
             Serializer.getMaxFromBoundaries(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
+                ImmutableHistogramPointData.create(
+                    NANOS_TS_1,
+                    NANOS_TS_2,
+                    EMPTY_ATTRIBUTES,
                     8.8,
+                    null,
+                    null,
                     Collections.emptyList(),
                     Collections.singletonList(4L))))
         .isCloseTo(2.2, Offset.offset(0.1));
@@ -790,11 +852,13 @@ class SerializerTest {
     // just one bucket from -Inf to Inf, with a count of 1
     assertThat(
             Serializer.getMaxFromBoundaries(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
+                ImmutableHistogramPointData.create(
+                    NANOS_TS_1,
+                    NANOS_TS_2,
+                    EMPTY_ATTRIBUTES,
                     1.2,
+                    null,
+                    null,
                     Collections.emptyList(),
                     Collections.singletonList(1L))))
         .isCloseTo(1.2, Offset.offset(0.1));
@@ -802,28 +866,32 @@ class SerializerTest {
     // only the last bucket has a value (5, +Inf)
     assertThat(
             Serializer.getMaxFromBoundaries(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
+                ImmutableHistogramPointData.create(
+                    NANOS_TS_1,
+                    NANOS_TS_2,
+                    EMPTY_ATTRIBUTES,
                     10.234,
+                    null,
+                    null,
                     Arrays.asList(1d, 2d, 3d, 4d, 5d),
                     Arrays.asList(0L, 0L, 0L, 0L, 0L, 1L))))
-        .isCloseTo(5d, Offset.offset(0.001));
+        .isCloseTo(5d, OFFSET);
 
     // the max is greater than the sum
     assertThat(
             Serializer.getMaxFromBoundaries(
-                DoubleHistogramPointData.create(
-                    1619687639000000000L,
-                    1619687659000000000L,
-                    Attributes.empty(),
+                ImmutableHistogramPointData.create(
+                    NANOS_TS_1,
+                    NANOS_TS_2,
+                    EMPTY_ATTRIBUTES,
                     2.3,
+                    null,
+                    null,
                     Arrays.asList(-5d, 0d, 5d),
                     Arrays.asList(0L, 0L, 2L, 0L))))
-        .isCloseTo(2.3, Offset.offset(0.001));
+        .isCloseTo(2.3, OFFSET);
 
-    // skipping the test where both buckets and counts are empty, as that will throw an exception
-    // on creating the DoubleHistogramDataPoint.
+    // skipping the test where both buckets and counts are empty, as that will throw an exception on
+    // creating the ImmutableHistogramDataPoint.
   }
 }
