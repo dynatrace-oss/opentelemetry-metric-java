@@ -26,10 +26,9 @@ version = "0.3.0-alpha"
 
 repositories {
     mavenCentral()
-    maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
 }
 
-def otelVersion = '1.14.0-SNAPSHOT'
+def otelVersion = '1.14.0'
 
 dependencies {
     implementation platform("io.opentelemetry:opentelemetry-bom:${otelVersion}")
