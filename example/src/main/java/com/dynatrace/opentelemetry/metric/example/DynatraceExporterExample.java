@@ -13,16 +13,16 @@
  */
 package com.dynatrace.opentelemetry.metric.example;
 
-import static io.opentelemetry.api.common.AttributeKey.stringKey;
-
 import com.dynatrace.opentelemetry.metric.DynatraceMetricExporter;
+import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.metrics.BoundLongCounter;
-import io.opentelemetry.api.metrics.GlobalMeterProvider;
 import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.LongUpDownCounter;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -31,6 +31,8 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
+
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 public class DynatraceExporterExample {
   private static final Logger logger = Logger.getLogger(DynatraceExporterExample.class.getName());
@@ -58,18 +60,21 @@ public class DynatraceExporterExample {
     // set.
     DynatraceMetricExporter exporter = getExampleExporter(args);
 
-    // Creates the meter provider, configuring the metric reader and the Dynatrace exporter.
+    // Creates the meter provider, configuring the metric reader and setting the Dynatrace exporter.
     SdkMeterProvider meterProvider =
         SdkMeterProvider.builder()
-            .registerMetricReader(PeriodicMetricReader.create(exporter, Duration.ofMillis(60000)))
-            .buildAndRegisterGlobal();
+            .registerMetricReader(
+                PeriodicMetricReader.builder(exporter).setInterval(Duration.ofSeconds(30)).build())
+            .build();
+    OpenTelemetrySdk.builder().setMeterProvider(meterProvider).buildAndRegisterGlobal();
 
     // Get or create a named meter instance. If a reference to the MeterProvider ist kept,
-    // meterProvider.get(...) would do the same.
+    // meterProvider.get(...) would
+    // do the same.
     Meter meter =
-        GlobalMeterProvider.get()
+        GlobalOpenTelemetry.getMeterProvider()
             .meterBuilder(DynatraceExporterExample.class.getName())
-            .setInstrumentationVersion("0.1.0-beta")
+            .setInstrumentationVersion("0.3.0-alpha")
             .build();
 
     // Create a counter
@@ -80,17 +85,28 @@ public class DynatraceExporterExample {
             .setUnit("1")
             .build();
 
-    // Create a bound counter with a pre-defined attribute
-    BoundLongCounter someWorkCounter =
-        counter.bind(Attributes.of(stringKey("bound_dimension"), "dimension_value"));
+    LongUpDownCounter updowncounter = meter.upDownCounterBuilder("updowncounter").build();
 
+    // the gauge callback is called once on every export.
+    meter
+        .gaugeBuilder("example_gauge")
+        .setDescription("a random percentage")
+        .setUnit("percent")
+        .buildWithCallback(gauge -> gauge.record(random.nextDouble() * 100));
+
+    int sign = 1;
     while (true) {
-      // Record data with bound attributes
-      someWorkCounter.add(random.nextInt(5));
-
-      // Or record data on an unbound counter and explicitly specify the attributes at call-time
+      // Record some data with attributes, then sleep for some time.
       counter.add(random.nextInt(10), Attributes.of(stringKey("environment"), "testing"));
       counter.add(random.nextInt(20), Attributes.of(stringKey("environment"), "staging"));
+
+      // updowncounter grows and gets smaller over time
+      updowncounter.add(random.nextInt(10) * sign);
+
+      if (random.nextInt(70) <= 1) {
+        // flip the sign
+        sign = sign * -1;
+      }
 
       Thread.sleep(1000);
     }
@@ -129,7 +145,7 @@ public class DynatraceExporterExample {
     String token = System.getenv("DYNATRACEAPI_METRICS_INGEST_TOKEN");
 
     if (endpoint != null && !endpoint.isEmpty()) {
-      logger.info(String.format("Endpoint read from environment: %s", endpoint));
+      logger.info(() -> String.format("Endpoint read from environment: %s", endpoint));
       if (token == null) {
         logger.info(
             "No token set in environment. Assuming that the endpoint is a local OneAgent that does not require an API token.");
@@ -152,6 +168,7 @@ public class DynatraceExporterExample {
           .setDefaultDimensions(exampleDimensions)
           .setUrl(endpoint)
           .setApiToken(token)
+          .setEnrichWithOneAgentMetaData(true)
           .build();
     } catch (MalformedURLException e) {
       logger.warning(String.format("Endpoint '%s' is not a valid URL.", endpoint));
