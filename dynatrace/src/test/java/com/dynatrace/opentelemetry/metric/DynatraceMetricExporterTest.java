@@ -365,6 +365,15 @@ class DynatraceMetricExporterTest {
     verifyNoInteractions(serializerMock);
   }
 
+  private static Stream<Arguments> provideInstrumentTypes() {
+    return Stream.of(
+        Arguments.of(InstrumentType.COUNTER, AggregationTemporality.DELTA),
+        Arguments.of(InstrumentType.OBSERVABLE_COUNTER, AggregationTemporality.DELTA),
+        Arguments.of(InstrumentType.HISTOGRAM, AggregationTemporality.DELTA),
+        Arguments.of(InstrumentType.UP_DOWN_COUNTER, AggregationTemporality.CUMULATIVE),
+        Arguments.of(InstrumentType.OBSERVABLE_UP_DOWN_COUNTER, AggregationTemporality.CUMULATIVE));
+  }
+
   @ParameterizedTest
   @MethodSource("provideInstrumentTypes")
   void testGetRightAggregationTemporalityForType(
@@ -375,7 +384,7 @@ class DynatraceMetricExporterTest {
   }
 
   @Test
-  void testPublicExportInvalidUrl() throws IOException {
+  void testExportInvalidUrl() throws IOException {
     URL urlMock = mock(URL.class);
     when(urlMock.openConnection()).thenThrow(new IOException("mocked exception"));
 
@@ -386,7 +395,7 @@ class DynatraceMetricExporterTest {
   }
 
   @Test
-  void testPublicExportValidUrl() throws IOException {
+  void testExportValidUrl() throws IOException {
     URL urlMock = mock(URL.class);
     when(urlMock.openConnection()).thenReturn(mock(HttpURLConnection.class));
 
@@ -430,15 +439,6 @@ class DynatraceMetricExporterTest {
     DynatraceMetricExporter exporter =
         new DynatraceMetricExporter(mock(URL.class), "test", mock(Serializer.class));
     assertThat(exporter.shutdown()).isEqualTo(CompletableResultCode.ofSuccess());
-  }
-
-  private static Stream<Arguments> provideInstrumentTypes() {
-    return Stream.of(
-        Arguments.of(InstrumentType.COUNTER, AggregationTemporality.DELTA),
-        Arguments.of(InstrumentType.OBSERVABLE_COUNTER, AggregationTemporality.DELTA),
-        Arguments.of(InstrumentType.HISTOGRAM, AggregationTemporality.DELTA),
-        Arguments.of(InstrumentType.UP_DOWN_COUNTER, AggregationTemporality.CUMULATIVE),
-        Arguments.of(InstrumentType.OBSERVABLE_UP_DOWN_COUNTER, AggregationTemporality.CUMULATIVE));
   }
 
   private static MetricData generateValidDoubleSumData() {
