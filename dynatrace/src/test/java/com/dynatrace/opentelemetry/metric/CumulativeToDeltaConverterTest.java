@@ -91,6 +91,18 @@ class CumulativeToDeltaConverterTest {
     assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(300.4, 4)))
         .isCloseTo(200.1, offset);
   }
+  
+  @Test
+  void testNextValueWithOlderTimestampDouble() {
+      assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(100.2, 1))).isNull();
+      assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(200.4, 0))).isNull();
+  }
+
+  @Test
+  void testNextValueWithOlderTimestampLong() {
+    assertThat(converter.convertLongTotalToDelta("test", createLongPointData(100L, 1))).isNull();
+    assertThat(converter.convertLongTotalToDelta("test", createLongPointData(200L, 0))).isNull();
+  }
 
   @Test
   void testDoubleInvalidNumbers() {
