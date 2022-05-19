@@ -20,7 +20,7 @@ plugins {
 }
 
 group = "com.dynatrace.opentelemetry.metric"
-version = "0.5.0-alpha"
+version = "0.5.0"
 
 repositories {
     mavenCentral()

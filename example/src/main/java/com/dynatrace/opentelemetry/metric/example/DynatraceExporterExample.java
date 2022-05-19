@@ -59,7 +59,7 @@ public class DynatraceExporterExample {
     Meter meter =
         GlobalOpenTelemetry.getMeterProvider()
             .meterBuilder(DynatraceExporterExample.class.getName())
-            .setInstrumentationVersion("0.5.0-alpha")
+            .setInstrumentationVersion("0.5.0")
             .build();
 
     // Create a counter

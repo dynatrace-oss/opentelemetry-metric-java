@@ -22,7 +22,7 @@ plugins {
 mainClassName = "com.dynatrace.opentelemetry.metric.example.DynatraceExporterExample"
 
 group = "com.dynatrace.opentelemetry.metric.example"
-version = "0.5.0-alpha"
+version = "0.5.0"
 
 repositories {
     mavenCentral()
