@@ -33,10 +33,9 @@ dependencies {
     implementation('io.opentelemetry:opentelemetry-sdk')
     implementation('io.opentelemetry:opentelemetry-sdk-metrics')
 
-
     implementation("com.google.guava:guava:30.0-jre")
 
-    implementation('com.dynatrace.metric.util:dynatrace-metric-utils-java:1.1.+')
+    implementation('com.dynatrace.metric.util:dynatrace-metric-utils-java:1.5.+')
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.1")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.1")
