@@ -16,8 +16,8 @@ package com.dynatrace.opentelemetry.metric.example;
 import com.dynatrace.opentelemetry.metric.DynatraceMetricExporter;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.DoubleUpDownCounter;
 import io.opentelemetry.api.metrics.LongCounter;
-import io.opentelemetry.api.metrics.LongUpDownCounter;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
@@ -38,22 +38,6 @@ public class DynatraceExporterExample {
   private static final Logger logger = Logger.getLogger(DynatraceExporterExample.class.getName());
   private static final Random random = new Random();
 
-  static {
-    // read logging.properties and set it to the global LogManager.
-    LogManager logManager = LogManager.getLogManager();
-    try {
-      logManager.readConfiguration(
-          new FileInputStream(
-              Objects.requireNonNull(
-                      DynatraceExporterExample.class
-                          .getClassLoader()
-                          .getResource("logging.properties"))
-                  .getFile()));
-    } catch (NullPointerException | IOException e) {
-      logger.warning("Failed to read logging setup from logging.properties: " + e.getMessage());
-    }
-  }
-
   public static void main(String[] args) throws Exception {
     // Create a DynatraceMetricExporter. This method tries to create one from environment variables,
     // then from program arguments, and falls back to the default OneAgent endpoint if nothing is
@@ -66,15 +50,16 @@ public class DynatraceExporterExample {
             .registerMetricReader(
                 PeriodicMetricReader.builder(exporter).setInterval(Duration.ofSeconds(30)).build())
             .build();
+    // set up this meter provider as the global meter provider. The global context allows access
+    // from anywhere in the program.
     OpenTelemetrySdk.builder().setMeterProvider(meterProvider).buildAndRegisterGlobal();
 
     // Get or create a named meter instance. If a reference to the MeterProvider ist kept,
-    // meterProvider.get(...) would
-    // do the same.
+    // meterProvider.meterBuilder(...) would do the same.
     Meter meter =
         GlobalOpenTelemetry.getMeterProvider()
             .meterBuilder(DynatraceExporterExample.class.getName())
-            .setInstrumentationVersion("0.3.0-alpha")
+            .setInstrumentationVersion("0.5.0-alpha")
             .build();
 
     // Create a counter
@@ -85,7 +70,8 @@ public class DynatraceExporterExample {
             .setUnit("1")
             .build();
 
-    LongUpDownCounter updowncounter = meter.upDownCounterBuilder("updowncounter").build();
+    // Create an UpDownCounter
+    DoubleUpDownCounter upDownCounter = meter.upDownCounterBuilder("updown_counter").ofDoubles().build();
 
     // the gauge callback is called once on every export.
     meter
@@ -101,10 +87,10 @@ public class DynatraceExporterExample {
       counter.add(random.nextInt(20), Attributes.of(stringKey("environment"), "staging"));
 
       // updowncounter grows and gets smaller over time
-      updowncounter.add(random.nextInt(10) * sign);
+      upDownCounter.add(random.nextDouble() * sign);
 
-      if (random.nextInt(70) <= 1) {
-        // flip the sign
+      if (random.nextInt(90) <= 1) {
+        // flip the sign randomly and seldomly (roughly every 90 seconds).
         sign = sign * -1;
       }
 
@@ -130,6 +116,22 @@ public class DynatraceExporterExample {
     }
 
     return exporter;
+  }
+
+  static {
+    // read logging.properties and set it to the global LogManager.
+    LogManager logManager = LogManager.getLogManager();
+    try {
+      logManager.readConfiguration(
+          new FileInputStream(
+              Objects.requireNonNull(
+                      DynatraceExporterExample.class
+                          .getClassLoader()
+                          .getResource("logging.properties"))
+                  .getFile()));
+    } catch (NullPointerException | IOException e) {
+      logger.warning("Failed to read logging setup from logging.properties: " + e.getMessage());
+    }
   }
 
   private static DynatraceMetricExporter tryGetExporterFromArgs(String[] args) {
