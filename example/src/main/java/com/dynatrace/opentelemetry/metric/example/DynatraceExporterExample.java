@@ -13,6 +13,8 @@
  */
 package com.dynatrace.opentelemetry.metric.example;
 
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
+
 import com.dynatrace.opentelemetry.metric.DynatraceMetricExporter;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
@@ -23,7 +25,6 @@ import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
-
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -32,8 +33,6 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
-
-import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 public class DynatraceExporterExample {
   private static final Logger logger = Logger.getLogger(DynatraceExporterExample.class.getName());
@@ -72,7 +71,8 @@ public class DynatraceExporterExample {
             .build();
 
     // Create an UpDownCounter
-    DoubleUpDownCounter upDownCounter = meter.upDownCounterBuilder("updown_counter").ofDoubles().build();
+    DoubleUpDownCounter upDownCounter =
+        meter.upDownCounterBuilder("updown_counter").ofDoubles().build();
 
     // the gauge callback is called once on every export.
     meter

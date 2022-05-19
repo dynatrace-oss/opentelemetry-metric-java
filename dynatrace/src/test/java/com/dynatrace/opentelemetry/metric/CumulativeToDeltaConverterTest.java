@@ -21,10 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.DoublePointData;
 import io.opentelemetry.sdk.metrics.data.LongPointData;
-import java.time.Duration;
-
 import io.opentelemetry.sdk.metrics.internal.data.ImmutableDoublePointData;
 import io.opentelemetry.sdk.metrics.internal.data.ImmutableLongPointData;
+import java.time.Duration;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -91,11 +90,13 @@ class CumulativeToDeltaConverterTest {
     assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(300.4, 4)))
         .isCloseTo(200.1, offset);
   }
-  
+
   @Test
   void testNextValueWithOlderTimestampDouble() {
-      assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(100.2, 1))).isNull();
-      assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(200.4, 0))).isNull();
+    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(100.2, 1)))
+        .isNull();
+    assertThat(converter.convertDoubleTotalToDelta("test", createDoublePointData(200.4, 0)))
+        .isNull();
   }
 
   @Test

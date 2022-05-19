@@ -14,6 +14,11 @@
 
 package com.dynatrace.opentelemetry.metric;
 
+import static com.dynatrace.opentelemetry.metric.TestDataConstants.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.*;
+
 import com.dynatrace.metric.util.Dimension;
 import com.dynatrace.metric.util.DimensionList;
 import io.opentelemetry.api.common.AttributeKey;
@@ -26,13 +31,6 @@ import io.opentelemetry.sdk.metrics.data.MetricDataType;
 import io.opentelemetry.sdk.metrics.internal.data.ImmutableDoublePointData;
 import io.opentelemetry.sdk.metrics.internal.data.ImmutableMetricData;
 import io.opentelemetry.sdk.metrics.internal.data.ImmutableSumData;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -41,11 +39,12 @@ import java.net.ProtocolException;
 import java.net.URL;
 import java.util.Collections;
 import java.util.stream.Stream;
-
-import static com.dynatrace.opentelemetry.metric.TestDataConstants.*;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 class DynatraceMetricExporterTest {
 
@@ -99,7 +98,7 @@ class DynatraceMetricExporterTest {
     assertThat(metricExporter.doExport(Collections.singleton(md), connection))
         .isEqualTo(CompletableResultCode.ofFailure());
   }
-  
+
   @Test
   void testFailedExport() throws IOException {
     MetricData md = generateValidDoubleSumData();
@@ -418,16 +417,18 @@ class DynatraceMetricExporterTest {
     assertThat(exporter.doExport(Collections.singletonList(metricDataMock), connectionMock))
         .isEqualTo(CompletableResultCode.ofFailure());
   }
-  
+
   @Test
   void testFlush() {
-    DynatraceMetricExporter exporter = new DynatraceMetricExporter(mock(URL.class), "test", mock(Serializer.class));
+    DynatraceMetricExporter exporter =
+        new DynatraceMetricExporter(mock(URL.class), "test", mock(Serializer.class));
     assertThat(exporter.flush()).isEqualTo(CompletableResultCode.ofSuccess());
   }
 
   @Test
   void testShutdown() {
-    DynatraceMetricExporter exporter = new DynatraceMetricExporter(mock(URL.class), "test", mock(Serializer.class));
+    DynatraceMetricExporter exporter =
+        new DynatraceMetricExporter(mock(URL.class), "test", mock(Serializer.class));
     assertThat(exporter.shutdown()).isEqualTo(CompletableResultCode.ofSuccess());
   }
 

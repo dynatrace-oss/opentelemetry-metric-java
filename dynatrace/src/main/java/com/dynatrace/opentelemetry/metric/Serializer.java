@@ -19,7 +19,6 @@ import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.common.AttributeType;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.*;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
