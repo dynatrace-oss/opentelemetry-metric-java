@@ -67,7 +67,7 @@ class DynatraceMetricExporterTest {
             .setUrl(connection.getURL())
             .build();
 
-    CompletableResultCode result = metricExporter.export(Collections.singleton(md), connection);
+    CompletableResultCode result = metricExporter.doExport(Collections.singleton(md), connection);
 
     assertExportRequestSuccess(
         connection,
@@ -77,6 +77,29 @@ class DynatraceMetricExporterTest {
         result);
   }
 
+  @Test
+  void testExportWrongResponseCode() throws IOException {
+    MetricData md = generateValidDoubleSumData();
+
+    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+    ByteArrayInputStream bis =
+        new ByteArrayInputStream(
+            "{\n\"linesOk\": 1,\n\"linesInvalid\": 0,\n  \"error\": null\n}".getBytes());
+
+    // 200 is not a failure, but not the response we expect, as we expect 202.
+    HttpURLConnection connection = setUpMockConnection(200, bos, bis);
+
+    DynatraceMetricExporter metricExporter =
+        DynatraceMetricExporter.builder()
+            .setEnrichWithOneAgentMetaData(false)
+            .setApiToken("mytoken")
+            .setUrl(connection.getURL())
+            .build();
+
+    assertThat(metricExporter.doExport(Collections.singleton(md), connection))
+        .isEqualTo(CompletableResultCode.ofFailure());
+  }
+  
   @Test
   void testFailedExport() throws IOException {
     MetricData md = generateValidDoubleSumData();
@@ -91,7 +114,7 @@ class DynatraceMetricExporterTest {
             .setUrl(connection.getURL())
             .build();
 
-    CompletableResultCode result = metricExporter.export(Collections.singleton(md), connection);
+    CompletableResultCode result = metricExporter.doExport(Collections.singleton(md), connection);
 
     assertEquals(CompletableResultCode.ofFailure(), result);
   }
@@ -115,7 +138,7 @@ class DynatraceMetricExporterTest {
             .setPrefix("prefix")
             .build();
 
-    CompletableResultCode result = metricExporter.export(Collections.singleton(md), connection);
+    CompletableResultCode result = metricExporter.doExport(Collections.singleton(md), connection);
 
     assertExportRequestSuccess(
         connection,
@@ -145,7 +168,7 @@ class DynatraceMetricExporterTest {
             .setDefaultDimensions(Attributes.of(AttributeKey.stringKey("default"), "value"))
             .build();
 
-    CompletableResultCode result = metricExporter.export(Collections.singleton(md), connection);
+    CompletableResultCode result = metricExporter.doExport(Collections.singleton(md), connection);
 
     assertExportRequestSuccess(
         connection,
@@ -175,7 +198,7 @@ class DynatraceMetricExporterTest {
             .setUrl(connection.getURL())
             .build();
 
-    CompletableResultCode result = metricExporter.export(Collections.singleton(md), connection);
+    CompletableResultCode result = metricExporter.doExport(Collections.singleton(md), connection);
 
     assertRequestProperties(connection);
 
@@ -227,7 +250,7 @@ class DynatraceMetricExporterTest {
               .setUrl(connection.getURL())
               .build();
 
-      CompletableResultCode result = metricExporter.export(Collections.singleton(md), connection);
+      CompletableResultCode result = metricExporter.doExport(Collections.singleton(md), connection);
       assertThat(result).isEqualTo(CompletableResultCode.ofSuccess());
       assertThat(bos.toString())
           .contains("dt.metadata.one=value_one")
@@ -350,6 +373,62 @@ class DynatraceMetricExporterTest {
     DynatraceMetricExporter exporter =
         DynatraceMetricExporter.builder().setEnrichWithOneAgentMetaData(false).build();
     assertThat(exporter.getAggregationTemporality(type)).isEqualTo(temporality);
+  }
+
+  @Test
+  void testPublicExportInvalidUrl() throws IOException {
+    URL urlMock = mock(URL.class);
+    when(urlMock.openConnection()).thenThrow(new IOException("mocked exception"));
+
+    // the serializer is not used, as the exception is thrown much earlier.
+    DynatraceMetricExporter exporter =
+        new DynatraceMetricExporter(urlMock, "test", mock(Serializer.class));
+    assertThat(exporter.export(Mockito.any())).isEqualTo(CompletableResultCode.ofFailure());
+  }
+
+  @Test
+  void testPublicExportValidUrl() throws IOException {
+    URL urlMock = mock(URL.class);
+    when(urlMock.openConnection()).thenReturn(mock(HttpURLConnection.class));
+
+    DynatraceMetricExporter exporter =
+        new DynatraceMetricExporter(urlMock, "test", mock(Serializer.class));
+
+    // empty list export should return a CompletableResultCode.ofSuccess from doExport
+    assertThat(exporter.export(Collections.emptyList()))
+        .isEqualTo(CompletableResultCode.ofSuccess());
+  }
+
+  @Test
+  void testConnectionThrowsException() throws IOException {
+    URL urlMock = mock(URL.class);
+    HttpURLConnection connectionMock = mock(HttpURLConnection.class);
+    Serializer serializerMock = mock(Serializer.class);
+    MetricData metricDataMock = mock(MetricData.class);
+
+    when(urlMock.openConnection()).thenReturn(mock(HttpURLConnection.class));
+    doThrow(new ProtocolException("mocked ex"))
+        .when(connectionMock)
+        .setRequestMethod(Mockito.anyString());
+    when(metricDataMock.getType()).thenReturn(MetricDataType.LONG_GAUGE);
+    when(serializerMock.createLongGaugeLines(Mockito.any(MetricData.class)))
+        .thenReturn(Collections.singletonList("a gauge,3"));
+
+    DynatraceMetricExporter exporter = new DynatraceMetricExporter(urlMock, "test", serializerMock);
+    assertThat(exporter.doExport(Collections.singletonList(metricDataMock), connectionMock))
+        .isEqualTo(CompletableResultCode.ofFailure());
+  }
+  
+  @Test
+  void testFlush() {
+    DynatraceMetricExporter exporter = new DynatraceMetricExporter(mock(URL.class), "test", mock(Serializer.class));
+    assertThat(exporter.flush()).isEqualTo(CompletableResultCode.ofSuccess());
+  }
+
+  @Test
+  void testShutdown() {
+    DynatraceMetricExporter exporter = new DynatraceMetricExporter(mock(URL.class), "test", mock(Serializer.class));
+    assertThat(exporter.shutdown()).isEqualTo(CompletableResultCode.ofSuccess());
   }
 
   private static Stream<Arguments> provideInstrumentTypes() {

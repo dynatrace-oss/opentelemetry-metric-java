@@ -135,7 +135,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
       return CompletableResultCode.ofFailure();
     }
 
-    return export(metrics, connection);
+    return doExport(metrics, connection);
   }
 
   @VisibleForTesting
@@ -175,7 +175,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
   }
 
   @VisibleForTesting
-  CompletableResultCode export(Collection<MetricData> metrics, HttpURLConnection connection) {
+  CompletableResultCode doExport(Collection<MetricData> metrics, HttpURLConnection connection) {
     List<String> metricLines = serializeToMetricLines(metrics);
     for (List<String> partition :
         Lists.partition(metricLines, DynatraceMetricApiConstants.getPayloadLinesLimit())) {
@@ -267,7 +267,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
   }
 
   @Override
-  public AggregationTemporality getAggregationTemporality(InstrumentType instrumentType) {
+  public AggregationTemporality getAggregationTemporality(@Nonnull InstrumentType instrumentType) {
     if (instrumentType == InstrumentType.OBSERVABLE_UP_DOWN_COUNTER
         || instrumentType == InstrumentType.UP_DOWN_COUNTER) {
       // Use cumulative temporality for non-monotonic sums
