@@ -15,6 +15,7 @@ package com.dynatrace.opentelemetry.metric.example;
 
 import com.dynatrace.opentelemetry.metric.DynatraceMetricExporter;
 import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleUpDownCounter;
 import io.opentelemetry.api.metrics.LongCounter;
@@ -80,13 +81,16 @@ public class DynatraceExporterExample {
         .setUnit("percent")
         .buildWithCallback(gauge -> gauge.record(random.nextDouble() * 100));
 
-    int sign = 1;
-    while (true) {
-      // Record some data with attributes, then sleep for some time.
-      counter.add(random.nextInt(10), Attributes.of(stringKey("environment"), "testing"));
-      counter.add(random.nextInt(20), Attributes.of(stringKey("environment"), "staging"));
+    AttributeKey<String> attributeKeyEnvironment = stringKey("environment");
 
-      // updowncounter grows and gets smaller over time
+    int sign = 1;
+
+    for (int i = 0; i < Integer.MAX_VALUE; i++) {
+      // Record some data with attributes, then sleep for some time.
+      counter.add(random.nextInt(10), Attributes.of(attributeKeyEnvironment, "testing"));
+      counter.add(random.nextInt(20), Attributes.of(attributeKeyEnvironment, "staging"));
+
+      // updowncounter grows and gets smaller over time, dependent on sign.
       upDownCounter.add(random.nextDouble() * sign);
 
       if (random.nextInt(90) <= 1) {
