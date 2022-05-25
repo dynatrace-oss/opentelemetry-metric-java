@@ -19,10 +19,9 @@ import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.common.AttributeType;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.*;
-import java.time.Duration;
+
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
@@ -36,18 +35,13 @@ final class Serializer {
   private static final String TEMPLATE_ERR_METRIC_LINE =
       "Could not create metric line for data point with name %s (%s).";
 
-  private static final String TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE =
-      "Skipping delta conversion for metric '%s' since no previous value was present in the cache.";
-
   private static final String TEMPLATE_MSG_UNSUPPORTED_ATTRIBUTE_TYPE =
       "Skipping unsupported dimension with value type '%s'";
 
   private final MetricBuilderFactory builderFactory;
-  private final CumulativeToDeltaConverter deltaConverter;
 
   Serializer(MetricBuilderFactory builderFactory) {
     this.builderFactory = builderFactory;
-    this.deltaConverter = new CumulativeToDeltaConverter(Duration.ofMinutes(15));
   }
 
   private Metric.Builder createMetricBuilder(MetricData metric, PointData point) {
