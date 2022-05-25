@@ -104,35 +104,6 @@ class SerializerTest {
   }
 
   @Test
-  void createSumLines_Double_Cumulative_Monotonic() {
-    MetricData metricData =
-        ImmutableMetricData.createDoubleSum(
-            DEFAULT_RESOURCE,
-            DEFAULT_SCOPE,
-            DEFAULT_NAME,
-            DEFAULT_DESC,
-            DEFAULT_UNIT,
-            ImmutableSumData.create(
-                true,
-                AggregationTemporality.CUMULATIVE,
-                Arrays.asList(
-                    ImmutableDoublePointData.create(
-                        NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, 123.7),
-                    ImmutableDoublePointData.create(
-                        NANOS_TS_1, NANOS_TS_3, EMPTY_ATTRIBUTES, 321.9),
-                    ImmutableDoublePointData.create(0L, 0L, EMPTY_ATTRIBUTES, 456.7))));
-
-    // Cumulative monotonic counters are transformed to Delta monotonic counters, losing the first
-    // data point as a reference
-    List<String> lines = serializer.createDoubleSumLines(metricData);
-    assertThat(lines)
-        .hasSize(2)
-        .containsExactly(
-            String.format("%s count,delta=198.2 %d", DEFAULT_NAME, MILLIS_TS_3),
-            String.format("%s count,delta=134.8", DEFAULT_NAME));
-  }
-
-  @Test
   void createSumLines_Double_Cumulative_NonMonotonic() {
     MetricData metricData =
         ImmutableMetricData.createDoubleSum(
@@ -190,56 +161,6 @@ class SerializerTest {
   }
 
   @Test
-  void createSumLines_Double_Delta_NonMonotonic() {
-    MetricData metricData =
-        ImmutableMetricData.createDoubleSum(
-            DEFAULT_RESOURCE,
-            DEFAULT_SCOPE,
-            DEFAULT_NAME,
-            DEFAULT_DESC,
-            DEFAULT_UNIT,
-            ImmutableSumData.create(
-                false,
-                AggregationTemporality.DELTA,
-                Arrays.asList(
-                    ImmutableDoublePointData.create(
-                        NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, 123.7),
-                    ImmutableDoublePointData.create(NANOS_TS_1, NANOS_TS_3, EMPTY_ATTRIBUTES, 20.9),
-                    ImmutableDoublePointData.create(0L, 0L, EMPTY_ATTRIBUTES, 456.7))));
-
-    List<String> lines = serializer.createDoubleSumLines(metricData);
-    // delta non-monotonic sums are currently dropped (requires Delta -> cumulative conversion).
-    assertThat(lines).isEmpty();
-  }
-
-  @Test
-  void createSumLines_Long_Cumulative_Monotonic() {
-    MetricData metricData =
-        ImmutableMetricData.createLongSum(
-            DEFAULT_RESOURCE,
-            DEFAULT_SCOPE,
-            DEFAULT_NAME,
-            DEFAULT_DESC,
-            DEFAULT_UNIT,
-            ImmutableSumData.create(
-                true,
-                AggregationTemporality.CUMULATIVE,
-                Arrays.asList(
-                    ImmutableLongPointData.create(NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, 123),
-                    ImmutableLongPointData.create(NANOS_TS_1, NANOS_TS_3, EMPTY_ATTRIBUTES, 321),
-                    ImmutableLongPointData.create(0L, 0L, EMPTY_ATTRIBUTES, 456))));
-
-    // Cumulative monotonic counters are transformed to Delta monotonic counters, losing the first
-    // data point as a reference
-    List<String> lines = serializer.createLongSumLines(metricData);
-    assertThat(lines)
-        .hasSize(2)
-        .containsExactly(
-            String.format("%s count,delta=198 %d", DEFAULT_NAME, MILLIS_TS_3),
-            String.format("%s count,delta=135", DEFAULT_NAME));
-  }
-
-  @Test
   void createSumLines_Long_Cumulative_NonMonotonic() {
     MetricData metricData =
         ImmutableMetricData.createLongSum(
@@ -290,28 +211,6 @@ class SerializerTest {
             String.format("%s count,delta=123 %d", DEFAULT_NAME, MILLIS_TS_2),
             String.format("%s count,delta=321 %d", DEFAULT_NAME, MILLIS_TS_3),
             String.format("%s count,delta=456", DEFAULT_NAME));
-  }
-
-  @Test
-  void createSumLines_Long_Delta_NonMonotonic() {
-    MetricData metricData =
-        ImmutableMetricData.createLongSum(
-            DEFAULT_RESOURCE,
-            DEFAULT_SCOPE,
-            DEFAULT_NAME,
-            DEFAULT_DESC,
-            DEFAULT_UNIT,
-            ImmutableSumData.create(
-                false,
-                AggregationTemporality.DELTA,
-                Arrays.asList(
-                    ImmutableLongPointData.create(NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, 123),
-                    ImmutableLongPointData.create(NANOS_TS_1, NANOS_TS_3, EMPTY_ATTRIBUTES, 21),
-                    ImmutableLongPointData.create(0L, 0L, EMPTY_ATTRIBUTES, 456))));
-
-    // delta non-monotonic sums are currently dropped (requires Delta -> cumulative conversion).
-    List<String> lines = serializer.createLongSumLines(metricData);
-    assertThat(lines).isEmpty();
   }
 
   @Test
@@ -446,41 +345,6 @@ class SerializerTest {
             // uses explicitly set min&max
             String.format(
                 "%s gauge,min=1.2,max=32.6,sum=100.4,count=13 %d", DEFAULT_NAME, MILLIS_TS_3));
-  }
-
-  @Test
-  void createHistogramLines_Cumulative() {
-    MetricData metricData =
-        ImmutableMetricData.createDoubleHistogram(
-            DEFAULT_RESOURCE,
-            DEFAULT_SCOPE,
-            DEFAULT_NAME,
-            DEFAULT_DESC,
-            DEFAULT_UNIT,
-            ImmutableHistogramData.create(
-                AggregationTemporality.CUMULATIVE,
-                Arrays.asList(
-                    ImmutableHistogramPointData.create(
-                        NANOS_TS_1,
-                        NANOS_TS_2,
-                        EMPTY_ATTRIBUTES,
-                        125.5,
-                        null,
-                        null,
-                        Arrays.asList(0.0, 12.5, 50.7),
-                        Arrays.asList(0L, 5L, 3L, 0L)),
-                    ImmutableHistogramPointData.create(
-                        NANOS_TS_1,
-                        NANOS_TS_3,
-                        EMPTY_ATTRIBUTES,
-                        100.4,
-                        1.2,
-                        32.6,
-                        Arrays.asList(2.3, 11.4, 23.6),
-                        Arrays.asList(1L, 7L, 4L, 1L)))));
-
-    List<String> lines = serializer.createDoubleHistogramLines(metricData);
-    assertThat(lines).isEmpty();
   }
 
   @Test
