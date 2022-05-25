@@ -88,53 +88,38 @@ final class Serializer {
   List<String> createLongSumLines(MetricData metric) {
     List<String> lines = new ArrayList<>();
     SumData<LongPointData> data = metric.getLongSumData();
-    boolean isDelta = data.getAggregationTemporality() == AggregationTemporality.DELTA;
     boolean isMonotonic = data.isMonotonic();
     if (isMonotonic) {
-      createLinesFromMonotonicLongSum(metric, lines, data, isDelta);
+      createLinesFromMonotonicLongSum(metric, lines, data);
     } else {
-      createLinesFromNonMonotonicLongSum(metric, lines, data, isDelta);
+      createLinesFromNonMonotonicLongSum(metric, lines, data);
     }
     return lines;
   }
 
   private void createLinesFromNonMonotonicLongSum(
-      MetricData metric, List<String> lines, SumData<LongPointData> data, boolean isDelta) {
-    if (isDelta) {
-      logger.warning("Non-monotonic Delta counter found. Dropping...");
-    } else {
-      for (LongPointData point : data.getPoints()) {
-        try {
-          lines.add(
-              createMetricBuilder(metric, point).setLongGaugeValue(point.getValue()).serialize());
-        } catch (MetricException e) {
-          logger.warning(
-              () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), e.getMessage()));
-        }
+      MetricData metric, List<String> lines, SumData<LongPointData> data) {
+    // We always expect UpDownCounters to be exported as cumulative values, which will be serialized
+    // as gauge.
+    for (LongPointData point : data.getPoints()) {
+      try {
+        lines.add(
+            createMetricBuilder(metric, point).setLongGaugeValue(point.getValue()).serialize());
+      } catch (MetricException e) {
+        logger.warning(
+            () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), e.getMessage()));
       }
     }
   }
 
   private void createLinesFromMonotonicLongSum(
-      MetricData metric, List<String> lines, SumData<LongPointData> data, boolean isDelta) {
+      MetricData metric, List<String> lines, SumData<LongPointData> data) {
     for (LongPointData point : data.getPoints()) {
       try {
         Metric.Builder builder = createMetricBuilder(metric, point);
-
-        if (isDelta) {
-          // We expect monotonic deltas most of the time.
-          builder.setLongCounterValueDelta(point.getValue());
-          lines.add(builder.serialize());
-        } else {
-          Long delta = deltaConverter.convertLongTotalToDelta(metric.getName(), point);
-          if (delta != null) {
-            builder.setLongCounterValueDelta(delta);
-            lines.add(builder.serialize());
-          } else {
-            logger.finest(
-                () -> String.format(TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE, metric.getName()));
-          }
-        }
+        // We always expect monotonic sums as deltas, which will be exported as delta counters
+        builder.setLongCounterValueDelta(point.getValue());
+        lines.add(builder.serialize());
       } catch (MetricException me) {
         logger.warning(
             () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
@@ -173,51 +158,38 @@ final class Serializer {
   List<String> createDoubleSumLines(MetricData metric) {
     List<String> lines = new ArrayList<>();
     SumData<DoublePointData> data = metric.getDoubleSumData();
-    boolean isDelta = data.getAggregationTemporality() == AggregationTemporality.DELTA;
     boolean isMonotonic = data.isMonotonic();
     if (isMonotonic) {
-      createLinesFromMonotonicDoubleSum(metric, lines, data, isDelta);
+      createLinesFromMonotonicDoubleSum(metric, lines, data);
     } else {
-      createLinesFromNonMonotonicDoubleSum(metric, lines, data, isDelta);
+      createLinesFromNonMonotonicDoubleSum(metric, lines, data);
     }
     return lines;
   }
 
   private void createLinesFromNonMonotonicDoubleSum(
-      MetricData metric, List<String> lines, SumData<DoublePointData> data, boolean isDelta) {
-    if (isDelta) {
-      logger.warning("Non-monotonic Delta counter found. Dropping...");
-    } else {
-      for (DoublePointData point : data.getPoints()) {
-        try {
-          lines.add(
-              createMetricBuilder(metric, point).setDoubleGaugeValue(point.getValue()).serialize());
-        } catch (MetricException e) {
-          logger.warning(
-              () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), e.getMessage()));
-        }
+      MetricData metric, List<String> lines, SumData<DoublePointData> data) {
+    // We always expect UpDownCounters to be exported as cumulative values, which will be serialized
+    // as gauge.
+    for (DoublePointData point : data.getPoints()) {
+      try {
+        lines.add(
+            createMetricBuilder(metric, point).setDoubleGaugeValue(point.getValue()).serialize());
+      } catch (MetricException e) {
+        logger.warning(
+            () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), e.getMessage()));
       }
     }
   }
 
   private void createLinesFromMonotonicDoubleSum(
-      MetricData metric, List<String> lines, SumData<DoublePointData> data, boolean isDelta) {
+      MetricData metric, List<String> lines, SumData<DoublePointData> data) {
     for (DoublePointData point : data.getPoints()) {
       try {
         Metric.Builder builder = createMetricBuilder(metric, point);
-        if (isDelta) {
-          builder.setDoubleCounterValueDelta(point.getValue());
-          lines.add(builder.serialize());
-        } else {
-          Double delta = deltaConverter.convertDoubleTotalToDelta(metric.getName(), point);
-          if (delta != null) {
-            builder.setDoubleCounterValueDelta(delta);
-            lines.add(builder.serialize());
-          } else {
-            logger.finest(
-                () -> String.format(TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE, metric.getName()));
-          }
-        }
+        // We always expect monotonic sums as deltas, which will be exported as delta counters
+        builder.setDoubleCounterValueDelta(point.getValue());
+        lines.add(builder.serialize());
 
       } catch (MetricException me) {
         logger.warning(
@@ -267,11 +239,7 @@ final class Serializer {
   }
 
   List<String> createDoubleHistogramLines(MetricData metric) {
-    if (metric.getHistogramData().getAggregationTemporality()
-        == AggregationTemporality.CUMULATIVE) {
-      logger.warning("Cumulative Histogram encountered, dropping...");
-      return Collections.emptyList();
-    }
+    // We always expect histograms as deltas.
     List<String> lines = new ArrayList<>();
     for (HistogramPointData point : metric.getHistogramData().getPoints()) {
       double min = point.hasMin() ? point.getMin() : getMinFromBoundaries(point);

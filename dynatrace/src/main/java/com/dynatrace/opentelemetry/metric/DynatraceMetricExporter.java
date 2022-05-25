@@ -219,15 +219,15 @@ public final class DynatraceMetricExporter implements MetricExporter {
   }
 
   private void logExportingError(InputStream errorStream, int code) throws IOException {
-    if (errorStream != null) {
-      String message =
-          CharStreams.toString(new InputStreamReader(errorStream, StandardCharsets.UTF_8));
-      logger.warning(
-          () ->
-              String.format("Error while exporting. Status code: %d; Response: %s", code, message));
-    } else {
+    if (errorStream == null) {
       logger.warning(() -> String.format("Error while exporting. Status code: %d", code));
+      return;
     }
+    String message =
+        CharStreams.toString(new InputStreamReader(errorStream, StandardCharsets.UTF_8));
+    logger.warning(
+        () ->
+            String.format("Error while exporting. Status code: %d; Response: %s", code, message));
   }
 
   private CompletableResultCode handleSuccess(int code, int totalLines, String response) {
