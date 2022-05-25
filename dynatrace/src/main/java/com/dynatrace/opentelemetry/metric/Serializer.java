@@ -283,8 +283,7 @@ final class Serializer {
           // - The average in the bucket (smallest if there are multiple positive measurements
           // smaller than the lowest boundary)
           return Math.min(
-              Math.min(pointData.getBoundaries().get(i), pointData.getSum()),
-              pointData.getSum() / pointData.getCount());
+              pointData.getBoundaries().get(i), pointData.getSum() / pointData.getCount());
         }
         return pointData.getBoundaries().get(i - 1);
       }
@@ -314,11 +313,12 @@ final class Serializer {
           // 0 in the last bucket (lastBound, Inf), therefore, the bound has to be smaller than the
           // actual maximum value, which in turn ensures that the sum is larger than the bound we
           // use as max here.
-          return pointData.getBoundaries().get(i - 1);
+          return Math.max(
+              pointData.getBoundaries().get(i-1), pointData.getSum() / pointData.getCount());
         }
         // in any bucket except the last, make sure the sum is greater than or equal to the max,
         // otherwise report the sum.
-        return Math.min(pointData.getBoundaries().get(i), pointData.getSum());
+        return pointData.getBoundaries().get(i);
       }
     }
 

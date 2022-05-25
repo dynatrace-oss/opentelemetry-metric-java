@@ -14,11 +14,6 @@
 
 package com.dynatrace.opentelemetry.metric;
 
-import static com.dynatrace.opentelemetry.metric.TestDataConstants.*;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.dynatrace.metric.util.Dimension;
 import com.dynatrace.metric.util.DimensionList;
 import com.dynatrace.metric.util.MetricBuilderFactory;
@@ -26,12 +21,21 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.internal.data.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.assertj.core.data.Offset;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import java.util.stream.Stream;
+
+import static com.dynatrace.opentelemetry.metric.TestDataConstants.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SerializerTest {
   private Serializer serializer = null;
@@ -535,226 +539,78 @@ class SerializerTest {
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
   }
 
-  @Test
-  void TestGetMinFromBoundaries() {
-    // A value between the first two boundaries.
-    assertThat(
-            Serializer.getMinFromBoundaries(
-                ImmutableHistogramPointData.create(
-                    NANOS_TS_1,
-                    NANOS_TS_2,
-                    EMPTY_ATTRIBUTES,
-                    10.234,
-                    null,
-                    null,
-                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
-                    Arrays.asList(0L, 1L, 0L, 3L, 0L, 4L))))
-        .isCloseTo(1d, OFFSET);
-
-    // lowest bucket has value, use the first boundary as estimation instead of -Inf
-    assertThat(
-            Serializer.getMinFromBoundaries(
-                ImmutableHistogramPointData.create(
-                    NANOS_TS_1,
-                    NANOS_TS_2,
-                    EMPTY_ATTRIBUTES,
-                    10.234,
-                    null,
-                    null,
-                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
-                    Arrays.asList(1L, 0L, 0L, 3L, 0L, 4L))))
-        .isCloseTo(1d, OFFSET);
-
-    // lowest bucket (-Inf, 1) has values, mean is lower than the lowest bucket bound and smaller
-    // than the sum
-    assertThat(
-            Serializer.getMinFromBoundaries(
-                ImmutableHistogramPointData.create(
-                    NANOS_TS_1,
-                    NANOS_TS_2,
-                    EMPTY_ATTRIBUTES,
-                    0.234,
-                    null,
-                    null,
-                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
-                    Arrays.asList(3L, 0L, 0L, 0L, 0L, 0L))))
-        .isCloseTo(0.234 / 3, OFFSET);
-
-    // lowest bucket (-Inf, 0) has values, sum is lower than the lowest bucket bound
-    assertThat(
-            Serializer.getMinFromBoundaries(
-                ImmutableHistogramPointData.create(
-                    NANOS_TS_1,
-                    NANOS_TS_2,
-                    EMPTY_ATTRIBUTES,
-                    -25.3,
-                    null,
-                    null,
-                    Arrays.asList(0d, 5d),
-                    Arrays.asList(3L, 0L, 0L))))
-        .isCloseTo(-25.3, OFFSET);
-
-    // no bucket has a value
-    assertThat(
-            Serializer.getMinFromBoundaries(
-                ImmutableHistogramPointData.create(
-                    NANOS_TS_1,
-                    NANOS_TS_2,
-                    EMPTY_ATTRIBUTES,
-                    10.234,
-                    null,
-                    null,
-                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
-                    Arrays.asList(0L, 0L, 0L, 0L, 0L, 0L))))
-        .isCloseTo(10.234, OFFSET);
-
-    // just one bucket from -Inf to Inf, calc the mean as min value.
-    assertThat(
-            Serializer.getMinFromBoundaries(
-                ImmutableHistogramPointData.create(
-                    NANOS_TS_1,
-                    NANOS_TS_2,
-                    EMPTY_ATTRIBUTES,
-                    8.8,
-                    null,
-                    null,
-                    Collections.emptyList(),
-                    Collections.singletonList(4L))))
-        .isCloseTo(2.2, Offset.offset(0.1));
-
-    // just one bucket from -Inf to Inf, with a count of 1
-    assertThat(
-            Serializer.getMinFromBoundaries(
-                ImmutableHistogramPointData.create(
-                    NANOS_TS_1,
-                    NANOS_TS_2,
-                    EMPTY_ATTRIBUTES,
-                    1.2,
-                    null,
-                    null,
-                    Collections.emptyList(),
-                    Collections.singletonList(1L))))
-        .isCloseTo(1.2, Offset.offset(0.1));
-
-    // only the last bucket has a value (5, +Inf)
-    assertThat(
-            Serializer.getMinFromBoundaries(
-                ImmutableHistogramPointData.create(
-                    NANOS_TS_1,
-                    NANOS_TS_2,
-                    EMPTY_ATTRIBUTES,
-                    10.234,
-                    null,
-                    null,
-                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
-                    Arrays.asList(0L, 0L, 0L, 0L, 0L, 1L))))
-        .isCloseTo(5d, OFFSET);
-
-    // skipping the test where both buckets and counts are empty, as that will throw an exception on
-    // creating the ImmutableHistogramDataPoint.
+  private static Stream<Arguments> provideMinFromBoundaryTestCases() {
+    return Stream.of(
+        Arguments.of(
+            Arrays.asList(1d, 2d, 3d, 4d, 5d), Arrays.asList(0L, 1L, 0L, 3L, 2L, 0L), 21.2, 1d),
+        Arguments.of(
+            Arrays.asList(1d, 2d, 3d, 4d, 5d), Arrays.asList(1L, 0L, 0L, 3L, 0L, 4L), 34.5, 1d),
+        Arguments.of(
+            Arrays.asList(1d, 2d, 3d, 4d, 5d), Arrays.asList(3L, 0L, 0L, 0L, 0L, 0L), 0.75, 0.25),
+        Arguments.of(
+            Arrays.asList(1d, 2d, 3d, 4d, 5d), Arrays.asList(0L, 0L, 0L, 0L, 0L, 0L), 10.2, 10.2),
+        Arguments.of(Collections.emptyList(), Arrays.asList(4L), 8.8, 2.2),
+        Arguments.of(Collections.emptyList(), Arrays.asList(0L), 1.2, 1.2),
+        Arguments.of(
+            Arrays.asList(1d, 2d, 3d, 4d, 5d), Arrays.asList(0L, 0L, 0L, 0L, 0L, 3L), 15.6, 5.0));
   }
 
-  @Test
-  void TestGetMaxFromBoundaries() {
-    // A value between the last two boundaries.
-    assertThat(
-            Serializer.getMaxFromBoundaries(
-                ImmutableHistogramPointData.create(
-                    NANOS_TS_1,
-                    NANOS_TS_2,
-                    EMPTY_ATTRIBUTES,
-                    10.234,
-                    null,
-                    null,
-                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
-                    Arrays.asList(0L, 1L, 0L, 3L, 2L, 0L))))
-        .isCloseTo(5d, OFFSET);
+  @ParameterizedTest
+  @MethodSource("provideMinFromBoundaryTestCases")
+  void TestGetMinFromBoundaries(
+      List<Double> bounds, List<Long> counts, double sum, double expectedMin) {
+    double minFromBoundaries =
+        Serializer.getMinFromBoundaries(
+            ImmutableHistogramPointData.create(
+                NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, sum, null, null, bounds, counts));
 
-    // last bucket has value, use the last boundary as estimation instead of Inf
-    assertThat(
-            Serializer.getMaxFromBoundaries(
-                ImmutableHistogramPointData.create(
-                    NANOS_TS_1,
-                    NANOS_TS_2,
-                    EMPTY_ATTRIBUTES,
-                    10.234,
-                    null,
-                    null,
-                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
-                    Arrays.asList(1L, 0L, 0L, 3L, 0L, 4L))))
-        .isCloseTo(5d, OFFSET);
+    long sumOfCounts = counts.stream().mapToLong(Long::longValue).sum();
+    if (sumOfCounts == 0) {
+      // to avoid div by zero in the assertion
+      sumOfCounts = 1;
+    }
 
-    // no bucket has a value
-    assertThat(
-            Serializer.getMaxFromBoundaries(
-                ImmutableHistogramPointData.create(
-                    NANOS_TS_1,
-                    NANOS_TS_2,
-                    EMPTY_ATTRIBUTES,
-                    10.234,
-                    null,
-                    null,
-                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
-                    Arrays.asList(0L, 0L, 0L, 0L, 0L, 0L))))
-        .isCloseTo(10.234, OFFSET);
+    assertThat(minFromBoundaries)
+        .isCloseTo(expectedMin, OFFSET)
+        // assert that the min is smaller than or equal to the mean.
+        .isLessThanOrEqualTo(sum / sumOfCounts);
+  }
 
-    // just one bucket from -Inf to Inf, calc the mean as max value.
-    assertThat(
-            Serializer.getMaxFromBoundaries(
-                ImmutableHistogramPointData.create(
-                    NANOS_TS_1,
-                    NANOS_TS_2,
-                    EMPTY_ATTRIBUTES,
-                    8.8,
-                    null,
-                    null,
-                    Collections.emptyList(),
-                    Collections.singletonList(4L))))
-        .isCloseTo(2.2, Offset.offset(0.1));
+  private static Stream<Arguments> provideMaxFromBoundaryTestCases() {
+    return Stream.of(
+        Arguments.of(
+            Arrays.asList(1d, 2d, 3d, 4d, 5d), Arrays.asList(0L, 1L, 0L, 3L, 2L, 0L), 21.2, 5d),
+        Arguments.of(
+            Arrays.asList(1d, 2d, 3d, 4d, 5d), Arrays.asList(1L, 0L, 0L, 3L, 0L, 4L), 34.5, 5d),
+        Arguments.of(
+            Arrays.asList(1d, 2d, 3d, 4d, 5d), Arrays.asList(0L, 0L, 0L, 0L, 0L, 2L), 20.2, 10.1),
+        Arguments.of(
+            Arrays.asList(1d, 2d, 3d, 4d, 5d), Arrays.asList(0L, 0L, 0L, 0L, 0L, 0L), 10.1, 10.1),
+        Arguments.of(Collections.emptyList(), Arrays.asList(4L), 8.8, 2.2),
+        Arguments.of(Collections.emptyList(), Arrays.asList(1L), 1.2, 1.2),
+        Arguments.of(Arrays.asList(0d, 5d), Arrays.asList(0L, 2L, 0L), 2.3, 5),
+        Arguments.of(
+            Arrays.asList(1d, 2d, 3d, 4d, 5d), Arrays.asList(3L, 0L, 0L, 0L, 0L, 0L), 1.5, 1));
+  }
 
-    // just one bucket from -Inf to Inf, with a count of 1
-    assertThat(
-            Serializer.getMaxFromBoundaries(
-                ImmutableHistogramPointData.create(
-                    NANOS_TS_1,
-                    NANOS_TS_2,
-                    EMPTY_ATTRIBUTES,
-                    1.2,
-                    null,
-                    null,
-                    Collections.emptyList(),
-                    Collections.singletonList(1L))))
-        .isCloseTo(1.2, Offset.offset(0.1));
+  @ParameterizedTest
+  @MethodSource("provideMaxFromBoundaryTestCases")
+  void TestGetMaxFromBoundaries(
+      List<Double> bounds, List<Long> counts, double sum, double expectedMax) {
+    double maxFromBoundaries =
+        Serializer.getMaxFromBoundaries(
+            ImmutableHistogramPointData.create(
+                NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, sum, null, null, bounds, counts));
 
-    // only the last bucket has a value (5, +Inf)
-    assertThat(
-            Serializer.getMaxFromBoundaries(
-                ImmutableHistogramPointData.create(
-                    NANOS_TS_1,
-                    NANOS_TS_2,
-                    EMPTY_ATTRIBUTES,
-                    10.234,
-                    null,
-                    null,
-                    Arrays.asList(1d, 2d, 3d, 4d, 5d),
-                    Arrays.asList(0L, 0L, 0L, 0L, 0L, 1L))))
-        .isCloseTo(5d, OFFSET);
+    long sumOfCounts = counts.stream().mapToLong(Long::longValue).sum();
+    if (sumOfCounts == 0) {
+      // to avoid div by zero in the assertion
+      sumOfCounts = 1;
+    }
 
-    // the max is greater than the sum
-    assertThat(
-            Serializer.getMaxFromBoundaries(
-                ImmutableHistogramPointData.create(
-                    NANOS_TS_1,
-                    NANOS_TS_2,
-                    EMPTY_ATTRIBUTES,
-                    2.3,
-                    null,
-                    null,
-                    Arrays.asList(-5d, 0d, 5d),
-                    Arrays.asList(0L, 0L, 2L, 0L))))
-        .isCloseTo(2.3, OFFSET);
-
-    // skipping the test where both buckets and counts are empty, as that will throw an exception on
-    // creating the ImmutableHistogramDataPoint.
+    assertThat(maxFromBoundaries)
+        .isCloseTo(expectedMax, OFFSET)
+        // assert that the max is larger than or equal to the mean.
+        .isGreaterThanOrEqualTo(sum / sumOfCounts);
   }
 }
