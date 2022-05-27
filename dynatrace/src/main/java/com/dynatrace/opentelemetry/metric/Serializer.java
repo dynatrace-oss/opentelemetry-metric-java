@@ -19,7 +19,6 @@ import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.common.AttributeType;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.*;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -267,24 +266,21 @@ final class Serializer {
       return pointData.getSum();
     }
 
+    // iterate all buckets to find the first bucket with count > 0
     for (int i = 0; i < pointData.getCounts().size(); i++) {
       if (pointData.getCounts().get(i) > 0) {
         // the current bucket contains something.
         if (i == 0) {
-          // If we are in the first bucket, use the upper bound (which is the lowest specified bound
-          // overall) otherwise this would be -Inf, which is not allowed. This is not quite correct,
-          // but the best approximation we can get at this point. This might however lead to a min
-          // that is bigger than the sum, therefore we return the min of the sum and the lowest
-          // bound.
-          // Choose the minimum of the following three:
+          // In the first bucket, (-Inf, firstBound], use firstBound (this is the lowest specified
+          // bound overall). This is not quite correct but the best approximation we can get at this
+          // point. However, this might lead to a min bigger than the mean, thus choose the minimum
+          // of the following:
           // - The lowest boundary
-          // - The sum (smallest if there are multiple negative measurements smaller than the lowest
-          // boundary)
-          // - The average in the bucket (smallest if there are multiple positive measurements
-          // smaller than the lowest boundary)
+          // - The average of the histogram (histogram sum / sum of counts)
           return Math.min(
               pointData.getBoundaries().get(i), pointData.getSum() / pointData.getCount());
         }
+        // In all other buckets (lowerBound, upperBound] use the lowerBound to estimate min.
         return pointData.getBoundaries().get(i - 1);
       }
     }
@@ -310,14 +306,12 @@ final class Serializer {
       if (pointData.getCounts().get(i) > 0) {
         if (i == lastElemIdx) {
           // use the last bound in the bounds array. This can only be the case if there is a count >
-          // 0 in the last bucket (lastBound, Inf), therefore, the bound has to be smaller than the
-          // actual maximum value, which in turn ensures that the sum is larger than the bound we
-          // use as max here.
+          // 0 in the last bucket (lastBound, Inf). In some cases, the mean of the histogram is
+          // larger than this bound, thus use the maximum of the estimated bound and the mean.
           return Math.max(
-              pointData.getBoundaries().get(i-1), pointData.getSum() / pointData.getCount());
+              pointData.getBoundaries().get(i - 1), pointData.getSum() / pointData.getCount());
         }
-        // in any bucket except the last, make sure the sum is greater than or equal to the max,
-        // otherwise report the sum.
+        // In any other bucket (lowerBound, upperBound], use the upperBound.
         return pointData.getBoundaries().get(i);
       }
     }
