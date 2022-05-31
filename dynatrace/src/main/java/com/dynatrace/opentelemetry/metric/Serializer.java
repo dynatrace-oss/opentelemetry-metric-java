@@ -21,6 +21,7 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.*;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
@@ -79,40 +80,27 @@ final class Serializer {
   }
 
   List<String> createLongSumLines(MetricData metric) {
-    List<String> lines = new ArrayList<>();
     SumData<LongPointData> data = metric.getLongSumData();
+    Collection<LongPointData> points = data.getPoints();
+    List<String> lines = new ArrayList<>(points.size());
     boolean isMonotonic = data.isMonotonic();
     if (isMonotonic) {
-      createLinesFromMonotonicLongSum(metric, lines, data);
+      createLinesFromMonotonicLongSum(metric, lines, points);
     } else {
-      createLinesFromNonMonotonicLongSum(metric, lines, data);
+      createLinesFromNonMonotonicLongSum(metric, lines, points);
     }
     return lines;
   }
 
-  private void createLinesFromNonMonotonicLongSum(
-      MetricData metric, List<String> lines, SumData<LongPointData> data) {
-    // We always expect UpDownCounters to be exported as cumulative values, which will be serialized
-    // as gauge.
-    for (LongPointData point : data.getPoints()) {
+  private void createLinesFromMonotonicLongSum(
+      MetricData metric, List<String> lines, Collection<LongPointData> points) {
+    for (LongPointData point : points) {
       try {
         lines.add(
-            createMetricBuilder(metric, point).setLongGaugeValue(point.getValue()).serialize());
-      } catch (MetricException e) {
-        logger.warning(
-            () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), e.getMessage()));
-      }
-    }
-  }
-
-  private void createLinesFromMonotonicLongSum(
-      MetricData metric, List<String> lines, SumData<LongPointData> data) {
-    for (LongPointData point : data.getPoints()) {
-      try {
-        Metric.Builder builder = createMetricBuilder(metric, point);
-        // We always expect monotonic sums as deltas, which will be exported as delta counters
-        builder.setLongCounterValueDelta(point.getValue());
-        lines.add(builder.serialize());
+            createMetricBuilder(metric, point)
+                // We always expect monotonic sums as deltas, which will be exported as delta
+                .setLongCounterValueDelta(point.getValue())
+                .serialize());
       } catch (MetricException me) {
         logger.warning(
             () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
@@ -120,9 +108,26 @@ final class Serializer {
     }
   }
 
+  private void createLinesFromNonMonotonicLongSum(
+      MetricData metric, List<String> lines, Collection<LongPointData> points) {
+    for (LongPointData point : points) {
+      try {
+        lines.add(
+            createMetricBuilder(metric, point)
+                // non-monotonic sums are exported as gauge.
+                .setLongGaugeValue(point.getValue())
+                .serialize());
+      } catch (MetricException e) {
+        logger.warning(
+            () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), e.getMessage()));
+      }
+    }
+  }
+
   List<String> createLongGaugeLines(MetricData metric) {
-    List<String> lines = new ArrayList<>();
-    for (LongPointData point : metric.getLongGaugeData().getPoints()) {
+    Collection<LongPointData> points = metric.getLongGaugeData().getPoints();
+    List<String> lines = new ArrayList<>(points.size());
+    for (LongPointData point : points) {
       try {
         lines.add(
             createMetricBuilder(metric, point).setLongGaugeValue(point.getValue()).serialize());
@@ -135,8 +140,9 @@ final class Serializer {
   }
 
   List<String> createDoubleGaugeLines(MetricData metric) {
-    List<String> lines = new ArrayList<>();
-    for (DoublePointData point : metric.getDoubleGaugeData().getPoints()) {
+    Collection<DoublePointData> points = metric.getDoubleGaugeData().getPoints();
+    List<String> lines = new ArrayList<>(points.size());
+    for (DoublePointData point : points) {
       try {
         lines.add(
             createMetricBuilder(metric, point).setDoubleGaugeValue(point.getValue()).serialize());
@@ -149,41 +155,27 @@ final class Serializer {
   }
 
   List<String> createDoubleSumLines(MetricData metric) {
-    List<String> lines = new ArrayList<>();
     SumData<DoublePointData> data = metric.getDoubleSumData();
+    Collection<DoublePointData> points = data.getPoints();
+    List<String> lines = new ArrayList<>(points.size());
     boolean isMonotonic = data.isMonotonic();
     if (isMonotonic) {
-      createLinesFromMonotonicDoubleSum(metric, lines, data);
+      createLinesFromMonotonicDoubleSum(metric, lines, points);
     } else {
-      createLinesFromNonMonotonicDoubleSum(metric, lines, data);
+      createLinesFromNonMonotonicDoubleSum(metric, lines, points);
     }
     return lines;
   }
 
-  private void createLinesFromNonMonotonicDoubleSum(
-      MetricData metric, List<String> lines, SumData<DoublePointData> data) {
-    // We always expect UpDownCounters to be exported as cumulative values, which will be serialized
-    // as gauge.
-    for (DoublePointData point : data.getPoints()) {
+  private void createLinesFromMonotonicDoubleSum(
+      MetricData metric, List<String> lines, Collection<DoublePointData> points) {
+    for (DoublePointData point : points) {
       try {
         lines.add(
-            createMetricBuilder(metric, point).setDoubleGaugeValue(point.getValue()).serialize());
-      } catch (MetricException e) {
-        logger.warning(
-            () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), e.getMessage()));
-      }
-    }
-  }
-
-  private void createLinesFromMonotonicDoubleSum(
-      MetricData metric, List<String> lines, SumData<DoublePointData> data) {
-    for (DoublePointData point : data.getPoints()) {
-      try {
-        Metric.Builder builder = createMetricBuilder(metric, point);
-        // We always expect monotonic sums as deltas, which will be exported as delta counters
-        builder.setDoubleCounterValueDelta(point.getValue());
-        lines.add(builder.serialize());
-
+            createMetricBuilder(metric, point)
+                // We always expect monotonic sums as deltas, which will be exported as they are
+                .setDoubleCounterValueDelta(point.getValue())
+                .serialize());
       } catch (MetricException me) {
         logger.warning(
             () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
@@ -191,9 +183,28 @@ final class Serializer {
     }
   }
 
+  private void createLinesFromNonMonotonicDoubleSum(
+      MetricData metric, List<String> lines, Collection<DoublePointData> points) {
+    // We always expect UpDownCounters to be exported as cumulative values, which will be serialized
+    // as gauge.
+    for (DoublePointData point : points) {
+      try {
+        lines.add(
+            createMetricBuilder(metric, point)
+                // non-monotonic sums are exported as gauge.
+                .setDoubleGaugeValue(point.getValue())
+                .serialize());
+      } catch (MetricException e) {
+        logger.warning(
+            () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), e.getMessage()));
+      }
+    }
+  }
+
   List<String> createDoubleSummaryLines(MetricData metric) {
-    List<String> lines = new ArrayList<>();
-    for (SummaryPointData point : metric.getSummaryData().getPoints()) {
+    Collection<SummaryPointData> points = metric.getSummaryData().getPoints();
+    List<String> lines = new ArrayList<>(points.size());
+    for (SummaryPointData point : points) {
       double min = Double.NaN;
       double max = Double.NaN;
       double sum = point.getSum();
@@ -233,8 +244,9 @@ final class Serializer {
 
   List<String> createDoubleHistogramLines(MetricData metric) {
     // We always expect histograms as deltas.
-    List<String> lines = new ArrayList<>();
-    for (HistogramPointData point : metric.getHistogramData().getPoints()) {
+    Collection<HistogramPointData> points = metric.getHistogramData().getPoints();
+    List<String> lines = new ArrayList<>(points.size());
+    for (HistogramPointData point : points) {
       double min = point.hasMin() ? point.getMin() : getMinFromBoundaries(point);
       double max = point.hasMax() ? point.getMax() : getMaxFromBoundaries(point);
       double sum = point.getSum();

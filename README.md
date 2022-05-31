@@ -43,8 +43,8 @@ The `.getDefault()` method returns an instance which attempts to export to the [
 DynatraceMetricExporter exporter = DynatraceMetricExporter.getDefault();
 ```
 
-Alternatively, or if no OneAgent is running on the host, the exporter can be set up using an endpoint URL and an API token with the "ingest metrics" (`metrics.ingest`) permission set.
-It is recommended to limit token scope to only this permission.
+Alternatively, or if no OneAgent is running on the host, the exporter can be set up using an endpoint URL and an API token with the "ingest metrics" (`metrics.ingest`) scope set.
+It is recommended to limit the token scope to only this permission.
 More information on setting up API access using tokens can be found [in the documentation](https://www.dynatrace.com/support/help/dynatrace-api/basics/dynatrace-api-authentication/) and in the [Dynatrace API Token](#dynatrace-api-token) section below.
 
 ```java

@@ -107,7 +107,7 @@ class SerializerTest {
   }
 
   @Test
-  void createSumLines_Double_Cumulative_NonMonotonic() {
+  void createSumLines_Double_Cumulative_NonMonotonic_ExportedAsGauge() {
     MetricData metricData =
         ImmutableMetricData.createDoubleSum(
             DEFAULT_RESOURCE,
@@ -135,7 +135,7 @@ class SerializerTest {
   }
 
   @Test
-  void createSumLines_Double_Delta_Monotonic() {
+  void createSumLines_Double_Delta_Monotonic_ExportedAsDelta() {
     MetricData metricData =
         ImmutableMetricData.createDoubleSum(
             DEFAULT_RESOURCE,
@@ -164,7 +164,7 @@ class SerializerTest {
   }
 
   @Test
-  void createSumLines_Long_Cumulative_NonMonotonic() {
+  void createSumLines_Long_Cumulative_NonMonotonic_ExportedAsGauge() {
     MetricData metricData =
         ImmutableMetricData.createLongSum(
             DEFAULT_RESOURCE,
@@ -191,7 +191,7 @@ class SerializerTest {
   }
 
   @Test
-  void createSumLines_Long_Delta_Monotonic() {
+  void createSumLines_Long_Delta_Monotonic_ExportedAsDelta() {
     MetricData metricData =
         ImmutableMetricData.createLongSum(
             DEFAULT_RESOURCE,
@@ -548,8 +548,8 @@ class SerializerTest {
             Arrays.asList(1d, 2d, 3d, 4d, 5d), Arrays.asList(3L, 0L, 0L, 0L, 0L, 0L), 0.75, 0.25),
         Arguments.of(
             Arrays.asList(1d, 2d, 3d, 4d, 5d), Arrays.asList(0L, 0L, 0L, 0L, 0L, 0L), 10.2, 10.2),
-        Arguments.of(Collections.emptyList(), Arrays.asList(4L), 8.8, 2.2),
-        Arguments.of(Collections.emptyList(), Arrays.asList(0L), 1.2, 1.2),
+        Arguments.of(Collections.emptyList(), Collections.singletonList(4L), 8.8, 2.2),
+        Arguments.of(Collections.emptyList(), Collections.singletonList(0L), 1.2, 1.2),
         Arguments.of(
             Arrays.asList(1d, 2d, 3d, 4d, 5d), Arrays.asList(0L, 0L, 0L, 0L, 0L, 3L), 15.6, 5.0));
   }
@@ -585,8 +585,8 @@ class SerializerTest {
             Arrays.asList(1d, 2d, 3d, 4d, 5d), Arrays.asList(0L, 0L, 0L, 0L, 0L, 2L), 20.2, 10.1),
         Arguments.of(
             Arrays.asList(1d, 2d, 3d, 4d, 5d), Arrays.asList(0L, 0L, 0L, 0L, 0L, 0L), 10.1, 10.1),
-        Arguments.of(Collections.emptyList(), Arrays.asList(4L), 8.8, 2.2),
-        Arguments.of(Collections.emptyList(), Arrays.asList(1L), 1.2, 1.2),
+        Arguments.of(Collections.emptyList(), Collections.singletonList(4L), 8.8, 2.2),
+        Arguments.of(Collections.emptyList(), Collections.singletonList(1L), 1.2, 1.2),
         Arguments.of(Arrays.asList(0d, 5d), Arrays.asList(0L, 2L, 0L), 2.3, 5),
         Arguments.of(
             Arrays.asList(1d, 2d, 3d, 4d, 5d), Arrays.asList(3L, 0L, 0L, 0L, 0L, 0L), 1.5, 1));
