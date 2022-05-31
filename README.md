@@ -188,10 +188,8 @@ the [Dynatrace documentation](https://www.dynatrace.com/support/help/how-to-use-
 
 ### Limitations
 
-Currently, OpenTelemetry Histograms are exported as Dynatrace summary statistics, containing only the minimum, maximum, sum and count from the Histogram object.
-In cases where the (optional) min and max fields are not set on the Histogram object, they are estimated by looking at the Histogram boundaries of buckets that contain elements.
-For the minimum, the lower bound of the first bucket containing elements is used (assuming buckets are sorted in ascending order of their boundaries, and no boundaries overlap).
-Analogously, the last bucket with values is used to estimate the maximum.
+#### Histogram
+OpenTelemetry Histograms are exported to Dynatrace as statistical summaries consisting of a minimum and maximum value, the total sum of all values, and the count of the values summarized. If the min and max values are not directly available on the metric data point, estimations based on the boundaries of the first and last buckets containing values are used.
 
 ### Logging
 
