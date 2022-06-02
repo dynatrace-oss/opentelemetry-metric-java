@@ -19,13 +19,13 @@ import com.dynatrace.metric.util.DimensionList;
 import com.dynatrace.metric.util.DynatraceMetricApiConstants;
 import com.dynatrace.metric.util.MetricBuilderFactory;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.common.CompletableResultCode;
+import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
@@ -39,6 +39,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -46,7 +47,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 
-/** Export metric to Dynatrace. */
+/** Export metrics to Dynatrace. */
 public final class DynatraceMetricExporter implements MetricExporter {
   private final URL url;
   private final String apiToken;
@@ -54,11 +55,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
 
   private static final Logger logger = Logger.getLogger(DynatraceMetricExporter.class.getName());
   private static final List<Dimension> staticDimensions =
-      new ArrayList<Dimension>() {
-        {
-          add(Dimension.create("dt.metrics.source", "opentelemetry"));
-        }
-      };
+      Collections.singletonList(Dimension.create("dt.metrics.source", "opentelemetry"));
 
   private static final Pattern EXTRACT_LINES_OK = Pattern.compile("\"linesOk\":\\s?(\\d+)");
   private static final Pattern EXTRACT_LINES_INVALID =
@@ -71,9 +68,11 @@ public final class DynatraceMetricExporter implements MetricExporter {
       String prefix,
       Attributes defaultDimensions,
       boolean enrichWithOneAgentMetaData) {
-    this.url = url;
-    this.apiToken = apiToken;
+    this(url, apiToken, prepareSerializer(prefix, defaultDimensions, enrichWithOneAgentMetaData));
+  }
 
+  private static Serializer prepareSerializer(
+      String prefix, Attributes defaultDimensions, boolean enrichWithOneAgentMetaData) {
     MetricBuilderFactory.MetricBuilderFactoryBuilder builder = MetricBuilderFactory.builder();
 
     if (!Strings.isNullOrEmpty(prefix)) {
@@ -93,8 +92,14 @@ public final class DynatraceMetricExporter implements MetricExporter {
 
     dimensions.addAll(staticDimensions);
     builder.withDefaultDimensions(DimensionList.fromCollection(dimensions));
+    return new Serializer(builder.build());
+  }
 
-    serializer = new Serializer(builder.build());
+  @VisibleForTesting
+  DynatraceMetricExporter(URL url, String apiToken, Serializer serializer) {
+    this.url = url;
+    this.apiToken = apiToken;
+    this.serializer = serializer;
   }
 
   public static Builder builder() {
@@ -130,29 +135,25 @@ public final class DynatraceMetricExporter implements MetricExporter {
       return CompletableResultCode.ofFailure();
     }
 
-    return export(metrics, connection);
+    return doExport(metrics, connection);
   }
 
-  private List<String> serializeToMetricLines(Collection<MetricData> metrics) {
+  @VisibleForTesting
+  List<String> serializeToMetricLines(Collection<MetricData> metrics) {
     ArrayList<String> metricLines = new ArrayList<>();
     for (MetricData metric : metrics) {
-      boolean isDelta;
       switch (metric.getType()) {
         case LONG_GAUGE:
           metricLines.addAll(serializer.createLongGaugeLines(metric));
           break;
         case LONG_SUM:
-          isDelta =
-              metric.getLongSumData().getAggregationTemporality() == AggregationTemporality.DELTA;
-          metricLines.addAll(serializer.createLongSumLines(metric, isDelta));
+          metricLines.addAll(serializer.createLongSumLines(metric));
           break;
         case DOUBLE_GAUGE:
           metricLines.addAll(serializer.createDoubleGaugeLines(metric));
           break;
         case DOUBLE_SUM:
-          isDelta =
-              metric.getDoubleSumData().getAggregationTemporality() == AggregationTemporality.DELTA;
-          metricLines.addAll(serializer.createDoubleSumLines(metric, isDelta));
+          metricLines.addAll(serializer.createDoubleSumLines(metric));
           break;
         case SUMMARY:
           metricLines.addAll(serializer.createDoubleSummaryLines(metric));
@@ -174,14 +175,14 @@ public final class DynatraceMetricExporter implements MetricExporter {
   }
 
   @VisibleForTesting
-  CompletableResultCode export(Collection<MetricData> metrics, HttpURLConnection connection) {
+  CompletableResultCode doExport(Collection<MetricData> metrics, HttpURLConnection connection) {
     List<String> metricLines = serializeToMetricLines(metrics);
     for (List<String> partition :
         Lists.partition(metricLines, DynatraceMetricApiConstants.getPayloadLinesLimit())) {
       CompletableResultCode resultCode;
       String joinedMetricLines = Joiner.on('\n').join(partition);
 
-      logger.finer(() -> String.format("Exporting metrics:\n%s", joinedMetricLines));
+      logger.finer(() -> String.format("Exporting metrics:%n%s", joinedMetricLines));
       try {
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Accept", "*/*; q=0");
@@ -198,7 +199,7 @@ public final class DynatraceMetricExporter implements MetricExporter {
         if (code < 400) {
           String response =
               CharStreams.toString(
-                  new InputStreamReader(connection.getInputStream(), Charsets.UTF_8));
+                  new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8));
           resultCode = handleSuccess(code, metricLines.size(), response);
         } else {
           if (logger.isLoggable(Level.WARNING)) {
@@ -218,13 +219,14 @@ public final class DynatraceMetricExporter implements MetricExporter {
   }
 
   private void logExportingError(InputStream errorStream, int code) throws IOException {
-    if (errorStream != null) {
-      String message = CharStreams.toString(new InputStreamReader(errorStream, Charsets.UTF_8));
-      logger.warning(
-          String.format("Error while exporting. Status code: %d; Response: %s", code, message));
-    } else {
-      logger.warning(String.format("Error while exporting. Status code: %d", code));
+    if (errorStream == null) {
+      logger.warning(() -> String.format("Error while exporting. Status code: %d", code));
+      return;
     }
+    String message =
+        CharStreams.toString(new InputStreamReader(errorStream, StandardCharsets.UTF_8));
+    logger.warning(
+        () -> String.format("Error while exporting. Status code: %d; Response: %s", code, message));
   }
 
   private CompletableResultCode handleSuccess(int code, int totalLines, String response) {
@@ -261,6 +263,17 @@ public final class DynatraceMetricExporter implements MetricExporter {
   @Override
   public CompletableResultCode shutdown() {
     return CompletableResultCode.ofSuccess();
+  }
+
+  @Override
+  public AggregationTemporality getAggregationTemporality(@Nonnull InstrumentType instrumentType) {
+    if (instrumentType == InstrumentType.OBSERVABLE_UP_DOWN_COUNTER
+        || instrumentType == InstrumentType.UP_DOWN_COUNTER) {
+      // Use cumulative temporality for non-monotonic sums
+      return AggregationTemporality.CUMULATIVE;
+    }
+    // Otherwise, use delta temporality.
+    return AggregationTemporality.DELTA;
   }
 
   public static class Builder {

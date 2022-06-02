@@ -19,9 +19,9 @@ import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.common.AttributeType;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.*;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
@@ -35,18 +35,13 @@ final class Serializer {
   private static final String TEMPLATE_ERR_METRIC_LINE =
       "Could not create metric line for data point with name %s (%s).";
 
-  private static final String TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE =
-      "Skipping delta conversion for metric '%s' since no previous value was present in the cache.";
-
   private static final String TEMPLATE_MSG_UNSUPPORTED_ATTRIBUTE_TYPE =
       "Skipping unsupported dimension with value type '%s'";
 
   private final MetricBuilderFactory builderFactory;
-  private final CumulativeToDeltaConverter deltaConverter;
 
   Serializer(MetricBuilderFactory builderFactory) {
     this.builderFactory = builderFactory;
-    this.deltaConverter = new CumulativeToDeltaConverter(Duration.ofMinutes(15));
   }
 
   private Metric.Builder createMetricBuilder(MetricData metric, PointData point) {
@@ -84,38 +79,55 @@ final class Serializer {
     return DimensionList.fromCollection(toListOfDimensions(attributes));
   }
 
-  @VisibleForTesting
-  List<String> createLongSumLines(MetricData metric, boolean isDelta) {
-    List<String> lines = new ArrayList<>();
-    for (LongPointData point : metric.getLongSumData().getPoints()) {
-      try {
-        Metric.Builder builder = createMetricBuilder(metric, point);
+  List<String> createLongSumLines(MetricData metric) {
+    SumData<LongPointData> data = metric.getLongSumData();
+    Collection<LongPointData> points = data.getPoints();
+    List<String> lines = new ArrayList<>(points.size());
+    boolean isMonotonic = data.isMonotonic();
+    if (isMonotonic) {
+      createLinesFromMonotonicLongSum(metric, lines, points);
+    } else {
+      createLinesFromNonMonotonicLongSum(metric, lines, points);
+    }
+    return lines;
+  }
 
-        if (isDelta) {
-          builder.setLongCounterValueDelta(point.getValue());
-          lines.add(builder.serialize());
-        } else {
-          Long delta = deltaConverter.convertLongTotalToDelta(metric.getName(), point);
-          if (delta != null) {
-            builder.setLongCounterValueDelta(delta);
-            lines.add(builder.serialize());
-          } else {
-            logger.finest(
-                () -> String.format(TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE, metric.getName()));
-          }
-        }
+  private void createLinesFromMonotonicLongSum(
+      MetricData metric, List<String> lines, Collection<LongPointData> points) {
+    for (LongPointData point : points) {
+      try {
+        lines.add(
+            createMetricBuilder(metric, point)
+                // We always expect monotonic sums as deltas, which will be exported as delta
+                .setLongCounterValueDelta(point.getValue())
+                .serialize());
       } catch (MetricException me) {
         logger.warning(
             () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
       }
     }
-    return lines;
   }
 
-  @VisibleForTesting
+  private void createLinesFromNonMonotonicLongSum(
+      MetricData metric, List<String> lines, Collection<LongPointData> points) {
+    for (LongPointData point : points) {
+      try {
+        lines.add(
+            createMetricBuilder(metric, point)
+                // non-monotonic sums are exported as gauge.
+                .setLongGaugeValue(point.getValue())
+                .serialize());
+      } catch (MetricException e) {
+        logger.warning(
+            () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), e.getMessage()));
+      }
+    }
+  }
+
   List<String> createLongGaugeLines(MetricData metric) {
-    List<String> lines = new ArrayList<>();
-    for (LongPointData point : metric.getLongGaugeData().getPoints()) {
+    Collection<LongPointData> points = metric.getLongGaugeData().getPoints();
+    List<String> lines = new ArrayList<>(points.size());
+    for (LongPointData point : points) {
       try {
         lines.add(
             createMetricBuilder(metric, point).setLongGaugeValue(point.getValue()).serialize());
@@ -127,10 +139,10 @@ final class Serializer {
     return lines;
   }
 
-  @VisibleForTesting
   List<String> createDoubleGaugeLines(MetricData metric) {
-    List<String> lines = new ArrayList<>();
-    for (DoublePointData point : metric.getDoubleGaugeData().getPoints()) {
+    Collection<DoublePointData> points = metric.getDoubleGaugeData().getPoints();
+    List<String> lines = new ArrayList<>(points.size());
+    for (DoublePointData point : points) {
       try {
         lines.add(
             createMetricBuilder(metric, point).setDoubleGaugeValue(point.getValue()).serialize());
@@ -142,55 +154,79 @@ final class Serializer {
     return lines;
   }
 
-  @VisibleForTesting
-  List<String> createDoubleSumLines(MetricData metric, boolean isDelta) {
-    List<String> lines = new ArrayList<>();
-    for (DoublePointData point : metric.getDoubleSumData().getPoints()) {
-      try {
-        Metric.Builder builder = createMetricBuilder(metric, point);
-        if (isDelta) {
-          builder.setDoubleCounterValueDelta(point.getValue());
-          lines.add(builder.serialize());
-        } else {
-          Double delta = deltaConverter.convertDoubleTotalToDelta(metric.getName(), point);
-          if (delta != null) {
-            builder.setDoubleCounterValueDelta(delta);
-            lines.add(builder.serialize());
-          } else {
-            logger.finest(
-                () -> String.format(TEMPLATE_MSG_FIRST_CUMULATIVE_VALUE, metric.getName()));
-          }
-        }
+  List<String> createDoubleSumLines(MetricData metric) {
+    SumData<DoublePointData> data = metric.getDoubleSumData();
+    Collection<DoublePointData> points = data.getPoints();
+    List<String> lines = new ArrayList<>(points.size());
+    boolean isMonotonic = data.isMonotonic();
+    if (isMonotonic) {
+      createLinesFromMonotonicDoubleSum(metric, lines, points);
+    } else {
+      createLinesFromNonMonotonicDoubleSum(metric, lines, points);
+    }
+    return lines;
+  }
 
+  private void createLinesFromMonotonicDoubleSum(
+      MetricData metric, List<String> lines, Collection<DoublePointData> points) {
+    for (DoublePointData point : points) {
+      try {
+        lines.add(
+            createMetricBuilder(metric, point)
+                // We always expect monotonic sums as deltas, which will be exported as they are
+                .setDoubleCounterValueDelta(point.getValue())
+                .serialize());
       } catch (MetricException me) {
         logger.warning(
             () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), me.getMessage()));
       }
     }
-    return lines;
   }
 
-  @VisibleForTesting
+  private void createLinesFromNonMonotonicDoubleSum(
+      MetricData metric, List<String> lines, Collection<DoublePointData> points) {
+    // We always expect UpDownCounters to be exported as cumulative values, which will be serialized
+    // as gauge.
+    for (DoublePointData point : points) {
+      try {
+        lines.add(
+            createMetricBuilder(metric, point)
+                // non-monotonic sums are exported as gauge.
+                .setDoubleGaugeValue(point.getValue())
+                .serialize());
+      } catch (MetricException e) {
+        logger.warning(
+            () -> String.format(TEMPLATE_ERR_METRIC_LINE, metric.getName(), e.getMessage()));
+      }
+    }
+  }
+
   List<String> createDoubleSummaryLines(MetricData metric) {
-    List<String> lines = new ArrayList<>();
-    for (DoubleSummaryPointData point : metric.getDoubleSummaryData().getPoints()) {
+    Collection<SummaryPointData> points = metric.getSummaryData().getPoints();
+    List<String> lines = new ArrayList<>(points.size());
+    for (SummaryPointData point : points) {
       double min = Double.NaN;
       double max = Double.NaN;
       double sum = point.getSum();
       long count = point.getCount();
 
-      List<ValueAtPercentile> percentileValues = point.getPercentileValues();
-      for (ValueAtPercentile percentileValue : percentileValues) {
-        if (Math.abs(percentileValue.getPercentile() - 0.0) < PERCENTILE_PRECISION) {
-          min = percentileValue.getValue();
-        } else if (Math.abs(percentileValue.getPercentile() - 100.0) < PERCENTILE_PRECISION) {
-          max = percentileValue.getValue();
+      for (ValueAtQuantile valueAtQuantile : point.getValues()) {
+        if (Math.abs(valueAtQuantile.getQuantile() - 0.0) < PERCENTILE_PRECISION) {
+          // 0% quantile == minimum
+          min = valueAtQuantile.getValue();
+        } else if (Math.abs(valueAtQuantile.getQuantile() - 100.0) < PERCENTILE_PRECISION) {
+          // 100% quantile == maximum
+          max = valueAtQuantile.getValue();
         }
       }
+
       if (Double.isNaN(min) || Double.isNaN(max)) {
         logger.warning(
             () ->
-                "The min and/or max value could not be retrieved. This happens if the 0% and 100% quantile are not set for the summary.");
+                "The min and/or max value could not be retrieved. This happens if the 0% and 100% quantile are not set for the summary. Using mean instead.");
+        double mean = sum / count;
+        min = mean;
+        max = mean;
       }
 
       try {
@@ -206,12 +242,13 @@ final class Serializer {
     return lines;
   }
 
-  @VisibleForTesting
   List<String> createDoubleHistogramLines(MetricData metric) {
-    List<String> lines = new ArrayList<>();
-    for (DoubleHistogramPointData point : metric.getDoubleHistogramData().getPoints()) {
-      double min = getMinFromBoundaries(point);
-      double max = getMaxFromBoundaries(point);
+    // We always expect histograms as deltas.
+    Collection<HistogramPointData> points = metric.getHistogramData().getPoints();
+    List<String> lines = new ArrayList<>(points.size());
+    for (HistogramPointData point : points) {
+      double min = point.hasMin() ? point.getMin() : getMinFromBoundaries(point);
+      double max = point.hasMax() ? point.getMax() : getMaxFromBoundaries(point);
       double sum = point.getSum();
       long count = point.getCount();
 
@@ -229,7 +266,7 @@ final class Serializer {
   }
 
   @VisibleForTesting
-  static double getMinFromBoundaries(DoubleHistogramPointData pointData) {
+  static double getMinFromBoundaries(HistogramPointData pointData) {
     if (pointData.getCounts().size() == 1) {
       // In this case, only one bucket exists: (-Inf, Inf). If there were any boundaries, there
       // would be more counts.
@@ -237,29 +274,25 @@ final class Serializer {
         // in case the single bucket contains something, use the mean as min.
         return pointData.getSum() / pointData.getCount();
       }
-      // otherwise the histogram has no data. Use the sum as the min and max, respectively.
+      // otherwise, the histogram has no data. Use the sum as the min and max, respectively.
       return pointData.getSum();
     }
 
+    // iterate all buckets to find the first bucket with count > 0
     for (int i = 0; i < pointData.getCounts().size(); i++) {
       if (pointData.getCounts().get(i) > 0) {
         // the current bucket contains something.
         if (i == 0) {
-          // If we are in the first bucket, use the upper bound (which is the lowest specified bound
-          // overall) otherwise this would be -Inf, which is not allowed. This is not quite correct,
-          // but the best approximation we can get at this point. This might however lead to a min
-          // that is bigger than the sum, therefore we return the min of the sum and the lowest
-          // bound.
-          // Choose the minimum of the following three:
+          // In the first bucket, (-Inf, firstBound], use firstBound (this is the lowest specified
+          // bound overall). This is not quite correct but the best approximation we can get at this
+          // point. However, this might lead to a min bigger than the mean, thus choose the minimum
+          // of the following:
           // - The lowest boundary
-          // - The sum (smallest if there are multiple negative measurements smaller than the lowest
-          // boundary)
-          // - The average in the bucket (smallest if there are multiple positive measurements
-          // smaller than the lowest boundary)
+          // - The average of the histogram (histogram sum / sum of counts)
           return Math.min(
-              Math.min(pointData.getBoundaries().get(i), pointData.getSum()),
-              pointData.getSum() / pointData.getCount());
+              pointData.getBoundaries().get(i), pointData.getSum() / pointData.getCount());
         }
+        // In all other buckets (lowerBound, upperBound] use the lowerBound to estimate min.
         return pointData.getBoundaries().get(i - 1);
       }
     }
@@ -270,7 +303,7 @@ final class Serializer {
   }
 
   @VisibleForTesting
-  static double getMaxFromBoundaries(DoubleHistogramPointData pointData) {
+  static double getMaxFromBoundaries(HistogramPointData pointData) {
     // see getMinFromBoundaries for a very similar method that is annotated.
     if (pointData.getCounts().size() == 1) {
       if (pointData.getCounts().get(0) > 0) {
@@ -285,14 +318,13 @@ final class Serializer {
       if (pointData.getCounts().get(i) > 0) {
         if (i == lastElemIdx) {
           // use the last bound in the bounds array. This can only be the case if there is a count >
-          // 0 in the last bucket (lastBound, Inf), therefore, the bound has to be smaller than the
-          // actual maximum value, which in turn ensures that the sum is larger than the bound we
-          // use as max here.
-          return pointData.getBoundaries().get(i - 1);
+          // 0 in the last bucket (lastBound, Inf). In some cases, the mean of the histogram is
+          // larger than this bound, thus use the maximum of the estimated bound and the mean.
+          return Math.max(
+              pointData.getBoundaries().get(i - 1), pointData.getSum() / pointData.getCount());
         }
-        // in any bucket except the last, make sure the sum is greater than or equal to the max,
-        // otherwise report the sum.
-        return Math.min(pointData.getBoundaries().get(i), pointData.getSum());
+        // In any other bucket (lowerBound, upperBound], use the upperBound.
+        return pointData.getBoundaries().get(i);
       }
     }
 
