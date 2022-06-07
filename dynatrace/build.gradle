@@ -20,7 +20,7 @@ plugins {
 }
 
 group = "com.dynatrace.opentelemetry.metric"
-version = "0.5.0"
+version = "0.6.0"
 
 repositories {
     mavenCentral()
@@ -35,7 +35,7 @@ dependencies {
 
     implementation("com.google.guava:guava:30.0-jre")
 
-    implementation('com.dynatrace.metric.util:dynatrace-metric-utils-java:1.5.+')
+    implementation('com.dynatrace.metric.util:dynatrace-metric-utils-java:1.6.+')
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.1")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.1")
