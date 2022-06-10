@@ -1,40 +1,24 @@
 # Dynatrace OpenTelemetry Metrics Exporter for Java
 
-This exporter allows exporting metrics created using the [OpenTelemetry SDK for Java](https://github.com/open-telemetry/opentelemetry-java)
-directly to [Dynatrace](https://www.dynatrace.com).
+This exporter allows exporting metrics created using the [OpenTelemetry SDK for Java](https://github.com/open-telemetry/opentelemetry-java) directly to [Dynatrace](https://www.dynatrace.com).
+
+It was built against OpenTelemetry SDK version [1.14.0](https://github.com/open-telemetry/opentelemetry-java/releases/tag/v1.14.0) and should work with any 1.14.+ version.
 
 More information on exporting OpenTelemetry metrics to Dynatrace can be found in the
 [Dynatrace documentation](https://www.dynatrace.com/support/help/shortlink/opentelemetry-metrics).
-
-This exporter is built against the OpenTelemetry Java
-SDK [v1.14.0]( https://github.com/open-telemetry/opentelemetry-java/releases/tag/v1.14.0) which is the first stable
-release for the SDK and should be compatible with this and later versions.
 
 ## Getting started
 
 The general setup of OpenTelemetry Java is explained in the official [Getting Started Guide](https://opentelemetry.io/docs/java/manual_instrumentation/).
 Using the Metrics API is explained in the [Metrics section](https://opentelemetry.io/docs/java/manual_instrumentation/#metrics).
 
-To include the Dynatrace OpenTelemetry Metrics exporter in a Gradle build, for example, use the following in your `settings.gradle` and `build.gradle`:
+To use the Dynatrace OpenTelemetry Metrics exporter, include it in your `build.gradle`:
 
 ```groovy
-// settings.gradle:
-sourceControl {
-    gitRepository("https://github.com/dynatrace-oss/opentelemetry-metric-java.git") {
-        producesModule("com.dynatrace.opentelemetry.metric:dynatrace")
-    }
-}
-
-// build.gradle:
-// use the name of a specific tag from https://github.com/dynatrace-oss/opentelemetry-metric-java/tags
-def dynatraceMetricsExporterVersion = "v0.5.0"
-
 dependencies {
-    implementation("com.dynatrace.opentelemetry.metric:dynatrace:${dynatraceMetricsExporterVersion}")
+    implementation("com.dynatrace.opentelemetry.metric:dynatrace:1.0.+")
 }
 ```
-
-Gradle pulls the library in the specified version directly from GitHub and includes it.
 
 To use the library, we first need to create a `DynatraceMetricExporter`.
 The `.getDefault()` method returns an instance which attempts to export to the [local OneAgent endpoint](https://www.dynatrace.com/support/help/how-to-use-dynatrace/metrics/metric-ingestion/ingestion-methods/local-api/).
@@ -51,7 +35,7 @@ More information on setting up API access using tokens can be found [in the docu
 DynatraceMetricExporter exporter =
     DynatraceMetricExporter.builder()
         .setUrl("https://{your-environment-id}.live.dynatrace.com/api/v2/metrics/ingest")
-        .setApiToken({YOUR_API_TOKEN}) // read from environment or config
+        .setApiToken("YOUR_API_TOKEN") // read from environment or config
         .build();
 ```
 
