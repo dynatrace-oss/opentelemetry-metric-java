@@ -12,11 +12,22 @@ More information on exporting OpenTelemetry metrics to Dynatrace can be found in
 The general setup of OpenTelemetry Java is explained in the official [Getting Started Guide](https://opentelemetry.io/docs/java/manual_instrumentation/).
 Using the Metrics API is explained in the [Metrics section](https://opentelemetry.io/docs/java/manual_instrumentation/#metrics).
 
-To use the Dynatrace OpenTelemetry Metrics exporter, include it in your `build.gradle`:
+To include the Dynatrace OpenTelemetry Metrics exporter in a Gradle build, for example, use the following in your `settings.gradle` and `build.gradle`:
 
 ```groovy
+// settings.gradle:
+sourceControl {
+    gitRepository("https://github.com/dynatrace-oss/opentelemetry-metric-java.git") {
+        producesModule("com.dynatrace.opentelemetry.metric:dynatrace")
+    }
+}
+
+// build.gradle:
+// use the name of a specific tag from https://github.com/dynatrace-oss/opentelemetry-metric-java/tags
+def dynatraceMetricsExporterVersion = "v1.0.0"
+
 dependencies {
-    implementation("com.dynatrace.opentelemetry.metric:dynatrace:1.0.+")
+    implementation("com.dynatrace.opentelemetry.metric:dynatrace:${dynatraceMetricsExporterVersion}")
 }
 ```
 
