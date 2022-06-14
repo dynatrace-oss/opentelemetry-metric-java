@@ -2,7 +2,7 @@
 
 This exporter allows exporting metrics created using the [OpenTelemetry SDK for Java](https://github.com/open-telemetry/opentelemetry-java) directly to [Dynatrace](https://www.dynatrace.com).
 
-It was built against OpenTelemetry SDK version [1.14.0](https://github.com/open-telemetry/opentelemetry-java/releases/tag/v1.14.0) and should work with any 1.14.+ version.
+It was built against OpenTelemetry SDK version [1.14.0](https://github.com/open-telemetry/opentelemetry-java/releases/tag/v1.14.0) and should work with any 1.14+ version.
 
 More information on exporting OpenTelemetry metrics to Dynatrace can be found in the
 [Dynatrace documentation](https://www.dynatrace.com/support/help/shortlink/opentelemetry-metrics).
