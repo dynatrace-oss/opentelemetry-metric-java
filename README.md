@@ -31,6 +31,8 @@ dependencies {
 }
 ```
 
+Gradle pulls the library in the specified version directly from GitHub and includes it.
+
 To use the library, we first need to create a `DynatraceMetricExporter`.
 The `.getDefault()` method returns an instance which attempts to export to the [local OneAgent endpoint](https://www.dynatrace.com/support/help/how-to-use-dynatrace/metrics/metric-ingestion/ingestion-methods/local-api/).
 
@@ -46,7 +48,7 @@ More information on setting up API access using tokens can be found [in the docu
 DynatraceMetricExporter exporter =
     DynatraceMetricExporter.builder()
         .setUrl("https://{your-environment-id}.live.dynatrace.com/api/v2/metrics/ingest")
-        .setApiToken("YOUR_API_TOKEN") // read from environment or config
+        .setApiToken({YOUR_API_TOKEN}) // read from environment or config
         .build();
 ```
 
