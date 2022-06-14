@@ -1,14 +1,11 @@
 # Dynatrace OpenTelemetry Metrics Exporter for Java
 
-This exporter allows exporting metrics created using the [OpenTelemetry SDK for Java](https://github.com/open-telemetry/opentelemetry-java)
-directly to [Dynatrace](https://www.dynatrace.com).
+This exporter allows exporting metrics created using the [OpenTelemetry SDK for Java](https://github.com/open-telemetry/opentelemetry-java) directly to [Dynatrace](https://www.dynatrace.com).
+
+It was built against OpenTelemetry SDK version [1.14.0](https://github.com/open-telemetry/opentelemetry-java/releases/tag/v1.14.0) and should work with any 1.14+ version.
 
 More information on exporting OpenTelemetry metrics to Dynatrace can be found in the
 [Dynatrace documentation](https://www.dynatrace.com/support/help/shortlink/opentelemetry-metrics).
-
-This exporter is built against the OpenTelemetry Java
-SDK [v1.14.0]( https://github.com/open-telemetry/opentelemetry-java/releases/tag/v1.14.0) which is the first stable
-release for the SDK and should be compatible with this and later versions.
 
 ## Getting started
 
@@ -27,7 +24,7 @@ sourceControl {
 
 // build.gradle:
 // use the name of a specific tag from https://github.com/dynatrace-oss/opentelemetry-metric-java/tags
-def dynatraceMetricsExporterVersion = "v0.5.0"
+def dynatraceMetricsExporterVersion = "v1.0.0"
 
 dependencies {
     implementation("com.dynatrace.opentelemetry.metric:dynatrace:${dynatraceMetricsExporterVersion}")
@@ -156,9 +153,7 @@ The token could, for example, be read from an environment variable.
 It should not be hardcoded into the code, especially if that code is stored in a VCS.
 
 Creating an API token for your Dynatrace environment is described in the [Dynatrace API documentation](https://www.dynatrace.com/support/help/dynatrace-api/basics/dynatrace-api-authentication/).
-The permission required for sending metrics is the `Ingest metrics` (`metrics.ingest`) permission in the **API v2** section, and it is recommended to limit scope to only this permission:
-
-![API token creation](docs/img/api_token.png)
+The permission required for sending metrics is `Ingest metrics` (`metrics.ingest`) and it is recommended to limit scope to only this permission.
 
 #### Metric Key Prefix
 
