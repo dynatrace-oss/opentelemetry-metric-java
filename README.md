@@ -151,9 +151,7 @@ The token could, for example, be read from an environment variable.
 It should not be hardcoded into the code, especially if that code is stored in a VCS.
 
 Creating an API token for your Dynatrace environment is described in the [Dynatrace API documentation](https://www.dynatrace.com/support/help/dynatrace-api/basics/dynatrace-api-authentication/).
-The permission required for sending metrics is the `Ingest metrics` (`metrics.ingest`) permission in the **API v2** section, and it is recommended to limit scope to only this permission:
-
-![API token creation](docs/img/api_token.png)
+The permission required for sending metrics is `Ingest metrics` (`metrics.ingest`) and it is recommended to limit scope to only this permission.
 
 #### Metric Key Prefix
 
