@@ -28,10 +28,10 @@ repositories {
     mavenCentral()
 }
 
-def otelVersion = '1.14.0'
+def otelVersion = '1.20.1'
 
 dependencies {
-    implementation platform("io.opentelemetry:opentelemetry-bom:${otelVersion}")
+    implementation platform("io.opentelemetry:opentelemetry-bom:${otelVersion}!!")
     implementation("io.opentelemetry:opentelemetry-api")
     implementation("io.opentelemetry:opentelemetry-sdk")
 
