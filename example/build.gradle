@@ -31,6 +31,8 @@ repositories {
 def otelVersion = '1.20.1'
 
 dependencies {
+    // in the implementation, it is required to add the actual implementation of the OTel SDK
+    // here we define the actual runtime version of the SDK, the one that we will use in our app
     implementation platform("io.opentelemetry:opentelemetry-bom:${otelVersion}!!")
     implementation("io.opentelemetry:opentelemetry-api")
     implementation("io.opentelemetry:opentelemetry-sdk")

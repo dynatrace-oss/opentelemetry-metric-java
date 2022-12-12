@@ -26,27 +26,31 @@ repositories {
     mavenCentral()
 }
 
+// define the version we are building against
+def minimumOtelVersion = "1.16.0"
+// define the version the tests are run against
+def testAgainstOtelVersion = "1.20.1"
+
 dependencies {
-    implementation platform("io.opentelemetry:opentelemetry-bom") {
-        version {
-            strictly '[1.14.0, 2.0['
-            prefer '1.20.1'
-        }
-    }
-    implementation('io.opentelemetry:opentelemetry-sdk')
-    implementation('io.opentelemetry:opentelemetry-sdk-metrics')
+    // compile against minimumOtelVersion. We only need
+    // to update this if we want to use features not in the current version.
+    // This dependency will not be part of the JAR produced
+    // Therefore, the actual OTel SDK package will need to be supplied in the consuming build.gradle
+    compileOnly platform("io.opentelemetry:opentelemetry-bom:${minimumOtelVersion}")
+    compileOnly('io.opentelemetry:opentelemetry-sdk')
+    compileOnly('io.opentelemetry:opentelemetry-sdk-metrics')
 
     implementation("com.google.guava:guava:30.0-jre")
-
     implementation('com.dynatrace.metric.util:dynatrace-metric-utils-java:1.6.+')
 
+    // we can run tests against whatever OTel version we want, as long as minimumOtelVersion
+    // and testAgainstOtelVersion are compatible.
+    testImplementation("io.opentelemetry:opentelemetry-sdk-testing:${testAgainstOtelVersion}")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.1")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.1")
     testImplementation("org.assertj:assertj-core:3.11.1")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.7.1")
-
     testImplementation("org.mockito:mockito-core:3.12.4")
-    testImplementation('io.opentelemetry:opentelemetry-sdk-testing')
 }
 
 test {
