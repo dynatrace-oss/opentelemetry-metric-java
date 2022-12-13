@@ -26,13 +26,11 @@ repositories {
     mavenCentral()
 }
 
+def minOtelVersion = "1.14.0"
+def testOtelVersion = "1.21.0"
+
 dependencies {
-    compileOnly platform("io.opentelemetry:opentelemetry-bom") {
-        version {
-            strictly '[1.14.0, 2.0['
-            prefer '1.20.1'
-        }
-    }
+    compileOnly platform("io.opentelemetry:opentelemetry-bom:${minOtelVersion}")
     compileOnly('io.opentelemetry:opentelemetry-sdk')
     compileOnly('io.opentelemetry:opentelemetry-sdk-metrics')
 
@@ -48,14 +46,8 @@ dependencies {
     testImplementation("org.mockito:mockito-core:3.12.4")
     testImplementation('io.opentelemetry:opentelemetry-sdk-testing')
 
-    testImplementation platform("io.opentelemetry:opentelemetry-bom") {
-        version {
-            strictly '[1.14.0, 2.0['
-            prefer '1.20.1'
-        }
-    }
-    testImplementation('io.opentelemetry:opentelemetry-sdk')
-    testImplementation('io.opentelemetry:opentelemetry-sdk-metrics')
+    testImplementation platform("io.opentelemetry:opentelemetry-bom:${testOtelVersion}")
+    testImplementation ("io.opentelemetry:opentelemetry-sdk-testing:${testOtelVersion}")
 }
 
 test {
