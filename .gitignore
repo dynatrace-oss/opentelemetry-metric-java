@@ -6,3 +6,6 @@
 build
 
 .idea/
+.vscode
+
+*/bin/*
