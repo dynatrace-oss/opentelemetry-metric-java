@@ -24,7 +24,7 @@ sourceControl {
 
 // build.gradle:
 // use the name of a specific tag from https://github.com/dynatrace-oss/opentelemetry-metric-java/tags
-def dynatraceMetricsExporterVersion = "v1.0.0"
+def dynatraceMetricsExporterVersion = "v1.1.0"
 
 dependencies {
     implementation("com.dynatrace.opentelemetry.metric:dynatrace:${dynatraceMetricsExporterVersion}")
