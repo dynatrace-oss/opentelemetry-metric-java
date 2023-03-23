@@ -31,12 +31,20 @@ dependencies {
 }
 ```
 
+Then run:
+
+```shell
+gradle assemble
+```
+
 Gradle pulls the library in the specified version directly from GitHub and includes it.
 
 To use the library, we first need to create a `DynatraceMetricExporter`.
 The `.getDefault()` method returns an instance which attempts to export to the [local OneAgent endpoint](https://www.dynatrace.com/support/help/how-to-use-dynatrace/metrics/metric-ingestion/ingestion-methods/local-api/).
 
 ```java
+import com.dynatrace.opentelemetry.metric.DynatraceMetricExporter;
+
 DynatraceMetricExporter exporter = DynatraceMetricExporter.getDefault();
 ```
 
@@ -45,6 +53,8 @@ It is recommended to limit the token scope to only this permission.
 More information on setting up API access using tokens can be found [in the documentation](https://www.dynatrace.com/support/help/dynatrace-api/basics/dynatrace-api-authentication/) and in the [Dynatrace API Token](#dynatrace-api-token) section below.
 
 ```java
+import com.dynatrace.opentelemetry.metric.DynatraceMetricExporter;
+
 DynatraceMetricExporter exporter =
     DynatraceMetricExporter.builder()
         .setUrl("https://{your-environment-id}.live.dynatrace.com/api/v2/metrics/ingest")
@@ -55,13 +65,18 @@ DynatraceMetricExporter exporter =
 After acquiring a `DynatraceMetricExporter` object, it has to be registered with the OpenTelemetry SDK using a `MetricReader`:
 
 ```java
+import java.time.Duration;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
+
 // Create the MeterProvider and register it globally. 
 // The MeterProvider is configured with the PeriodicMetricReader
 // which takes our exporter and the export interval.
 SdkMeterProvider meterProvider =
     SdkMeterProvider.builder()
         .registerMetricReader(
-            PeriodicMetricReader.builder(exporter).setInterval(Duration.ofSeconds(60)).build())
+            PeriodicMetricReader.builder(exporter).setInterval(Duration.ofSeconds(1)).build())
         .build();
 
 // (optional) Set the new MeterProvider as the global MeterProvider.
@@ -69,11 +84,19 @@ OpenTelemetrySdk.builder().setMeterProvider(meterProvider).buildAndRegisterGloba
 ```
 
 The interval in which metrics are exported can be set on the `PeriodicMetricReader` (see above).
-In the example case above, metrics are exported every 60 seconds.
+In the example case above, metrics are exported every second. This short export interval is just for demonstrating
+purposes and should not be used in real-world scenarios.
 
 Once metrics are reported using the Metrics API, data will be exported to Dynatrace in the set interval:
 
 ```java
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
+
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.Meter;
+
 Meter meter =
     GlobalOpenTelemetry
         .getMeterProvider()
@@ -89,6 +112,9 @@ LongCounter counter = meter
     .build();
 
 counter.add(123, Attributes.of(stringKey("job-type"), "print-receipt"));
+
+// Sleep for some seconds so the PeriodicMetricReader has time to finish exporting
+Thread.sleep(5000);
 ```
 
 A full setup is provided in our [example project](example/src/main/java/com/dynatrace/opentelemetry/metric/example/DynatraceExporterExample.java).

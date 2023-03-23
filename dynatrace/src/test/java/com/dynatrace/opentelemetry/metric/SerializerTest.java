@@ -324,8 +324,10 @@ class SerializerTest {
                         NANOS_TS_2,
                         EMPTY_ATTRIBUTES,
                         125.5,
-                        null,
-                        null,
+                        false,
+                        0,
+                        false,
+                        0,
                         Arrays.asList(0.0, 12.5, 50.7),
                         Arrays.asList(0L, 5L, 3L, 0L)),
                     ImmutableHistogramPointData.create(
@@ -333,7 +335,9 @@ class SerializerTest {
                         NANOS_TS_3,
                         EMPTY_ATTRIBUTES,
                         100.4,
+                        true,
                         1.2,
+                        true,
                         32.6,
                         Arrays.asList(2.3, 11.4, 23.6),
                         Arrays.asList(1L, 7L, 4L, 1L)))));
@@ -435,8 +439,10 @@ class SerializerTest {
                         NANOS_TS_2,
                         EMPTY_ATTRIBUTES,
                         Double.NaN,
-                        null,
-                        null,
+                        false,
+                        0,
+                        false,
+                        0,
                         Arrays.asList(0.0, 5.0, 10.0),
                         Arrays.asList(0L, 1L, 2L, 3L)),
                     // +Inf sum
@@ -445,8 +451,10 @@ class SerializerTest {
                         NANOS_TS_2,
                         EMPTY_ATTRIBUTES,
                         Double.POSITIVE_INFINITY,
-                        null,
-                        null,
+                        false,
+                        0,
+                        false,
+                        0,
                         Arrays.asList(0.0, 5.0, 10.0),
                         Arrays.asList(0L, 1L, 2L, 3L)),
                     // -Inf sum
@@ -455,8 +463,10 @@ class SerializerTest {
                         NANOS_TS_2,
                         EMPTY_ATTRIBUTES,
                         Double.NEGATIVE_INFINITY,
-                        null,
-                        null,
+                        false,
+                        0,
+                        false,
+                        0,
                         Arrays.asList(0.0, 5.0, 10.0),
                         Arrays.asList(0L, 1L, 2L, 3L)))));
 
@@ -471,8 +481,10 @@ class SerializerTest {
                 NANOS_TS_2,
                 EMPTY_ATTRIBUTES,
                 10.234,
-                null,
-                null,
+                false,
+                0,
+                false,
+                0,
                 Arrays.asList(Double.NaN, 1.2d, 3.4d, 5.6d),
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
     assertThrows(
@@ -483,8 +495,10 @@ class SerializerTest {
                 NANOS_TS_2,
                 EMPTY_ATTRIBUTES,
                 10.234,
-                null,
-                null,
+                false,
+                0,
+                false,
+                0,
                 Arrays.asList(0.1d, 1.2d, 3.4d, Double.POSITIVE_INFINITY),
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
     assertThrows(
@@ -495,8 +509,10 @@ class SerializerTest {
                 NANOS_TS_2,
                 EMPTY_ATTRIBUTES,
                 10.234,
-                null,
-                null,
+                false,
+                0,
+                false,
+                0,
                 Arrays.asList(Double.POSITIVE_INFINITY, 1.2d, 3.4d, 5.6d),
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
     assertThrows(
@@ -507,8 +523,10 @@ class SerializerTest {
                 NANOS_TS_2,
                 EMPTY_ATTRIBUTES,
                 10.234,
-                null,
-                null,
+                false,
+                0,
+                false,
+                0,
                 Arrays.asList(0.1d, 1.2d, 3.4d, Double.NEGATIVE_INFINITY),
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
     assertThrows(
@@ -519,8 +537,10 @@ class SerializerTest {
                 NANOS_TS_2,
                 EMPTY_ATTRIBUTES,
                 10.234,
-                null,
-                null,
+                false,
+                0,
+                false,
+                0,
                 Arrays.asList(Double.NEGATIVE_INFINITY, 1.2d, 3.4d, 5.6d),
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
     // Number of bounds does not match number of counts
@@ -532,8 +552,10 @@ class SerializerTest {
                 NANOS_TS_2,
                 EMPTY_ATTRIBUTES,
                 10.234,
-                null,
-                null,
+                false,
+                0,
+                false,
+                0,
                 Arrays.asList(1.2, 3.4),
                 Arrays.asList(0L, 2L, 1L, 3L, 0L)));
   }
@@ -561,7 +583,7 @@ class SerializerTest {
     double minFromBoundaries =
         Serializer.getMinFromBoundaries(
             ImmutableHistogramPointData.create(
-                NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, sum, null, null, bounds, counts));
+                NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, sum, false, 0, false, 0, bounds, counts));
 
     long sumOfCounts = counts.stream().mapToLong(Long::longValue).sum();
     if (sumOfCounts == 0) {
@@ -599,7 +621,7 @@ class SerializerTest {
     double maxFromBoundaries =
         Serializer.getMaxFromBoundaries(
             ImmutableHistogramPointData.create(
-                NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, sum, null, null, bounds, counts));
+                NANOS_TS_1, NANOS_TS_2, EMPTY_ATTRIBUTES, sum, false, 0, false, 0, bounds, counts));
 
     long sumOfCounts = counts.stream().mapToLong(Long::longValue).sum();
     if (sumOfCounts == 0) {
