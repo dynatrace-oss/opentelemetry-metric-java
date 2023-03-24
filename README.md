@@ -31,6 +31,12 @@ dependencies {
 }
 ```
 
+Then run:
+
+```shell
+./gradlew assemble
+```
+
 Gradle pulls the library in the specified version directly from GitHub and includes it.
 
 To use the library, we first need to create a `DynatraceMetricExporter`.
@@ -61,7 +67,8 @@ After acquiring a `DynatraceMetricExporter` object, it has to be registered with
 SdkMeterProvider meterProvider =
     SdkMeterProvider.builder()
         .registerMetricReader(
-            PeriodicMetricReader.builder(exporter).setInterval(Duration.ofSeconds(60)).build())
+            // This short export interval is just for demonstration purposes and should not be used in real-world scenarios.
+            PeriodicMetricReader.builder(exporter).setInterval(Duration.ofSeconds(1)).build())
         .build();
 
 // (optional) Set the new MeterProvider as the global MeterProvider.
@@ -69,7 +76,8 @@ OpenTelemetrySdk.builder().setMeterProvider(meterProvider).buildAndRegisterGloba
 ```
 
 The interval in which metrics are exported can be set on the `PeriodicMetricReader` (see above).
-In the example case above, metrics are exported every 60 seconds.
+In the example case above, metrics are exported every second. This short export interval is just for demonstration
+purposes and should not be used in real-world scenarios.
 
 Once metrics are reported using the Metrics API, data will be exported to Dynatrace in the set interval:
 
@@ -89,6 +97,9 @@ LongCounter counter = meter
     .build();
 
 counter.add(123, Attributes.of(stringKey("job-type"), "print-receipt"));
+
+// Sleep for some seconds so the PeriodicMetricReader has time to finish exporting
+Thread.sleep(5000);
 ```
 
 A full setup is provided in our [example project](example/src/main/java/com/dynatrace/opentelemetry/metric/example/DynatraceExporterExample.java).
@@ -109,10 +120,6 @@ Create `Attributes` using the OpenTelemetry API.
 You can either use the factory methods `of(...)` or the `AttributesBuilder`, e.g.:
 
 ```java
-import static io.opentelemetry.api.common.AttributeKey.stringKey;
-
-import io.opentelemetry.api.common.Attributes;
-
 // Using factory 'of' methods
 Attributes attributes = Attributes.of(stringKey("attr1"), "value1", stringKey("attr2"), "value2");
 
