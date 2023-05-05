@@ -79,7 +79,8 @@ The interval in which metrics are exported can be set on the `PeriodicMetricRead
 In the example case above, metrics are exported every second. This short export interval is just for demonstration
 purposes and should not be used in real-world scenarios.
 
-Once metrics are reported using the Metrics API, data will be exported to Dynatrace in the set interval:
+Once metrics are reported using the Metrics API, data will be exported to Dynatrace in the set interval.
+Metric instruments can be created using a `Meter` and used to record values:
 
 ```java
 Meter meter =
