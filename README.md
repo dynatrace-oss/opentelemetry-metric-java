@@ -16,8 +16,9 @@ More information on configuring your Java applications to use the OTLP exporter 
 >
 > The exporter is still available but after the end of 2023, no support, updates, or compatibility with newer OTel versions will be provided.
 >
-> Please refer to the [migration guide](https://www.dynatrace.com/support/help/shortlink/migrating-dynatrace-metrics-exporter-otlp-exporter#migrate-applications) for instructions on how to migrate to the OTLP HTTP exporter, as well as reasoning and benefits for this transition. For an example on how to configure the OTLP exporter in a Java application, check out the [Java integration walk-through](https://www.dynatrace.com/support/help/shortlink/otel-wt-java#tabgroup--dynatrace-docs--otlp-export)
-> page in the Dynatrace documentation.
+> Please refer to the [migration guide](https://www.dynatrace.com/support/help/shortlink/migrating-dynatrace-metrics-exporter-otlp-exporter#migrate-applications) for instructions on how to migrate to the OTLP HTTP exporter, as well as reasoning and benefits for this transition.
+>
+> For an example on how to configure the OTLP exporter in a Java application, check out the [Java integration walk-through](https://www.dynatrace.com/support/help/shortlink/otel-wt-java#tabgroup--dynatrace-docs--otlp-export) page in the Dynatrace documentation.
 
 This exporter allows exporting metrics created using the [OpenTelemetry SDK for Java](https://github.com/open-telemetry/opentelemetry-java) directly to [Dynatrace](https://www.dynatrace.com).
 
