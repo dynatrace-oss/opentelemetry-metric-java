@@ -5,7 +5,8 @@ using the built-in OTLP/HTTP Exporter available in the OpenTelemetry Java SDK.
 More information on configuring your Java applications to use the OTLP exporter can be found in the
 [Dynatrace documentation](https://www.dynatrace.com/support/help/shortlink/otel-wt-java#tabgroup--dynatrace-docs--otlp-export).
 
-# Dynatrace OpenTelemetry Metrics Exporter for Java
+# Dynatrace OpenTelemetry Metrics Exporter for Java 
+![Static Badge](https://img.shields.io/badge/status-deprecated-orange)
 
 > **Warning**
 > Dynatrace supports native OpenTelemetry protocol (OTLP) ingest for traces, metrics and logs.
