@@ -1,3 +1,5 @@
+# Dynatrace
+
 [Dynatrace](https://www.dynatrace.com/integrations/opentelemetry) supports native
 OpenTelemetry protocol (OTLP) ingest for traces, metrics and logs.
 All signals can be sent directly to Dynatrace via **OTLP protobuf over HTTP**
@@ -5,7 +7,7 @@ using the built-in OTLP/HTTP Exporter available in the OpenTelemetry Java SDK.
 More information on configuring your Java applications to use the OTLP exporter can be found in the
 [Dynatrace documentation](https://www.dynatrace.com/support/help/shortlink/otel-wt-java#tabgroup--dynatrace-docs--otlp-export).
 
-# Dynatrace OpenTelemetry Metrics Exporter for Java 
+## Dynatrace OpenTelemetry Metrics Exporter for Java 
 ![Static Badge](https://img.shields.io/badge/status-deprecated-orange)
 
 > **Warning**
@@ -24,7 +26,7 @@ It was built against OpenTelemetry SDK version [1.14.0](https://github.com/open-
 More information on exporting OpenTelemetry metrics to Dynatrace can be found in the
 [Dynatrace documentation](https://www.dynatrace.com/support/help/shortlink/opentelemetry-metrics).
 
-## Getting started
+### Getting started
 
 The general setup of OpenTelemetry Java is explained in the official [Getting Started Guide](https://opentelemetry.io/docs/java/manual_instrumentation/).
 Using the Metrics API is explained in the [Metrics section](https://opentelemetry.io/docs/java/manual_instrumentation/#metrics).
@@ -122,9 +124,9 @@ Thread.sleep(5000);
 
 A full setup is provided in our [example project](example/src/main/java/com/dynatrace/opentelemetry/metric/example/DynatraceExporterExample.java).
 
-### OpenTelemetry Attributes
+#### OpenTelemetry Attributes
 
-#### Typed attributes support
+##### Typed attributes support
 
 The OpenTelemetry Metrics API for Java supports the concept of [Attributes]( https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/common.md#attributes).
 These attributes consist of key-value pairs, where the keys are strings and the values are either primitive types or arrays of uniform primitive types.
@@ -132,7 +134,7 @@ These attributes consist of key-value pairs, where the keys are strings and the 
 At the moment, this exporter **only supports attributes with string key and value type**.
 This means that if attributes of any other type are used, they will be **ignored** and **only** the string-valued attributes are going to be sent to Dynatrace.
 
-#### The `Attributes` interface
+##### The `Attributes` interface
 
 Create `Attributes` using the OpenTelemetry API.
 You can either use the factory methods `of(...)` or the `AttributesBuilder`, e.g.:
@@ -152,11 +154,11 @@ The implementation of `Attributes` in OpenTelemetry ([ArrayBackedAttributes](htt
 For this reason, it's recommended that users use the OpenTelemetry implementation.
 If another implementation is used it **_must_** conform with the `Attributes` interface otherwise this exporter **cannot be guaranteed** to work properly, as it relies on this behavior.
 
-### Configuration
+#### Configuration
 
 The exporter allows for configuring the following settings using its builder (`DynatraceMetricExporter.builder()`):
 
-#### Dynatrace API Endpoint
+##### Dynatrace API Endpoint
 
 If a OneAgent is installed on the host, it can provide a local endpoint for ingesting metrics without the need for an API token.
 The [OneAgent metric API documentation](https://www.dynatrace.com/support/help/how-to-use-dynatrace/metrics/metric-ingestion/ingestion-methods/local-api/) provides information on how to set up a local OneAgent endpoint.
@@ -171,7 +173,7 @@ The metrics ingest endpoint URL looks like:
 - `https://{your-domain}/e/{your-environment-id}/api/v2/metrics/ingest`
   on managed deployments.
 
-#### Dynatrace API Token
+##### Dynatrace API Token
 
 The Dynatrace API token to be used by the exporter is specified using `setApiToken`.
 The token could, for example, be read from an environment variable.
@@ -180,13 +182,13 @@ It should not be hardcoded into the code, especially if that code is stored in a
 Creating an API token for your Dynatrace environment is described in the [Dynatrace API documentation](https://www.dynatrace.com/support/help/dynatrace-api/basics/dynatrace-api-authentication/).
 The permission required for sending metrics is `Ingest metrics` (`metrics.ingest`) and it is recommended to limit scope to only this permission.
 
-#### Metric Key Prefix
+##### Metric Key Prefix
 
 The `setPrefix` method of the builder specifies an optional prefix, which is prepended to each metric key, separated by a dot (e.g. a prefix of `<prefix>` and a metric name of `<name>` will lead to a combined metric name of `<prefix>.<name>`).
 
 In the example, a prefix of `otel.java` is used, which leads to metrics named `otel.java.metric_name`, and allows for clear distinction between metrics from different sources in the Dynatrace metrics UI.
 
-#### Default Dimensions
+##### Default Dimensions
 
 The `setDefaultDimensions` method can be used to optionally specify a [Attributes](https://github.com/open-telemetry/opentelemetry-java/blob/main/api/all/src/main/java/io/opentelemetry/api/common/Attributes.java) object, which will be added as additional dimensions to all data points.
 The `Attributes` interface represents key-value pairs.
@@ -197,7 +199,7 @@ Dimensions set on instruments will overwrite default dimensions if they share th
 
 The reserved dimension `dt.metrics.source=opentelemetry` will automatically be added to every exported metric when using the exporter.
 
-#### Export OneAgent Metadata
+##### Export OneAgent Metadata
 
 The `setEnrichWithOneAgentMetaData` method on the builder can be used to enable OneAgent metadata export.
 If running on a host with a OneAgent, setting this option will export metadata collected by the OneAgent to the Dynatrace endpoint.
@@ -206,12 +208,12 @@ If the OneAgent is running and metrics are exported to an explicitly specified e
 More information on the underlying OneAgent feature that is used by the exporter can be found in
 the [Dynatrace documentation](https://www.dynatrace.com/support/help/how-to-use-dynatrace/metrics/metric-ingestion/ingestion-methods/enrich-metrics/).
 
-### Limitations
+#### Limitations
 
-#### Histogram
+##### Histogram
 OpenTelemetry Histograms are exported to Dynatrace as statistical summaries consisting of a minimum and maximum value, the total sum of all values, and the count of the values summarized. If the min and max values are not directly available on the metric data point, estimations based on the boundaries of the first and last buckets containing values are used.
 
-### Logging
+#### Logging
 
 The log-level for the example project is set to print everything that is logged in the program to the console.
 This also prints which messages are sent to the server.
