@@ -27,7 +27,7 @@ repositories {
 }
 
 def minOtelVersion = "1.14.0"
-def testOtelVersion = "1.31.0"
+def testOtelVersion = "1.32.0"
 
 dependencies {
     compileOnly platform("io.opentelemetry:opentelemetry-bom:${minOtelVersion}")
